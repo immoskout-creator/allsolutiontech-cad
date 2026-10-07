@@ -1,0 +1,17 @@
+{
+  "name": "allsolutiontech-cad-2d",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AllSolutionTech CAD 2D: program 2D për projektimin e instalimeve elektrike",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node build.mjs --test && node --test dist-test/*.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.8",
+    "esbuild": "0.25.10",
+    "typescript": "5.9.3"
+  }
+}
