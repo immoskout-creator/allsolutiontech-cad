@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SYMBOLS, symbolDef, CATEGORIES, strokeText } from '../src/symbols/library';
 import { attachToWall, localToWorld, normAngle, screenRotation } from '../src/symbols/place';
-import { LANGS, setLang, t } from '../src/i18n/strings';
+import { setLang, t } from '../src/i18n/strings';
 import { parse, serialize } from '../src/io/files';
 import { emptyDoc, WALL_LAYER, type Wall } from '../src/core/types';
 import { sampleDoc } from '../src/core/sample';
@@ -16,7 +16,7 @@ test('çdo simbol ka kod unik, kategori dhe emër në të gjitha gjuhët', () =>
   for (const s of SYMBOLS) {
     assert.match(s.code, /^AST-[A-Z]{2}-\d{2}$/);
     assert.ok(cats.has(s.category), s.id);
-    for (const l of LANGS) assert.ok(s.names[l.id]?.trim(), `${s.id} pa emër në ${l.id}`);
+    for (const l of ['sq', 'en', 'it', 'de'] as const) assert.ok(s.names[l]?.trim(), `${s.id} pa emër në ${l}`);
   }
 });
 

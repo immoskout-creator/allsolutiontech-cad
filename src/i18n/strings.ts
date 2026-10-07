@@ -1,16 +1,58 @@
-export type Lang = 'sq' | 'en' | 'it' | 'de';
+import { EXTRA, type ExtraLang } from './extra';
 
+/** Gjuhët bazë: tekstet e tyre janë këtu dhe te libraria e simboleve. */
+export type CoreLang = 'sq' | 'en' | 'it' | 'de';
+/** Të gjitha gjuhët: bazë + gjuhët e tjera të BE-së dhe të Ballkanit (te ./extra). */
+export type Lang = CoreLang | ExtraLang;
+
+/** Gjuhët në zgjedhës, me emrin në gjuhën e vet. */
 export const LANGS: { id: Lang; label: string }[] = [
   { id: 'sq', label: 'Shqip' },
-  { id: 'en', label: 'English' },
-  { id: 'it', label: 'Italiano' },
+  { id: 'bs', label: 'Bosanski' },
+  { id: 'bg', label: 'Български' },
+  { id: 'cs', label: 'Čeština' },
+  { id: 'da', label: 'Dansk' },
   { id: 'de', label: 'Deutsch' },
+  { id: 'et', label: 'Eesti' },
+  { id: 'el', label: 'Ελληνικά' },
+  { id: 'en', label: 'English' },
+  { id: 'es', label: 'Español' },
+  { id: 'fr', label: 'Français' },
+  { id: 'ga', label: 'Gaeilge' },
+  { id: 'cnr', label: 'Crnogorski' },
+  { id: 'hr', label: 'Hrvatski' },
+  { id: 'it', label: 'Italiano' },
+  { id: 'lv', label: 'Latviešu' },
+  { id: 'lt', label: 'Lietuvių' },
+  { id: 'mk', label: 'Македонски' },
+  { id: 'hu', label: 'Magyar' },
+  { id: 'mt', label: 'Malti' },
+  { id: 'nl', label: 'Nederlands' },
+  { id: 'pl', label: 'Polski' },
+  { id: 'pt', label: 'Português' },
+  { id: 'ro', label: 'Română' },
+  { id: 'sk', label: 'Slovenčina' },
+  { id: 'sl', label: 'Slovenščina' },
+  { id: 'sr', label: 'Srpski' },
+  { id: 'sr-Cyrl', label: 'Српски' },
+  { id: 'fi', label: 'Suomi' },
+  { id: 'sv', label: 'Svenska' },
+  { id: 'tr', label: 'Türkçe' },
 ];
 
-type Dict = Record<string, Record<Lang, string>>;
+type Dict = Record<string, Record<CoreLang, string>>;
+
+const isCore = (l: Lang): l is CoreLang => l === 'sq' || l === 'en' || l === 'it' || l === 'de';
+
+/** Emri i një simboli ose kategorie në gjuhën aktuale; gjuhët e tjera e marrin nga ./extra. */
+export function localName(names: Record<CoreLang, string>, id: string, kind: 'symbols' | 'categories'): string {
+  const lang = current;
+  if (isCore(lang)) return names[lang];
+  return EXTRA[lang][kind][id] ?? names.en;
+}
 
 /** Tekstet e ndërfaqes. {n} dhe të ngjashme zëvendësohen nga t(). */
-const STRINGS = {
+export const STRINGS = {
   brandSub: { sq: 'Instalime elektrike civile', en: 'Residential electrical installations', it: 'Impianti elettrici civili', de: 'Elektroinstallation Wohnbau' },
   project: { sq: 'Projekti', en: 'Project', it: 'Progetto', de: 'Projekt' },
   new: { sq: 'I ri', en: 'New', it: 'Nuovo', de: 'Neu' },
@@ -178,11 +220,11 @@ export function getLang(): Lang {
 }
 
 export function isLang(v: unknown): v is Lang {
-  return v === 'sq' || v === 'en' || v === 'it' || v === 'de';
+  return LANGS.some((l) => l.id === v);
 }
 
 export function t(key: StringKey, vars: Record<string, string | number> = {}): string {
-  const s = STRINGS[key][current];
+  const s = isCore(current) ? STRINGS[key][current] : (EXTRA[current].ui[key] ?? STRINGS[key].en);
   return s.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
 }
 
