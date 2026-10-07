@@ -4,6 +4,22 @@ import type { Opening, Vec, Wall } from './types';
 export const DOOR_WIDTHS = [700, 800, 900, 1000, 1200, 1400];
 export const WINDOW_WIDTHS = [600, 800, 1000, 1200, 1500, 1800, 2400];
 export const DEFAULT_WIDTH = { door: 900, window: 1200 } as const;
+export const DOOR_HEIGHTS = [2000, 2100, 2200, 2400];
+export const WINDOW_HEIGHTS = [600, 1000, 1200, 1400, 1500, 2200];
+export const DEFAULT_HEIGHT = { door: 2100, window: 1400 } as const;
+export const DEFAULT_SILL = 900;
+/** Kufijtë e masave që pranohen, mm. */
+export const SIZE_LIMITS = { min: 300, max: 6000 };
+
+export function openingHeight(o: Pick<Opening, 'type' | 'height'>): number {
+  return o.height ?? DEFAULT_HEIGHT[o.type];
+}
+
+/** Teksti i masave në cm, si në planet arkitekturore: "90/210" (gjerësi/lartësi). */
+export function sizeText(o: Pick<Opening, 'type' | 'width' | 'height'>): string {
+  const cm = (mm: number) => String(Math.round(mm / 10));
+  return `${cm(o.width)}/${cm(openingHeight(o))}`;
+}
 
 /** Sa larg nga muri (mm) kapet ende muri gjatë vendosjes së derës/dritares. */
 const ATTACH_MM = 600;

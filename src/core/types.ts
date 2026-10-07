@@ -44,6 +44,10 @@ export interface Opening {
   t: number;
   /** Gjerësia e hapjes, mm. */
   width: number;
+  /** Lartësia e hapjes, mm (skedarët e vjetër mund të mos e kenë). */
+  height?: number;
+  /** Parapeti i dritares: lartësia nga dyshemeja, mm. */
+  sill?: number;
   /** Nga cila anë e murit hapet dera: 1 = majtas nga a te b, -1 = djathtas. */
   side: 1 | -1;
   /** Ku janë menteshat: te skaji nga a ose nga b. */

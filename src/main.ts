@@ -1,6 +1,6 @@
 import { Store } from './core/store';
 import { SCALES, emptyDoc, isOpening, isRoom, isSymbol, isWall, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
-import { DOOR_WIDTHS, WINDOW_WIDTHS, openingFrame } from './core/openings';
+import { DEFAULT_SILL, DOOR_HEIGHTS, DOOR_WIDTHS, SIZE_LIMITS, WINDOW_HEIGHTS, WINDOW_WIDTHS, openingFrame, openingHeight } from './core/openings';
 import { areaText, findRoom } from './core/rooms';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
 import { sampleDoc } from './core/sample';
@@ -23,7 +23,7 @@ const vp = new Viewport();
 const editor = new Editor(
   store,
   vp,
-  { snap: true, grid: true, ortho: false, gridStep: 100, wallThickness: 250, doorWidth: 900, windowWidth: 1200 },
+  { snap: true, grid: true, ortho: false, gridStep: 100, wallThickness: 250, doorWidth: 900, windowWidth: 1200, doorHeight: 2100, windowHeight: 1400 },
   () => scheduleRender(),
   (m) => toast(t(m === 'roomNotClosed' ? 'toastRoomNotClosed' : m === 'roomExists' ? 'toastRoomExists' : 'toastNoWall'), true),
 );
@@ -157,27 +157,55 @@ function setTool(tool: ToolId): void {
 }
 toolButtons.forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool as ToolId)));
 
-/** Gjerësia e derës/dritares shfaqet në shirit vetëm kur vegla përkatëse është aktive. */
-const widthSelect = $<HTMLSelectElement>('openingWidth');
-let widthFor = '';
+/**
+ * Gjerësia dhe lartësia e derës/dritares shfaqen në shirit vetëm kur vegla përkatëse është aktive.
+ * Shkruhet çdo masë në cm; lista jep vetëm masat standarde si sugjerim.
+ */
+const widthInput = $<HTMLInputElement>('openingWidth');
+const heightInput = $<HTMLInputElement>('openingHeight');
+let sizeFor = '';
 function syncWidthField(): void {
   const placing = editor.tool === 'door' || editor.tool === 'window';
   $('openingWidthField').hidden = !placing;
   $('wallThicknessField').hidden = placing;
   if (!placing) return;
   const door = editor.tool === 'door';
-  if (widthFor !== editor.tool) {
-    widthFor = editor.tool;
-    widthSelect.innerHTML = (door ? DOOR_WIDTHS : WINDOW_WIDTHS).map((v) => `<option value="${v}">${v / 10} cm</option>`).join('');
+  if (sizeFor !== editor.tool) {
+    sizeFor = editor.tool;
+    const opts = (list: number[]) => list.map((v) => `<option value="${v / 10}"></option>`).join('');
+    $('openingWidthList').innerHTML = opts(door ? DOOR_WIDTHS : WINDOW_WIDTHS);
+    $('openingHeightList').innerHTML = opts(door ? DOOR_HEIGHTS : WINDOW_HEIGHTS);
   }
-  widthSelect.value = String(door ? editor.settings.doorWidth : editor.settings.windowWidth);
+  const s = editor.settings;
+  if (document.activeElement !== widthInput) widthInput.value = String((door ? s.doorWidth : s.windowWidth) / 10);
+  if (document.activeElement !== heightInput) heightInput.value = String((door ? s.doorHeight : s.windowHeight) / 10);
 }
-widthSelect.addEventListener('change', () => {
-  const v = Number(widthSelect.value);
-  if (editor.tool === 'door') editor.settings.doorWidth = v;
-  else editor.settings.windowWidth = v;
+/** Lexon cm nga fusha dhe kthen mm, ose null nëse masa nuk pranohet. */
+function sizeMm(input: HTMLInputElement): number | null {
+  const mm = Math.round(Number(input.value.replace(',', '.')) * 10);
+  if (!(mm >= SIZE_LIMITS.min && mm <= SIZE_LIMITS.max)) {
+    toast(t('sizeRange'), true);
+    return null;
+  }
+  return mm;
+}
+widthInput.addEventListener('change', () => {
+  const mm = sizeMm(widthInput);
+  if (mm === null) return syncWidthField();
+  if (editor.tool === 'door') editor.settings.doorWidth = mm;
+  else editor.settings.windowWidth = mm;
   scheduleRender();
 });
+heightInput.addEventListener('change', () => {
+  const mm = sizeMm(heightInput);
+  if (mm === null) return syncWidthField();
+  if (editor.tool === 'door') editor.settings.doorHeight = mm;
+  else editor.settings.windowHeight = mm;
+});
+for (const input of [widthInput, heightInput]) {
+  // Enter e kthen fokusin te plani, që të vazhdosh menjëherë me vendosjen
+  input.addEventListener('keydown', (e) => e.key === 'Enter' && canvas.focus());
+}
 
 $('btnUndo').addEventListener('click', () => store.undo());
 $('btnRedo').addEventListener('click', () => store.redo());
@@ -535,14 +563,26 @@ function renderOpeningProps(el: HTMLElement, o: Opening): void {
       <span>${esc(t('layer'))}: ${esc(layerName(o.layer, o.layer))}</span></div></div>
     <div class="prop-grid">
       ${numField('propWidth', t('widthCm'), Math.round(o.width / 10))}
+      ${numField('propHeight', t('openingHeightCm'), Math.round(openingHeight(o) / 10))}
+      ${door ? '' : numField('propSill', t('sillCm'), Math.round((o.sill ?? DEFAULT_SILL) / 10))}
       ${numField('propFrom', t('fromWallStart'), f ? Math.round(f.s1 / 10) : '')}
     </div>
     ${door ? `<div class="btn-row"><button class="btn" id="propFlipSide" type="button">${esc(t('flipSide'))}</button>
       <button class="btn" id="propFlipHinge" type="button">${esc(t('flipHinge'))}</button></div>` : ''}
     <button class="btn danger" id="propDelete" type="button">${esc(t('delete'))}</button>`;
   $<HTMLInputElement>('propWidth').addEventListener('change', (e) => {
+    const mm = sizeMm(e.target as HTMLInputElement);
+    if (mm === null) return void (propsKey = '', renderProps());
+    update<Opening>(o.id, (x) => void (x.width = mm));
+  });
+  $<HTMLInputElement>('propHeight').addEventListener('change', (e) => {
+    const mm = sizeMm(e.target as HTMLInputElement);
+    if (mm === null) return void (propsKey = '', renderProps());
+    update<Opening>(o.id, (x) => void (x.height = mm));
+  });
+  $('propSill')?.addEventListener('change', (e) => {
     const cm = Number((e.target as HTMLInputElement).value);
-    if (cm > 0) update<Opening>(o.id, (x) => void (x.width = Math.round(cm * 10)));
+    if (Number.isFinite(cm) && cm >= 0) update<Opening>(o.id, (x) => void (x.sill = Math.round(cm * 10)));
   });
   $<HTMLInputElement>('propFrom').addEventListener('change', (e) => {
     const cm = Number((e.target as HTMLInputElement).value);

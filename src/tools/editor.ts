@@ -15,7 +15,7 @@ import {
   type Wall,
 } from '../core/types';
 import { moveEntity, wallMap } from '../core/move';
-import { openingFrame, placeOnWall } from '../core/openings';
+import { DEFAULT_SILL, openingFrame, placeOnWall } from '../core/openings';
 import { findRoom } from '../core/rooms';
 import { t } from '../i18n/strings';
 import {
@@ -51,6 +51,9 @@ export interface Settings {
   /** Gjerësia e dyerve dhe dritareve të reja, mm. */
   doorWidth: number;
   windowWidth: number;
+  /** Lartësia e dyerve dhe dritareve të reja, mm. */
+  doorHeight: number;
+  windowHeight: number;
 }
 
 /** Mesazhet që editori i tregon përdoruesit. */
@@ -441,7 +444,10 @@ export class Editor {
     const walls = this.store.editable().filter(isWall);
     const hit = placeOnWall(this.vp.toWorld(screen), walls, width, this.settings.snap ? 50 : 0);
     if (!hit) return null;
-    return { kind: 'opening', type, wall: hit.wall, t: hit.t, width, side: hit.side, hinge: this.placeHinge };
+    const height = type === 'door' ? this.settings.doorHeight : this.settings.windowHeight;
+    const o: Omit<Opening, 'id' | 'layer'> = { kind: 'opening', type, wall: hit.wall, t: hit.t, width, height, side: hit.side, hinge: this.placeHinge };
+    if (type === 'window') o.sill = DEFAULT_SILL;
+    return o;
   }
 
   private placeOpening(screen: Vec): void {

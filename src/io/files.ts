@@ -36,6 +36,8 @@ export function parse(text: string): Doc {
         isNum(e.t) &&
         isNum(e.width) &&
         e.width > 0 &&
+        (e.height === undefined || (isNum(e.height) && e.height > 0)) &&
+        (e.sill === undefined || (isNum(e.sill) && e.sill >= 0)) &&
         (e.side === 1 || e.side === -1) &&
         (e.hinge === 'a' || e.hinge === 'b')
       );

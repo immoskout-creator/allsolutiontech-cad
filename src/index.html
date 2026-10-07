@@ -71,9 +71,15 @@
       <label class="field-inline" for="sheetScale"><span data-i18n="sheetScaleLabel"></span>
         <select id="sheetScale"></select>
       </label>
-      <label class="field-inline" for="openingWidth" id="openingWidthField" hidden><span data-i18n="openingWidth"></span>
-        <select id="openingWidth"></select>
-      </label>
+      <div class="field-inline opening-size" id="openingWidthField" hidden>
+        <label for="openingWidth"><span data-i18n="openingWidth"></span></label>
+        <input id="openingWidth" class="num" type="number" min="30" max="600" step="5" list="openingWidthList">
+        <label for="openingHeight"><span data-i18n="openingHeight"></span></label>
+        <input id="openingHeight" class="num" type="number" min="30" max="600" step="5" list="openingHeightList">
+        <span class="unit">cm</span>
+        <datalist id="openingWidthList"></datalist>
+        <datalist id="openingHeightList"></datalist>
+      </div>
       <label class="field-inline" for="wallThickness" id="wallThicknessField"><span data-i18n="thickness"></span>
         <select id="wallThickness">
           <option value="100">10 cm</option>

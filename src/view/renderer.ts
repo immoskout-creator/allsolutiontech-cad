@@ -13,7 +13,7 @@ import {
   type Wall,
 } from '../core/types';
 import { moveEntity, wallMap } from '../core/move';
-import { openingFrame, wallLength, wallPieces } from '../core/openings';
+import { openingFrame, sizeText, wallLength, wallPieces } from '../core/openings';
 import { areaText, findRoomCached } from '../core/rooms';
 import { dist, formatMeters, mid, sub } from '../core/geometry';
 import { symbolDef, unitMm } from '../symbols/library';
@@ -70,6 +70,8 @@ const COLORS = {
 
 /** Madhësia e teksteve të dhomës në letër, mm. */
 const ROOM_TEXT = { name: 3.5, area: 2.5 };
+/** Lartësia e tekstit të masave të dyerve/dritareve në letër, mm. */
+const OPENING_TEXT = 2;
 
 const GRID_STEPS = [10, 50, 100, 500, 1000, 5000, 10000, 50000];
 
@@ -122,6 +124,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     if (st.selection.has(e.id)) color = COLORS.selected;
     else if (ov.hoverId === e.id) color = COLORS.wallHover;
     drawOpening(ctx, vp, e, w, color);
+    drawOpeningLabel(ctx, vp, e, w, color, paperPx);
   }
   if (ov.openingPreview) {
     const w = wallById.get(ov.openingPreview.wall);
@@ -129,6 +132,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
       const ghost: Opening = { ...ov.openingPreview, id: '', layer: '' };
       drawWall(ctx, vp, w, COLORS.wall, [...(openingsOf.get(w.id) ?? []), ghost]);
       drawOpening(ctx, vp, ghost, w, COLORS.selected);
+      drawOpeningLabel(ctx, vp, ghost, w, COLORS.selected, paperPx);
     }
   }
 
@@ -305,6 +309,33 @@ function drawOpening(ctx: CanvasRenderingContext2D, vp: Viewport, o: Opening, w:
     ctx.arc(H.x, H.y, r, a0, a0 + d, d < 0);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+/** Masat e hapjes (p.sh. "90/210") pranë saj; dera nga ana pa hapje, dritarja nga brenda. */
+function drawOpeningLabel(ctx: CanvasRenderingContext2D, vp: Viewport, o: Opening, w: Wall, color: string, paperPx: number): void {
+  const textPx = OPENING_TEXT * paperPx;
+  if (textPx < 7) return;
+  const f = openingFrame(o, w);
+  if (!f) return;
+  const side = o.type === 'door' ? -o.side : o.side;
+  const off = f.half + 1.2 * paperPx / vp.scale;
+  const c = vp.toScreen({ x: (f.p1.x + f.p2.x) / 2 + f.n.x * side * off, y: (f.p1.y + f.p2.y) / 2 + f.n.y * side * off });
+  // drejtimi i murit në ekran, i kthyer që teksti të lexohet nga poshtë ose nga e djathta
+  let ang = Math.atan2(-f.u.y, f.u.x);
+  if (ang > Math.PI / 2 || ang <= -Math.PI / 2) ang += Math.PI;
+  // ana e tekstit në ekran: larg murit
+  const nx = f.n.x * side;
+  const ny = -f.n.y * side;
+  const away = -Math.sin(ang) * nx + Math.cos(ang) * ny;
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  ctx.rotate(ang);
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = away > 0 ? 'top' : 'bottom';
+  ctx.font = `500 ${Math.min(textPx, 32)}px "IBM Plex Mono", ui-monospace, monospace`;
+  ctx.fillText(sizeText(o), 0, 0);
   ctx.restore();
 }
 

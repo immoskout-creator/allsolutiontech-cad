@@ -15,7 +15,7 @@ Program 2D për projektimin e instalimeve elektrike në shtëpi. Vetëm 2D.
 - Lista "Simbolet në plan" numëron çdo simbol me kod.
 
 ## Dyer, dritare dhe dhoma
-- Vegla **Derë** (`D`) dhe **Dritare** (`N`): kliko mbi mur. Hapja e pret murin, ndjek murin kur ai lëviz dhe rrëshqet përgjatë tij kur zhvendoset. Gjerësia zgjidhet te shiriti. Te dera, kursori zgjedh anën e hapjes dhe `R` ndryshon menteshat.
+- Vegla **Derë** (`D`) dhe **Dritare** (`N`): kliko mbi mur. Hapja e pret murin, ndjek murin kur ai lëviz dhe rrëshqet përgjatë tij kur zhvendoset. Gjerësia dhe lartësia shkruhen te shiriti në cm (çdo masë nga 30 deri në 600 cm, me masat standarde si sugjerim) ose ndryshohen më vonë te Vetitë, bashkë me parapetin e dritares. Pranë çdo hapjeje shkruhet masa, p.sh. `90/210`. Te dera, kursori zgjedh anën e hapjes dhe `R` ndryshon menteshat.
 - Vegla **Dhomë** (`M`): kliko brenda një dhome të mbyllur me mure. Programi e gjen konturën vetë dhe llogarit sipërfaqen neto (pa trashësinë e mureve) dhe perimetrin. Kur muret ndryshojnë, m² përditësohen vetë.
 - Paneli "Dhomat" liston çdo dhomë me m² dhe totalin.
 
