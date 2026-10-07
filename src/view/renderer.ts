@@ -1,13 +1,17 @@
-import type { Doc, Vec, Wall } from '../core/types';
+import { isSymbol, isWall, type Doc, type Entity, type SymbolEntity, type Vec, type Wall } from '../core/types';
 import { add, dist, formatMeters, mid, sub } from '../core/geometry';
+import { symbolDef, UNIT_MM } from '../symbols/library';
+import { screenRotation, symbolCenter, SYMBOL_HIT_MM } from '../symbols/place';
 import type { Viewport } from './viewport';
 
-export type SnapKind = 'endpoint' | 'midpoint' | 'grid' | 'none';
+export type SnapKind = 'endpoint' | 'midpoint' | 'grid' | 'wall' | 'none';
 
 export interface Overlay {
   /** Murrët që po zhvendosen, me zhvendosjen aktuale. */
   moveIds?: Set<string>;
   moveDelta?: Vec;
+  /** Simboli që po vendoset, nën kursor. */
+  symbolPreview?: { symbol: string; pos: Vec; angle: number };
   /** Muri që po vizatohet (nga pika e parë te kursori). */
   wallPreview?: { a: Vec; b: Vec; thickness: number };
   /** Kutia e përzgjedhjes në ekran; crossing = nga e djathta në të majtë. */
@@ -50,21 +54,45 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   const hidden = new Set(st.doc.layers.filter((l) => !l.visible).map((l) => l.id));
   const ov = st.overlay;
 
-  for (const e of st.doc.entities) {
-    if (hidden.has(e.layer)) continue;
-    const moving = ov.moveIds?.has(e.id) && ov.moveDelta;
-    const w: Wall = moving ? { ...e, a: add(e.a, ov.moveDelta!), b: add(e.b, ov.moveDelta!) } : e;
+  const colorOf = new Map(st.doc.layers.map((l) => [l.id, l.color]));
+  const shifted = (e: Entity): Entity => {
+    const d = ov.moveIds?.has(e.id) ? ov.moveDelta : undefined;
+    if (!d) return e;
+    return isWall(e) ? { ...e, a: add(e.a, d), b: add(e.b, d) } : { ...e, pos: add(e.pos, d) };
+  };
+  const visible = st.doc.entities.filter((e) => !hidden.has(e.layer)).map(shifted);
+
+  for (const e of visible) {
+    if (!isWall(e)) continue;
     let color = COLORS.wall;
     if (st.selection.has(e.id)) color = COLORS.selected;
     else if (ov.hoverId === e.id) color = COLORS.wallHover;
-    drawWall(ctx, vp, w, color);
+    drawWall(ctx, vp, e, color);
   }
 
-  for (const e of st.doc.entities) {
-    if (!st.selection.has(e.id) || hidden.has(e.layer)) continue;
-    const d = ov.moveIds?.has(e.id) && ov.moveDelta ? ov.moveDelta : { x: 0, y: 0 };
-    drawGrip(ctx, vp.toScreen(add(e.a, d)));
-    drawGrip(ctx, vp.toScreen(add(e.b, d)));
+  for (const e of visible) {
+    if (!isSymbol(e)) continue;
+    let color = colorOf.get(e.layer) ?? COLORS.wall;
+    if (st.selection.has(e.id)) color = COLORS.selected;
+    drawSymbol(ctx, vp, e, color, 1);
+    if (ov.hoverId === e.id && !st.selection.has(e.id)) drawSymbolRing(ctx, vp, e, COLORS.wallHover, true);
+  }
+
+  for (const e of visible) {
+    if (!st.selection.has(e.id)) continue;
+    if (isWall(e)) {
+      drawGrip(ctx, vp.toScreen(e.a));
+      drawGrip(ctx, vp.toScreen(e.b));
+    } else {
+      drawSymbolRing(ctx, vp, e, COLORS.selected, false);
+    }
+  }
+
+  if (ov.symbolPreview) {
+    const p = ov.symbolPreview;
+    const def = symbolDef(p.symbol);
+    const ghost: SymbolEntity = { id: '', kind: 'symbol', layer: def?.layer ?? '', symbol: p.symbol, pos: p.pos, angle: p.angle };
+    drawSymbol(ctx, vp, ghost, colorOf.get(ghost.layer) ?? COLORS.selected, 0.6);
   }
 
   if (ov.wallPreview) {
@@ -129,6 +157,52 @@ function drawWall(ctx: CanvasRenderingContext2D, vp: Viewport, w: Wall, color: s
   ctx.stroke();
 }
 
+const pathCache = new Map<string, Path2D>();
+function path(d: string): Path2D {
+  let p = pathCache.get(d);
+  if (!p) {
+    p = new Path2D(d);
+    pathCache.set(d, p);
+  }
+  return p;
+}
+
+function drawSymbol(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity, color: string, alpha: number): void {
+  const def = symbolDef(e.symbol);
+  if (!def) return;
+  const s = vp.toScreen(e.pos);
+  const unitPx = UNIT_MM * vp.scale;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(s.x, s.y);
+  ctx.rotate(screenRotation(e.angle));
+  ctx.scale(unitPx, unitPx);
+  ctx.lineWidth = Math.min(2.4, Math.max(1.2, unitPx * 1.5)) / unitPx;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  for (const part of def.parts) {
+    const p = path(part.d);
+    if (part.fill) ctx.fill(p);
+    else ctx.stroke(p);
+  }
+  ctx.restore();
+}
+
+function drawSymbolRing(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity, color: string, dashed: boolean): void {
+  const c = vp.toScreen(symbolCenter(e));
+  const r = Math.max(10, SYMBOL_HIT_MM * vp.scale);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash(dashed ? [3, 3] : [5, 3]);
+  ctx.beginPath();
+  ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawGrip(ctx: CanvasRenderingContext2D, p: Vec): void {
   ctx.fillStyle = '#FFFFFF';
   ctx.strokeStyle = COLORS.selected;
@@ -172,7 +246,12 @@ function drawSnap(ctx: CanvasRenderingContext2D, p: Vec, kind: SnapKind): void {
   ctx.strokeStyle = COLORS.snap;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  if (kind === 'endpoint') {
+  if (kind === 'wall') {
+    ctx.moveTo(p.x - 7, p.y);
+    ctx.lineTo(p.x + 7, p.y);
+    ctx.moveTo(p.x - 4, p.y - 5);
+    ctx.lineTo(p.x + 4, p.y - 5);
+  } else if (kind === 'endpoint') {
     ctx.rect(p.x - 6, p.y - 6, 12, 12);
   } else if (kind === 'midpoint') {
     ctx.moveTo(p.x, p.y - 7);
