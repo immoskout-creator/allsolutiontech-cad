@@ -1,0 +1,35 @@
+import type { StringKey } from '../strings';
+
+/** Përkthimi i një gjuhe shtesë: ndërfaqja, emrat e simboleve (sipas id) dhe kategoritë. */
+export interface ExtraLocale {
+  ui: Record<StringKey, string>;
+  symbols: Record<string, string>;
+  categories: Record<string, string>;
+}
+
+import bg from './bg';
+import cs from './cs';
+import da from './da';
+import el from './el';
+import es from './es';
+import et from './et';
+import fi from './fi';
+import fr from './fr';
+import ga from './ga';
+import hr from './hr';
+import hu from './hu';
+import lt from './lt';
+import lv from './lv';
+import mt from './mt';
+import nl from './nl';
+import pl from './pl';
+import pt from './pt';
+import ro from './ro';
+import sk from './sk';
+import sl from './sl';
+import sv from './sv';
+
+/** Gjuhët e tjera zyrtare të Bashkimit Europian (përveç anglishtes, italishtes dhe gjermanishtes). */
+export const EXTRA = { bg, cs, da, el, es, et, fi, fr, ga, hr, hu, lt, lv, mt, nl, pl, pt, ro, sk, sl, sv } satisfies Record<string, ExtraLocale>;
+
+export type ExtraLang = keyof typeof EXTRA;

@@ -1,4 +1,4 @@
-import type { Lang } from '../i18n/strings';
+import { localName, type CoreLang } from '../i18n/strings';
 
 /**
  * Libraria e simboleve elektrike civile.
@@ -17,7 +17,7 @@ export function unitMm(scale: number): number {
   return PAPER_UNIT_MM * scale;
 }
 
-export type Names = Record<Lang, string>;
+export type Names = Record<CoreLang, string>;
 
 export interface SymbolPart {
   /** Rrugë SVG në njësi lokale. */
@@ -535,6 +535,16 @@ export const SYMBOLS: SymbolDef[] = [
 ];
 
 const BY_ID = new Map(SYMBOLS.map((s) => [s.id, s]));
+
+/** Emri i simbolit në gjuhën aktuale. */
+export function symbolName(def: SymbolDef): string {
+  return localName(def.names, def.id, 'symbols');
+}
+
+/** Emri i kategorisë në gjuhën aktuale. */
+export function categoryName(cat: { id: CategoryId; names: Names }): string {
+  return localName(cat.names, cat.id, 'categories');
+}
 
 export function symbolDef(id: string): SymbolDef | undefined {
   return BY_ID.get(id);

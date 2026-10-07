@@ -9,7 +9,7 @@ import { render } from './view/renderer';
 import { Editor, type ToolId } from './tools/editor';
 import { loadAutosave, readFile, saveFile, writeAutosave } from './io/files';
 import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang } from './i18n/strings';
-import { CATEGORIES, SYMBOLS, symbolDef, symbolSvg, type SymbolDef } from './symbols/library';
+import { CATEGORIES, SYMBOLS, categoryName, symbolDef, symbolName, symbolSvg, type SymbolDef } from './symbols/library';
 import { normAngle } from './symbols/place';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -63,7 +63,7 @@ function applyLang(lang: Lang): void {
 }
 langSelect.addEventListener('change', () => isLang(langSelect.value) && applyLang(langSelect.value));
 
-const symName = (def: SymbolDef) => def.names[getLang()];
+const symName = (def: SymbolDef) => symbolName(def);
 
 // ---- vizatimi në canvas ----
 
@@ -265,7 +265,7 @@ searchInput.addEventListener('input', renderLibrary);
 function renderLibrary(): void {
   const q = searchInput.value.trim().toLowerCase();
   const matches = (d: SymbolDef) =>
-    !q || d.code.toLowerCase().includes(q) || Object.values(d.names).some((n) => n.toLowerCase().includes(q));
+    !q || d.code.toLowerCase().includes(q) || [symName(d), ...Object.values(d.names)].some((n) => n.toLowerCase().includes(q));
   const html = CATEGORIES.map((cat) => {
     const defs = SYMBOLS.filter((d) => d.category === cat.id && matches(d));
     if (defs.length === 0) return '';
@@ -276,7 +276,7 @@ function renderLibrary(): void {
           ${symbolSvg(d)}<span class="tile-name">${esc(symName(d))}</span><span class="tile-code">${d.code}</span></button>`,
       )
       .join('');
-    return `<section><h3 class="sym-cat">${esc(cat.names[getLang()])}</h3><div class="tiles">${tiles}</div></section>`;
+    return `<section><h3 class="sym-cat">${esc(categoryName(cat))}</h3><div class="tiles">${tiles}</div></section>`;
   }).join('');
   $('symbolGroups').innerHTML = html || `<p class="muted small">${esc(t('noResults'))}</p>`;
 }
