@@ -4,57 +4,62 @@
       <div class="logo" aria-hidden="true">AST</div>
       <div class="brand-text">
         <span class="brand-name">AllSolutionTech CAD 2D</span>
-        <span class="brand-sub">Instalime elektrike civile · Faza 0</span>
+        <span class="brand-sub" data-i18n="brandSub"></span>
       </div>
     </div>
-    <div class="doc-name" title="Emri i projektit">Projekti: <strong id="docName"></strong></div>
+    <div class="doc-name"><span data-i18n="project"></span>: <strong id="docName"></strong></div>
     <div class="actions">
+      <label class="lang" for="langSelect">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"></path></svg>
+        <span class="sr-only" data-i18n="language"></span>
+        <select id="langSelect"></select>
+      </label>
       <button class="btn" id="btnNew" type="button">
-        <svg class="ic" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M12 9v6M9 12h6"></path></svg>I ri
+        <svg class="ic" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M12 9v6M9 12h6"></path></svg><span data-i18n="new"></span>
       </button>
       <button class="btn" id="btnOpen" type="button">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"></path></svg>Hap
+        <svg class="ic" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"></path></svg><span data-i18n="open"></span>
       </button>
-      <button class="btn btn-primary" id="btnSave" type="button" title="Ruaj (Ctrl+S)">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"></path><path d="M8 3v6h8V3"></path><path d="M8 21v-7h8v7"></path></svg>Ruaj
+      <button class="btn btn-primary" id="btnSave" type="button" data-i18n-title="saveTitle">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"></path><path d="M8 3v6h8V3"></path><path d="M8 21v-7h8v7"></path></svg><span data-i18n="save"></span>
       </button>
       <input type="file" id="fileInput" accept=".json,.astcad,application/json" hidden>
     </div>
   </header>
 
-  <div class="toolbar" role="toolbar" aria-label="Veglat e vizatimit">
+  <div class="toolbar" role="toolbar" data-i18n-aria="toolbar">
     <div class="group">
-      <button class="tool" data-tool="select" type="button" title="Zgjidh dhe lëviz (V)">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M5 3l6 16 2-7 7-2z"></path></svg><span>Zgjidh</span>
+      <button class="tool" data-tool="select" type="button" data-i18n-title="selectTitle">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M5 3l6 16 2-7 7-2z"></path></svg><span data-i18n="select"></span>
       </button>
-      <button class="tool" data-tool="wall" type="button" title="Vizato mur (W)">
-        <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="6"></rect><path d="M7 9v6M11 9v6M15 9v6M19 9v6"></path></svg><span>Mur</span>
+      <button class="tool" data-tool="wall" type="button" data-i18n-title="wallTitle">
+        <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="6"></rect><path d="M7 9v6M11 9v6M15 9v6M19 9v6"></path></svg><span data-i18n="wall"></span>
       </button>
-      <button class="tool" data-tool="pan" type="button" title="Lëviz pamjen (H ose Hapësira + tërhiq)">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12"></path><path d="M11 11.5v-7a1.5 1.5 0 0 1 3 0V12"></path><path d="M14 6.5a1.5 1.5 0 0 1 3 0V13"></path><path d="M17 9.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-5-2.7L4.3 14a1.6 1.6 0 0 1 2.6-1.8L8 13.5"></path></svg><span>Pamja</span>
+      <button class="tool" data-tool="pan" type="button" data-i18n-title="panTitle">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12"></path><path d="M11 11.5v-7a1.5 1.5 0 0 1 3 0V12"></path><path d="M14 6.5a1.5 1.5 0 0 1 3 0V13"></path><path d="M17 9.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-5-2.7L4.3 14a1.6 1.6 0 0 1 2.6-1.8L8 13.5"></path></svg><span data-i18n="pan"></span>
       </button>
     </div>
     <div class="sep" aria-hidden="true"></div>
     <div class="group">
-      <button class="tool" id="btnUndo" type="button" title="Zhbëj (Ctrl+Z)">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"></path><path d="M4 9h10a6 6 0 0 1 0 12h-3"></path></svg><span>Zhbëj</span>
+      <button class="tool" id="btnUndo" type="button" title="Ctrl+Z">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"></path><path d="M4 9h10a6 6 0 0 1 0 12h-3"></path></svg><span data-i18n="undo"></span>
       </button>
-      <button class="tool" id="btnRedo" type="button" title="Ribëj (Ctrl+Y)">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"></path><path d="M20 9H10a6 6 0 0 0 0 12h3"></path></svg><span>Ribëj</span>
+      <button class="tool" id="btnRedo" type="button" title="Ctrl+Y">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"></path><path d="M20 9H10a6 6 0 0 0 0 12h3"></path></svg><span data-i18n="redo"></span>
       </button>
-      <button class="tool" id="btnDelete" type="button" title="Fshi të zgjedhurat (Delete)">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16"></path><path d="M10 11v6M14 11v6"></path><path d="M6 7l1 13h10l1-13"></path><path d="M9 7V4h6v3"></path></svg><span>Fshi</span>
+      <button class="tool" id="btnDelete" type="button" title="Delete">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16"></path><path d="M10 11v6M14 11v6"></path><path d="M6 7l1 13h10l1-13"></path><path d="M9 7V4h6v3"></path></svg><span data-i18n="delete"></span>
       </button>
     </div>
     <div class="sep" aria-hidden="true"></div>
     <div class="group">
-      <button class="tool" id="btnFit" type="button" title="Shfaq gjithë planin (F)">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"></path></svg><span>Gjithë planin</span>
+      <button class="tool" id="btnFit" type="button" data-i18n-title="fitTitle">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"></path></svg><span data-i18n="fit"></span>
       </button>
     </div>
     <div class="spacer"></div>
     <div class="group settings">
-      <label class="field-inline" for="wallThickness">Trashësia e murit
+      <label class="field-inline" for="wallThickness"><span data-i18n="thickness"></span>
         <select id="wallThickness">
           <option value="100">10 cm</option>
           <option value="120">12 cm</option>
@@ -64,63 +69,71 @@
           <option value="300">30 cm</option>
         </select>
       </label>
-      <button class="chip" id="chipSnap" type="button" aria-pressed="true" title="Kap pikat dhe rrjetën (F9)">Snap</button>
-      <button class="chip" id="chipGrid" type="button" aria-pressed="true" title="Shfaq rrjetën (F7)">Rrjeta</button>
-      <button class="chip" id="chipOrtho" type="button" aria-pressed="false" title="Vetëm vija horizontale dhe vertikale (F8, ose mbaj Shift)">Orto</button>
-      <button class="chip panels-toggle" id="btnPanels" type="button" aria-expanded="false" aria-controls="side">Vetitë</button>
+      <button class="chip" id="chipSnap" type="button" aria-pressed="true" data-i18n-title="snapTitle">Snap</button>
+      <button class="chip" id="chipGrid" type="button" aria-pressed="true" data-i18n-title="gridTitle" data-i18n="grid"></button>
+      <button class="chip" id="chipOrtho" type="button" aria-pressed="false" data-i18n-title="orthoTitle">Orto</button>
+      <button class="chip library-toggle" id="btnLibrary" type="button" aria-expanded="false" aria-controls="library" data-i18n="libraries"></button>
+      <button class="chip panels-toggle" id="btnPanels" type="button" aria-expanded="false" aria-controls="side" data-i18n="panels"></button>
     </div>
   </div>
 
   <div class="main">
-    <aside class="library" aria-label="Libraritë e simboleve">
-      <h2 class="panel-title">Libraritë</h2>
-      <ul class="lib-list">
-        <li class="lib active">Elektrike civile<span>Faza 2</span></li>
-        <li class="lib">Mbrojtja nga zjarri<span>më vonë</span></li>
-        <li class="lib">Ndriçim industrial<span>më vonë</span></li>
-        <li class="lib">Kamera CCTV<span>më vonë</span></li>
-        <li class="lib">Access Point / Rrjet<span>më vonë</span></li>
-        <li class="lib">Sistem audio<span>më vonë</span></li>
-      </ul>
-      <div class="tiles" aria-hidden="true">
-        <div class="tile"><svg viewBox="-20 -20 40 40"><path d="M-10 6 A10 10 0 0 1 10 6"></path><path d="M0 -4 V-14 M-7 -14 H7"></path></svg>Prizë</div>
-        <div class="tile"><svg viewBox="-20 -20 40 40"><circle cx="-6" cy="8" r="3.5" class="fill"></circle><path d="M-4 6 L9 -9 L13 -5"></path></svg>Çelës</div>
-        <div class="tile"><svg viewBox="-20 -20 40 40"><circle r="10"></circle><path d="M-7 -7 L7 7 M7 -7 L-7 7"></path></svg>Llambë</div>
-        <div class="tile"><svg viewBox="-20 -20 40 40"><rect x="-14" y="-8" width="28" height="16"></rect><path d="M-14 8 L14 -8 L14 8 Z" class="fill"></path></svg>Kuadri</div>
+    <aside class="library" id="library" data-i18n-aria="libraries">
+      <div class="lib-head">
+        <h2 class="panel-title" data-i18n="libraries"></h2>
+        <span class="lib-std">IEC 60617</span>
       </div>
-      <p class="muted small">Simbolet elektrike (priza, çelësa, ndriçim, kuadro) shtohen në Fazën 2. Tani vizato muret e planit.</p>
+      <ul class="lib-list">
+        <li class="lib active" data-i18n="libCivil"></li>
+        <li class="lib"><span data-i18n="libFire"></span><small data-i18n="later"></small></li>
+        <li class="lib"><span data-i18n="libIndustrial"></span><small data-i18n="later"></small></li>
+        <li class="lib"><span data-i18n="libCctv"></span><small data-i18n="later"></small></li>
+        <li class="lib"><span data-i18n="libAp"></span><small data-i18n="later"></small></li>
+        <li class="lib"><span data-i18n="libAudio"></span><small data-i18n="later"></small></li>
+      </ul>
+      <label class="search" for="symbolSearch">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>
+        <input id="symbolSearch" type="search" data-i18n-placeholder="searchSymbol" data-i18n-aria="searchSymbol">
+      </label>
+      <div id="symbolGroups" class="symbol-groups"></div>
+      <p class="muted small" data-i18n="libraryHelp"></p>
     </aside>
 
-    <section class="stage" aria-label="Fleta e vizatimit">
-      <canvas id="canvas" tabindex="0" aria-label="Fleta e vizatimit. Përdor veglën Mur për të vizatuar."></canvas>
+    <section class="stage" data-i18n-aria="canvasLabel">
+      <canvas id="canvas" tabindex="0" data-i18n-aria="canvasLabel"></canvas>
       <div class="hint" id="hint" hidden></div>
       <div class="zoom">
-        <button type="button" id="btnZoomIn" aria-label="Zmadho">+</button>
-        <button type="button" id="btnZoomOut" aria-label="Zvogëlo">−</button>
+        <button type="button" id="btnZoomIn" data-i18n-aria="zoomIn">+</button>
+        <button type="button" id="btnZoomOut" data-i18n-aria="zoomOut">−</button>
       </div>
     </section>
 
-    <aside class="side" id="side" aria-label="Vetitë dhe shtresat">
+    <aside class="side" id="side" data-i18n-aria="properties">
       <section class="panel">
-        <h2 class="panel-title">Vetitë</h2>
+        <h2 class="panel-title" data-i18n="properties"></h2>
         <div id="props"></div>
       </section>
       <section class="panel">
-        <h2 class="panel-title">Shtresat</h2>
+        <h2 class="panel-title" data-i18n="inPlan"></h2>
+        <div id="symbolSummary"></div>
+      </section>
+      <section class="panel">
+        <h2 class="panel-title" data-i18n="layers"></h2>
         <ul class="layers" id="layers"></ul>
       </section>
       <section class="panel">
-        <h2 class="panel-title">Shkurtoret</h2>
+        <h2 class="panel-title" data-i18n="shortcuts"></h2>
         <dl class="keys">
-          <dt>W</dt><dd>Vizato mur</dd>
-          <dt>V</dt><dd>Zgjidh</dd>
-          <dt>Shkruaj 430 + Enter</dt><dd>Mur 4.30 m</dd>
-          <dt>Shift</dt><dd>Vetëm horizontal / vertikal</dd>
-          <dt>Esc / kliko djathtas</dt><dd>Mbaro murin</dd>
-          <dt>Rrota e miut</dt><dd>Zmadho / zvogëlo</dd>
-          <dt>Hapësira + tërhiq</dt><dd>Lëviz pamjen</dd>
-          <dt>Ctrl+Z / Ctrl+Y</dt><dd>Zhbëj / ribëj</dd>
-          <dt>Ctrl+S</dt><dd>Ruaj</dd>
+          <dt>W</dt><dd data-i18n="kWall"></dd>
+          <dt>V</dt><dd data-i18n="kSelect"></dd>
+          <dt data-i18n="kTypedKey"></dt><dd data-i18n="kTyped"></dd>
+          <dt>R</dt><dd data-i18n="kRotate"></dd>
+          <dt>Shift</dt><dd data-i18n="kShift"></dd>
+          <dt data-i18n="kEscKey"></dt><dd data-i18n="kEsc"></dd>
+          <dt data-i18n="kWheelKey"></dt><dd data-i18n="kWheel"></dd>
+          <dt data-i18n="kPanKey"></dt><dd data-i18n="kPan"></dd>
+          <dt>Ctrl+Z / Ctrl+Y</dt><dd data-i18n="kUndo"></dd>
+          <dt>Ctrl+S</dt><dd data-i18n="kSave"></dd>
         </dl>
       </section>
     </aside>
@@ -138,14 +151,14 @@
 
   <div class="modal" id="confirmNew" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-      <h2 id="confirmTitle">Fillo projekt të ri?</h2>
-      <p>Plani aktual do mbyllet. Nëse do ta mbash, ruaje më parë.</p>
-      <label class="field" for="newName">Emri i projektit
-        <input id="newName" type="text" value="Projekt i ri">
+      <h2 id="confirmTitle" data-i18n="newTitle"></h2>
+      <p data-i18n="newText"></p>
+      <label class="field" for="newName"><span data-i18n="projectName"></span>
+        <input id="newName" type="text">
       </label>
       <div class="modal-actions">
-        <button class="btn" id="confirmCancel" type="button">Anulo</button>
-        <button class="btn btn-primary" id="confirmOk" type="button">Krijo projektin</button>
+        <button class="btn" id="confirmCancel" type="button" data-i18n="cancel"></button>
+        <button class="btn btn-primary" id="confirmOk" type="button" data-i18n="create"></button>
       </div>
     </div>
   </div>

@@ -1,4 +1,5 @@
-import { defaultLayers, type Doc, type Entity } from '../core/types';
+import { defaultLayers, type Doc, type Entity, type Layer } from '../core/types';
+import { symbolDef } from '../symbols/library';
 
 const AUTOSAVE_KEY = 'astcad.autosave.v1';
 
@@ -21,18 +22,23 @@ export function parse(text: string): Doc {
   const d = raw as Partial<Doc>;
   if (!d || d.format !== 'astcad') throw new Error('Skedari nuk është projekt AllSolutionTech CAD.');
   if (d.version !== 1) throw new Error(`Versioni ${String(d.version)} i skedarit nuk mbështetet ende.`);
-  const entities = Array.isArray(d.entities) ? d.entities : [];
-  const walls = entities.filter(
-    (e): e is Entity =>
-      !!e && e.kind === 'wall' && typeof e.id === 'string' && isVec(e.a) && isVec(e.b) && isNum(e.thickness),
-  );
-  const layers = Array.isArray(d.layers) && d.layers.length ? d.layers : defaultLayers();
+  const raw2 = Array.isArray(d.entities) ? (d.entities as unknown[]) : [];
+  const entities = raw2.filter((x): x is Entity => {
+    const e = x as Partial<Entity> | null;
+    if (!e || typeof e.id !== 'string' || typeof e.layer !== 'string') return false;
+    if (e.kind === 'wall') return isVec(e.a) && isVec(e.b) && isNum(e.thickness);
+    if (e.kind === 'symbol') return typeof e.symbol === 'string' && !!symbolDef(e.symbol) && isVec(e.pos) && isNum(e.angle);
+    return false;
+  });
+  // Shto shtresat standarde që mungojnë në skedarët më të vjetër.
+  const layers: Layer[] = Array.isArray(d.layers) && d.layers.length ? d.layers : [];
+  for (const l of defaultLayers()) if (!layers.some((x) => x.id === l.id)) layers.push(l);
   return {
     format: 'astcad',
     version: 1,
     name: typeof d.name === 'string' && d.name.trim() ? d.name : 'Projekt',
     layers,
-    entities: walls,
+    entities,
   };
 }
 

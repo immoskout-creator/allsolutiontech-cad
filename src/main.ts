@@ -1,11 +1,14 @@
 import { Store } from './core/store';
-import { emptyDoc, type Doc, type Wall } from './core/types';
+import { emptyDoc, isSymbol, isWall, type SymbolEntity, type Wall } from './core/types';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
 import { sampleDoc } from './core/sample';
 import { Viewport } from './view/viewport';
 import { render } from './view/renderer';
 import { Editor, type ToolId } from './tools/editor';
 import { loadAutosave, readFile, saveFile, writeAutosave } from './io/files';
+import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang } from './i18n/strings';
+import { CATEGORIES, SYMBOLS, symbolDef, symbolSvg, type SymbolDef } from './symbols/library';
+import { normAngle } from './symbols/place';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -21,6 +24,42 @@ const editor = new Editor(
   { snap: true, grid: true, ortho: false, gridStep: 100, wallThickness: 250 },
   () => scheduleRender(),
 );
+
+// ---- gjuha ----
+
+const LANG_KEY = 'astcad.lang';
+function storedLang(): Lang {
+  try {
+    const v = localStorage.getItem(LANG_KEY);
+    if (isLang(v)) return v;
+  } catch {
+    // pa ruajtje lokale: përdor gjuhën standarde
+  }
+  return 'sq';
+}
+
+const langSelect = $<HTMLSelectElement>('langSelect');
+langSelect.innerHTML = LANGS.map((l) => `<option value="${l.id}">${l.label}</option>`).join('');
+
+function applyLang(lang: Lang): void {
+  setLang(lang);
+  langSelect.value = lang;
+  document.documentElement.lang = lang;
+  applyStatic(document);
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    // s'ka rëndësi nëse nuk ruhet
+  }
+  renderLibrary();
+  propsKey = '';
+  layersKey = '';
+  summaryKey = '';
+  syncUi();
+}
+langSelect.addEventListener('change', () => isLang(langSelect.value) && applyLang(langSelect.value));
+
+const symName = (def: SymbolDef) => def.names[getLang()];
 
 // ---- vizatimi në canvas ----
 
@@ -58,12 +97,12 @@ function resize(): void {
 }
 
 function fitAll(): void {
-  const es = store.doc.entities;
-  if (es.length === 0) {
+  const pts = store.doc.entities.flatMap((e) => (isWall(e) ? [e.a, e.b] : [e.pos]));
+  if (pts.length === 0) {
     vp.fit({ minX: 0, minY: 0, maxX: 12000, maxY: 8000 });
   } else {
-    const xs = es.flatMap((e) => [e.a.x, e.b.x]);
-    const ys = es.flatMap((e) => [e.a.y, e.b.y]);
+    const xs = pts.map((p) => p.x);
+    const ys = pts.map((p) => p.y);
     vp.fit({ minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) });
   }
   scheduleRender();
@@ -83,6 +122,7 @@ canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
   editor.pointerDown(screenPt(e), e.button, e.shiftKey);
   if (e.button === 1 || editor.tool === 'pan') canvas.classList.add('panning');
+  syncUi();
   e.preventDefault();
 });
 canvas.addEventListener('pointermove', (e) => editor.pointerMove(screenPt(e), e.shiftKey));
@@ -106,8 +146,8 @@ canvas.addEventListener(
 // ---- veglat dhe butonat ----
 
 const toolButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-tool]')];
-function setTool(t: ToolId): void {
-  editor.setTool(t);
+function setTool(tool: ToolId): void {
+  editor.setTool(tool);
   syncUi();
 }
 toolButtons.forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool as ToolId)));
@@ -140,11 +180,64 @@ $('chipSnap').addEventListener('click', () => toggleChip('chipSnap', 'snap'));
 $('chipGrid').addEventListener('click', () => toggleChip('chipGrid', 'grid'));
 $('chipOrtho').addEventListener('click', () => toggleChip('chipOrtho', 'ortho'));
 
-$('btnPanels').addEventListener('click', () => {
-  const open = app.dataset.panels !== 'open';
-  app.dataset.panels = open ? 'open' : '';
-  $('btnPanels').setAttribute('aria-expanded', String(open));
+function togglePanel(button: string, key: 'panels' | 'library', force?: boolean): void {
+  const open = force ?? app.dataset[key] !== 'open';
+  app.dataset[key] = open ? 'open' : '';
+  $(button).setAttribute('aria-expanded', String(open));
+}
+$('btnPanels').addEventListener('click', () => togglePanel('btnPanels', 'panels'));
+$('btnLibrary').addEventListener('click', () => togglePanel('btnLibrary', 'library'));
+
+// ---- libraria e simboleve ----
+
+const esc = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+const layerColor = (id: string) => store.layer(id)?.color ?? '#9CC5FF';
+/** Ngjyrat e shtresave janë për fletën e bardhë; në panelin e errët i çelim pak. */
+const TILE_COLORS: Record<string, string> = { prizat: '#7FB0FF', ndricimi: '#FDBA74', pajisje: '#C4B5FD' };
+
+const searchInput = $<HTMLInputElement>('symbolSearch');
+searchInput.addEventListener('input', renderLibrary);
+
+function renderLibrary(): void {
+  const q = searchInput.value.trim().toLowerCase();
+  const matches = (d: SymbolDef) =>
+    !q || d.code.toLowerCase().includes(q) || Object.values(d.names).some((n) => n.toLowerCase().includes(q));
+  const html = CATEGORIES.map((cat) => {
+    const defs = SYMBOLS.filter((d) => d.category === cat.id && matches(d));
+    if (defs.length === 0) return '';
+    const tiles = defs
+      .map(
+        (d) => `<button class="tile" type="button" data-symbol="${d.id}" aria-pressed="${editor.activeSymbol === d.id}"
+          title="${esc(`${d.code} · ${symName(d)}`)}" style="--tile-color:${TILE_COLORS[d.layer] ?? '#9CC5FF'}">
+          ${symbolSvg(d)}<span class="tile-name">${esc(symName(d))}</span><span class="tile-code">${d.code}</span></button>`,
+      )
+      .join('');
+    return `<section><h3 class="sym-cat">${esc(cat.names[getLang()])}</h3><div class="tiles">${tiles}</div></section>`;
+  }).join('');
+  $('symbolGroups').innerHTML = html || `<p class="muted small">${esc(t('noResults'))}</p>`;
+}
+
+$('symbolGroups').addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-symbol]');
+  if (!btn) return;
+  const id = btn.dataset.symbol!;
+  if (editor.tool === 'symbol' && editor.activeSymbol === id) setTool('select');
+  else {
+    editor.pickSymbol(id);
+    // në ekrane të vogla libraria mbulon planin: mbylle pasi zgjidhet simboli
+    togglePanel('btnLibrary', 'library', false);
+    syncUi();
+    canvas.focus();
+  }
 });
+
+function syncLibraryPressed(): void {
+  document.querySelectorAll<HTMLButtonElement>('[data-symbol]').forEach((b) => {
+    b.setAttribute('aria-pressed', String(editor.tool === 'symbol' && editor.activeSymbol === b.dataset.symbol));
+  });
+}
 
 // ---- skedarët ----
 
@@ -158,7 +251,7 @@ fileInput.addEventListener('change', async () => {
     const doc = await readFile(f);
     store.replace(doc);
     fitAll();
-    toast(`U hap: ${doc.name}`);
+    toast(t('toastOpened', { v: doc.name }));
   } catch (err) {
     toast((err as Error).message, true);
   }
@@ -170,7 +263,7 @@ async function save(): Promise<void> {
     const result = await saveFile(store.doc);
     if (result === 'saved') {
       lastSaved = JSON.stringify(store.doc);
-      toast('Projekti u ruajt si skedar.');
+      toast(t('toastSaved'));
       syncUi();
     }
   } catch (err) {
@@ -183,17 +276,17 @@ const modal = $<HTMLDivElement>('confirmNew');
 const newName = $<HTMLInputElement>('newName');
 $('btnNew').addEventListener('click', () => {
   modal.hidden = false;
-  newName.value = 'Projekt i ri';
+  newName.value = t('newDefault');
   newName.select();
   newName.focus();
 });
 $('confirmCancel').addEventListener('click', () => (modal.hidden = true));
 $('confirmOk').addEventListener('click', () => {
   modal.hidden = true;
-  store.replace(emptyDoc(newName.value.trim() || 'Projekt i ri'));
+  store.replace(emptyDoc(newName.value.trim() || t('newDefault')));
   fitAll();
   setTool('wall');
-  toast('Projekti i ri është gati. Vizato muret.');
+  toast(t('toastNew'));
 });
 newName.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') $('confirmOk').click();
@@ -202,8 +295,8 @@ newName.addEventListener('keydown', (e) => {
 
 // ---- tastiera ----
 
-const typing = (t: EventTarget | null) =>
-  t instanceof HTMLInputElement || t instanceof HTMLSelectElement || t instanceof HTMLTextAreaElement;
+const typing = (target: EventTarget | null) =>
+  target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
 
 window.addEventListener('keydown', (e) => {
   if (!modal.hidden || typing(e.target)) return;
@@ -223,6 +316,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'F9') return void (e.preventDefault(), toggleChip('chipSnap', 'snap'));
   if (editor.keyDown(e)) {
     e.preventDefault();
+    syncUi();
     return;
   }
   if (ctrl || e.altKey) return;
@@ -233,42 +327,51 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => editor.keyUp(e));
 
-// ---- panelet ----
-
-const esc = (s: string) =>
-  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+// ---- vetitë ----
 
 const WALL_ICON =
-  '<svg viewBox="0 0 24 24" class="ic" style="color:#9CC5FF"><rect x="3" y="9" width="18" height="6"></rect><path d="M7 9v6M11 9v6M15 9v6M19 9v6"></path></svg>';
+  '<svg viewBox="0 0 24 24" class="ic" style="color:#9CC5FF;width:30px;height:30px"><rect x="3" y="9" width="18" height="6"></rect><path d="M7 9v6M11 9v6M15 9v6M19 9v6"></path></svg>';
 const THICKNESSES = [100, 120, 150, 200, 250, 300];
 
 function thicknessOptions(current: number | null): string {
-  const opts = THICKNESSES.map((t) => `<option value="${t}"${t === current ? ' selected' : ''}>${t / 10} cm</option>`);
-  if (current === null) opts.unshift('<option value="" selected>Të ndryshme</option>');
+  const opts = THICKNESSES.map((v) => `<option value="${v}"${v === current ? ' selected' : ''}>${v / 10} cm</option>`);
+  if (current === null) opts.unshift(`<option value="" selected>${esc(t('mixed'))}</option>`);
   else if (!THICKNESSES.includes(current)) opts.unshift(`<option value="${current}" selected>${current / 10} cm</option>`);
   return opts.join('');
 }
 
+function update<T extends Wall | SymbolEntity>(id: string, fn: (x: T) => void): void {
+  store.commit((d) => {
+    const x = d.entities.find((e) => e.id === id);
+    if (x) fn(x as T);
+  });
+}
+
+const numField = (id: string, label: string, value: number | string, step = '1') =>
+  `<label class="field" for="${id}">${esc(label)}<input id="${id}" class="num" type="number" step="${step}" value="${value}"></label>`;
+
 let propsKey = '';
 function renderProps(): void {
   const sel = store.selected();
-  const key = JSON.stringify([store.doc.name, sel, store.doc.entities.length]);
+  const key = JSON.stringify([getLang(), store.doc.name, sel, store.doc.entities.length]);
   if (key === propsKey) return;
   propsKey = key;
   const el = $('props');
-  const walls = store.doc.entities;
-  const total = walls.reduce((s, w) => s + dist(w.a, w.b), 0);
 
   if (sel.length === 0) {
+    const walls = store.doc.entities.filter(isWall);
+    const total = walls.reduce((s, w) => s + dist(w.a, w.b), 0);
+    const symbols = store.doc.entities.length - walls.length;
     el.innerHTML = `
-      <label class="field" for="propName">Emri i projektit
+      <label class="field" for="propName">${esc(t('projectName'))}
         <input id="propName" type="text" value="${esc(store.doc.name)}">
       </label>
       <div class="stats">
-        <div class="stat"><span>Mure</span><b>${walls.length}</b></div>
-        <div class="stat"><span>Gjatësia e mureve</span><b>${(total / 1000).toFixed(1)} m</b></div>
+        <div class="stat"><span>${esc(t('walls'))}</span><b>${walls.length}</b></div>
+        <div class="stat"><span>${esc(t('symbolsCount'))}</span><b>${symbols}</b></div>
+        <div class="stat wide"><span>${esc(t('wallLength'))}</span><b>${(total / 1000).toFixed(1)} m</b></div>
       </div>
-      <p class="muted small">Zgjidh një mur për t'i parë dhe ndryshuar vetitë.</p>`;
+      <p class="muted small">${esc(t('pickHint'))}</p>`;
     const input = $<HTMLInputElement>('propName');
     input.addEventListener('change', () => {
       const name = input.value.trim();
@@ -277,47 +380,63 @@ function renderProps(): void {
     return;
   }
 
-  if (sel.length === 1) {
+  if (sel.length === 1 && isSymbol(sel[0])) {
+    const s = sel[0];
+    const def = symbolDef(s.symbol);
+    if (!def) return;
+    el.innerHTML = `
+      <div class="prop-head" style="--tile-color:${TILE_COLORS[def.layer] ?? '#9CC5FF'}">${symbolSvg(def)}
+        <div><b>${esc(symName(def))}</b><span>${def.code} · ${esc(layerName(s.layer, s.layer))}</span></div></div>
+      <div class="prop-grid">
+        ${def.mount === 'wall' ? numField('propHeight', t('heightCm'), s.height ?? '') : `<div class="field">${esc(t('heightCm'))}<span class="static">${esc(t('ceiling'))}</span></div>`}
+        ${numField('propPower', t('powerW'), s.power ?? '')}
+        ${numField('propAngle', t('rotation'), normAngle(s.angle - 270), '90')}
+      </div>
+      <button class="btn danger" id="propDelete" type="button">${esc(t('deleteSymbol'))}</button>`;
+    const onNum = (id: string, fn: (x: SymbolEntity, v: number | undefined) => void) =>
+      $(id)?.addEventListener('change', (e) => {
+        const raw = (e.target as HTMLInputElement).value;
+        const v = raw === '' ? undefined : Number(raw);
+        if (v !== undefined && !Number.isFinite(v)) return;
+        update<SymbolEntity>(s.id, (x) => fn(x, v));
+      });
+    onNum('propHeight', (x, v) => (v === undefined ? delete x.height : (x.height = Math.max(0, Math.round(v)))));
+    onNum('propPower', (x, v) => (v === undefined ? delete x.power : (x.power = Math.max(0, Math.round(v)))));
+    onNum('propAngle', (x, v) => v !== undefined && (x.angle = normAngle(v + 270)));
+    $('propDelete').addEventListener('click', () => editor.deleteSelection());
+    return;
+  }
+
+  if (sel.length === 1 && isWall(sel[0])) {
     const w = sel[0];
     el.innerHTML = `
-      <div class="prop-head">${WALL_ICON}<div><b>Mur</b><span>Shtresa: Muret</span></div></div>
+      <div class="prop-head">${WALL_ICON}<div><b>${esc(t('wall'))}</b><span>${esc(t('layer'))}: ${esc(layerName(w.layer, w.layer))}</span></div></div>
       <div class="prop-grid">
-        <label class="field" for="propLen">Gjatësia (cm)
-          <input id="propLen" class="num" type="number" min="1" step="1" value="${Math.round(dist(w.a, w.b) / 10)}">
-        </label>
-        <label class="field" for="propThick">Trashësia
+        ${numField('propLen', t('lengthCm'), Math.round(dist(w.a, w.b) / 10))}
+        <label class="field" for="propThick">${esc(t('thicknessShort'))}
           <select id="propThick">${thicknessOptions(w.thickness)}</select>
         </label>
-        <label class="field" for="propAx">Fillimi X (m)
-          <input id="propAx" class="num" type="number" step="0.01" value="${(w.a.x / 1000).toFixed(2)}">
-        </label>
-        <label class="field" for="propAy">Fillimi Y (m)
-          <input id="propAy" class="num" type="number" step="0.01" value="${(w.a.y / 1000).toFixed(2)}">
-        </label>
+        ${numField('propAx', t('startX'), (w.a.x / 1000).toFixed(2), '0.01')}
+        ${numField('propAy', t('startY'), (w.a.y / 1000).toFixed(2), '0.01')}
       </div>
-      <button class="btn danger" id="propDelete" type="button">Fshi murin</button>`;
-    const update = (fn: (x: Wall) => void) =>
-      store.commit((d) => {
-        const x = d.entities.find((e) => e.id === w.id);
-        if (x) fn(x);
-      });
+      <button class="btn danger" id="propDelete" type="button">${esc(t('deleteWall'))}</button>`;
     $<HTMLInputElement>('propLen').addEventListener('change', (e) => {
       const cm = Number((e.target as HTMLInputElement).value);
       if (!(cm > 0)) return;
-      update((x) => {
+      update<Wall>(w.id, (x) => {
         const dir = sub(x.b, x.a);
         const l = len(dir) || 1;
         x.b = add(x.a, scale(dir, (cm * 10) / l));
       });
     });
     $<HTMLSelectElement>('propThick').addEventListener('change', (e) => {
-      const t = Number((e.target as HTMLSelectElement).value);
-      if (t > 0) update((x) => void (x.thickness = t));
+      const v = Number((e.target as HTMLSelectElement).value);
+      if (v > 0) update<Wall>(w.id, (x) => void (x.thickness = v));
     });
     const moveStart = (axis: 'x' | 'y') => (e: Event) => {
       const v = Number((e.target as HTMLInputElement).value);
       if (!Number.isFinite(v)) return;
-      update((x) => {
+      update<Wall>(w.id, (x) => {
         const d = v * 1000 - x.a[axis];
         x.a = { ...x.a, [axis]: x.a[axis] + d };
         x.b = { ...x.b, [axis]: x.b[axis] + d };
@@ -329,22 +448,44 @@ function renderProps(): void {
     return;
   }
 
-  const ts = new Set(sel.map((w) => w.thickness));
-  const selLen = sel.reduce((s, w) => s + dist(w.a, w.b), 0);
+  const walls = sel.filter(isWall);
+  const ts = new Set(walls.map((w) => w.thickness));
+  const selLen = walls.reduce((s, w) => s + dist(w.a, w.b), 0);
   el.innerHTML = `
-    <div class="prop-head">${WALL_ICON}<div><b>${sel.length} mure të zgjedhura</b><span>Gjithsej ${formatMeters(selLen)}</span></div></div>
-    <label class="field" for="propThick">Trashësia për të gjitha
-      <select id="propThick">${thicknessOptions(ts.size === 1 ? sel[0].thickness : null)}</select>
-    </label>
-    <button class="btn danger" id="propDelete" type="button">Fshi ${sel.length} muret</button>`;
-  $<HTMLSelectElement>('propThick').addEventListener('change', (e) => {
-    const t = Number((e.target as HTMLSelectElement).value);
-    if (!(t > 0)) return;
-    const ids = new Set(sel.map((w) => w.id));
-    store.commit((d) => d.entities.forEach((x) => ids.has(x.id) && (x.thickness = t)));
+    <div class="prop-head">${WALL_ICON}<div><b>${esc(t('nSelected', { n: sel.length }))}</b>
+      <span>${walls.length ? esc(t('total', { v: formatMeters(selLen) })) : ''}</span></div></div>
+    ${walls.length ? `<label class="field" for="propThick">${esc(t('thicknessAll'))}
+      <select id="propThick">${thicknessOptions(ts.size === 1 ? walls[0].thickness : null)}</select></label>` : ''}
+    <button class="btn danger" id="propDelete" type="button">${esc(t('deleteN', { n: sel.length }))}</button>`;
+  $('propThick')?.addEventListener('change', (e) => {
+    const v = Number((e.target as HTMLSelectElement).value);
+    if (!(v > 0)) return;
+    const ids = new Set(walls.map((w) => w.id));
+    store.commit((d) => d.entities.forEach((x) => isWall(x) && ids.has(x.id) && (x.thickness = v)));
   });
   $('propDelete').addEventListener('click', () => editor.deleteSelection());
 }
+
+// ---- lista e simboleve në plan ----
+
+let summaryKey = '';
+function renderSummary(): void {
+  const counts = new Map<string, number>();
+  for (const e of store.doc.entities) if (isSymbol(e)) counts.set(e.symbol, (counts.get(e.symbol) ?? 0) + 1);
+  const key = JSON.stringify([getLang(), [...counts]]);
+  if (key === summaryKey) return;
+  summaryKey = key;
+  if (counts.size === 0) {
+    $('symbolSummary').innerHTML = `<p class="muted small">${esc(t('noSymbols'))}</p>`;
+    return;
+  }
+  const rows = SYMBOLS.filter((d) => counts.has(d.id))
+    .map((d) => `<tr><td class="code">${d.code}</td><td>${esc(symName(d))}</td><td class="qty">${counts.get(d.id)}</td></tr>`)
+    .join('');
+  $('symbolSummary').innerHTML = `<table class="summary"><thead><tr><th>${esc(t('code'))}</th><th></th><th class="qty">${esc(t('qty'))}</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ---- shtresat ----
 
 const EYE =
   '<svg class="ic" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -359,19 +500,20 @@ let layersKey = '';
 function renderLayers(): void {
   const counts = new Map<string, number>();
   for (const e of store.doc.entities) counts.set(e.layer, (counts.get(e.layer) ?? 0) + 1);
-  const key = JSON.stringify([store.doc.layers, [...counts]]);
+  const key = JSON.stringify([getLang(), store.doc.layers, [...counts]]);
   if (key === layersKey) return;
   layersKey = key;
   $('layers').innerHTML = store.doc.layers
-    .map(
-      (l, i) => `<li class="${l.visible ? '' : 'off'}">
-        <button class="icon-btn" type="button" data-vis="${i}" aria-pressed="${l.visible}" aria-label="${l.visible ? 'Fshih' : 'Shfaq'} ${esc(l.name)}">${l.visible ? EYE : EYE_OFF}</button>
-        <span class="sw" style="background:${l.color}"></span>
-        <span class="name">${esc(l.name)}</span>
+    .map((l, i) => {
+      const name = esc(layerName(l.id, l.name));
+      return `<li class="${l.visible ? '' : 'off'}">
+        <button class="icon-btn" type="button" data-vis="${i}" aria-pressed="${l.visible}" aria-label="${esc(t(l.visible ? 'hide' : 'show'))} ${name}">${l.visible ? EYE : EYE_OFF}</button>
+        <span class="sw" style="background:${layerColor(l.id)}"></span>
+        <span class="name">${name}</span>
         <span class="count">${counts.get(l.id) ?? 0}</span>
-        <button class="icon-btn" type="button" data-lock="${i}" aria-pressed="${!l.locked}" aria-label="${l.locked ? 'Zhblloko' : 'Blloko'} ${esc(l.name)}">${l.locked ? LOCK : UNLOCK}</button>
-      </li>`,
-    )
+        <button class="icon-btn" type="button" data-lock="${i}" aria-pressed="${!l.locked}" aria-label="${esc(t(l.locked ? 'unlock' : 'lock'))} ${name}">${l.locked ? LOCK : UNLOCK}</button>
+      </li>`;
+    })
     .join('');
 }
 $('layers').addEventListener('click', (e) => {
@@ -388,28 +530,29 @@ $('layers').addEventListener('click', (e) => {
 // ---- statusi ----
 
 const hint = $('hint');
-const TOOL_INFO: Record<ToolId, string> = {
-  select: 'Kliko një mur për ta zgjedhur, tërhiq për ta lëvizur. Tërhiq në bosh për të zgjedhur disa.',
-  wall: 'Kliko për pikën e parë, pastaj për çdo cep. Esc ose kliko djathtas për të mbaruar.',
-  pan: 'Tërhiq për të lëvizur pamjen. Rrota e miut zmadhon.',
-};
-const SNAP_NAMES = { endpoint: 'Snap: fund muri', midpoint: 'Snap: mesi i murit', grid: 'Snap: rrjeta', none: '' };
+const SNAP_KEYS = { endpoint: 'snapEndpoint', midpoint: 'snapMidpoint', grid: 'snapGrid', wall: 'snapWall' } as const;
 
 function updateStatus(): void {
   const p = editor.cursorWorld;
   $('stCoords').textContent = `X ${(p.x / 1000).toFixed(2)} m · Y ${(p.y / 1000).toFixed(2)} m`;
-  $('stSnap').textContent = editor.tool === 'wall' ? SNAP_NAMES[editor.snapKind] : '';
+  const sk = editor.snapKind;
+  $('stSnap').textContent = (editor.tool === 'wall' || editor.tool === 'symbol') && sk !== 'none' ? t(SNAP_KEYS[sk]) : '';
   $('stZoom').textContent = `1 m = ${Math.round(vp.scale * 1000)} px`;
-  $('stInfo').textContent = TOOL_INFO[editor.tool];
 
-  if (editor.tool === 'wall' && editor.chainStart) {
+  const def = editor.activeSymbol ? symbolDef(editor.activeSymbol) : undefined;
+  const info =
+    editor.tool === 'symbol' && def
+      ? t('infoSymbol', { name: symName(def) })
+      : t(editor.tool === 'wall' ? 'infoWall' : editor.tool === 'pan' ? 'infoPan' : 'infoSelect');
+  $('stInfo').textContent = info;
+
+  if (editor.tool === 'wall') {
     hint.hidden = false;
-    hint.innerHTML = editor.typed
-      ? `Gjatësia: <b>${esc(editor.typed)} cm</b> · Enter për ta vendosur`
-      : 'Shkruaj gjatësinë në cm (p.sh. <b>430</b>) dhe shtyp Enter, ose kliko pikën tjetër.';
-  } else if (editor.tool === 'wall') {
+    if (!editor.chainStart) hint.textContent = t('hintWallStart', { v: editor.settings.wallThickness / 10 });
+    else hint.innerHTML = editor.typed ? t('hintWallTyped', { v: esc(editor.typed) }) : t('hintWallNext');
+  } else if (editor.tool === 'symbol' && def) {
     hint.hidden = false;
-    hint.textContent = 'Kliko për të filluar murin. Trashësia: ' + editor.settings.wallThickness / 10 + ' cm';
+    hint.innerHTML = t('hintSymbol', { code: def.code, name: esc(symName(def)) });
   } else {
     hint.hidden = true;
   }
@@ -423,8 +566,10 @@ function syncUi(): void {
   $<HTMLButtonElement>('btnDelete').disabled = store.selection.size === 0;
   $('docName').textContent = store.doc.name;
   const dirty = JSON.stringify(store.doc) !== lastSaved;
-  $('stSaved').textContent = dirty ? 'Ruajtur automatikisht në këtë shfletues' : 'Ruajtur në skedar';
+  $('stSaved').textContent = t(dirty ? 'savedAuto' : 'savedFile');
+  syncLibraryPressed();
   renderProps();
+  renderSummary();
   renderLayers();
   updateStatus();
 }
@@ -436,7 +581,7 @@ store.subscribe(() => {
   syncUi();
   scheduleRender();
   clearTimeout(autosaveTimer);
-  autosaveTimer = window.setTimeout(() => writeAutosave(store.doc as Doc), 400);
+  autosaveTimer = window.setTimeout(() => writeAutosave(store.doc), 400);
 });
 
 // ---- njoftimet ----
@@ -451,5 +596,5 @@ function toast(msg: string, error = false): void {
   toastTimer = window.setTimeout(() => (toastEl.hidden = true), error ? 5000 : 2500);
 }
 
-syncUi();
+applyLang(storedLang());
 resize();
