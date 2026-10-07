@@ -9,7 +9,7 @@ Program 2D për projektimin e instalimeve elektrike në shtëpi. Vetëm 2D.
 - Shtresat (shfaq/fshih, blloko), zhbëj/ribëj, ruaj/hap skedar `.astcad.json`, ruajtje automatike.
 
 ## Simbolet elektrike
-- 27 simbole civile sipas IEC 60617: priza, çelësa, ndriçim, kuadro dhe pajisje.
+- 79 simbole civile sipas IEC 60617: priza, çelësa, ndriçim, kuadro dhe pajisje, sensorë dhe automatizim, TV dhe komunikim.
 - Çdo simbol ka kodin e vet AllSolutionTech (p.sh. `AST-PR-02`) dhe emrin në shqip, anglisht, italisht dhe gjermanisht.
 - Simbolet e murit ngjiten vetë te faqja e murit; `R` i rrotullon.
 - Lista "Simbolet në plan" numëron çdo simbol me kod.

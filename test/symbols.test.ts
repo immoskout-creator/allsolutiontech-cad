@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SYMBOLS, symbolDef, CATEGORIES } from '../src/symbols/library';
+import { SYMBOLS, symbolDef, CATEGORIES, strokeText } from '../src/symbols/library';
 import { attachToWall, localToWorld, normAngle, screenRotation } from '../src/symbols/place';
 import { LANGS, setLang, t } from '../src/i18n/strings';
 import { parse, serialize } from '../src/io/files';
@@ -72,4 +72,17 @@ test('skedari i vjetër merr shtresat e reja', () => {
 
 test('plani shembull përdor vetëm simbole që ekzistojnë', () => {
   for (const e of sampleDoc().entities) if (e.kind === 'symbol') assert.ok(symbolDef(e.symbol), e.symbol);
+});
+
+test('shkronjat me vija japin rrugë të vlefshme', () => {
+  const d = strokeText('WH', 0, 8, 6);
+  assert.match(d, /^M/);
+  assert.ok(!d.includes('NaN'));
+  for (const s of SYMBOLS) for (const p of s.parts) assert.match(p.d, /^[MLHVQAZ0-9 .\-]+$/, s.id);
+});
+
+test('çdo kategori ka simbole dhe çdo simbol ka shtresë ekzistuese', () => {
+  const layers = new Set(emptyDoc().layers.map((l) => l.id));
+  for (const c of CATEGORIES) assert.ok(SYMBOLS.some((s) => s.category === c.id), c.id);
+  for (const s of SYMBOLS) assert.ok(layers.has(s.layer), s.id);
 });
