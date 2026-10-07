@@ -1,5 +1,5 @@
 import { Store } from './core/store';
-import { emptyDoc, isSymbol, isWall, type SymbolEntity, type Wall } from './core/types';
+import { SCALES, emptyDoc, isSymbol, isWall, type SymbolEntity, type Wall } from './core/types';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
 import { sampleDoc } from './core/sample';
 import { Viewport } from './view/viewport';
@@ -80,6 +80,7 @@ function draw(): void {
     selection: store.selection,
     showGrid: editor.settings.grid,
     overlay: editor.overlay,
+    scaleLabel: t('sheetScale', { v: store.doc.scale }),
   });
   updateStatus();
 }
@@ -163,6 +164,13 @@ $('btnZoomIn').addEventListener('click', () => {
 $('btnZoomOut').addEventListener('click', () => {
   vp.zoomAt({ x: vp.width / 2, y: vp.height / 2 }, 0.8);
   scheduleRender();
+});
+
+const scaleSelect = $<HTMLSelectElement>('sheetScale');
+scaleSelect.innerHTML = SCALES.map((v) => `<option value="${v}">1:${v}</option>`).join('');
+scaleSelect.addEventListener('change', () => {
+  const v = Number(scaleSelect.value);
+  if (v !== store.doc.scale) store.commit((d) => (d.scale = v));
 });
 
 const thicknessSelect = $<HTMLSelectElement>('wallThickness');
@@ -565,6 +573,7 @@ function syncUi(): void {
   $<HTMLButtonElement>('btnRedo').disabled = !store.canRedo;
   $<HTMLButtonElement>('btnDelete').disabled = store.selection.size === 0;
   $('docName').textContent = store.doc.name;
+  scaleSelect.value = String(store.doc.scale);
   const dirty = JSON.stringify(store.doc) !== lastSaved;
   $('stSaved').textContent = t(dirty ? 'savedAuto' : 'savedFile');
   syncLibraryPressed();

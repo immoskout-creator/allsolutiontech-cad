@@ -15,8 +15,8 @@ import {
   snapToGrid,
   sub,
 } from '../core/geometry';
-import { symbolDef } from '../symbols/library';
-import { attachToWall, normAngle, symbolCenter, SYMBOL_HIT_MM } from '../symbols/place';
+import { symbolDef, unitMm } from '../symbols/library';
+import { attachToWall, normAngle, symbolCenter, symbolHitMm } from '../symbols/place';
 import type { Overlay, SnapKind } from '../view/renderer';
 import type { Viewport } from '../view/viewport';
 
@@ -148,13 +148,19 @@ export class Editor {
     return { pos: raw, angle: this.symbolAngle, kind: this.settings.snap ? 'grid' : 'none' };
   }
 
+  /** mm në plan për një njësi lokale simboli, sipas shkallës së fletës. */
+  private get unit(): number {
+    return unitMm(this.store.doc.scale);
+  }
+
   hitTest(screen: Vec): string | null {
     const p = this.vp.toWorld(screen);
+    const unit = this.unit;
     let best: { id: string; d: number } | null = null;
     for (const e of this.store.editable()) {
       let d: number;
       if (isWall(e)) d = distToSegment(p, e.a, e.b) - e.thickness / 2;
-      else d = dist(p, symbolCenter(e)) - Math.max(SYMBOL_HIT_MM, this.vp.px(10));
+      else d = dist(p, symbolCenter(e, unit)) - Math.max(symbolHitMm(unit), this.vp.px(10));
       // simbolet fitojnë mbi muret kur mbivendosen
       if (isSymbol(e)) d -= this.vp.px(4);
       if (d <= this.vp.px(HIT_PX) && (!best || d < best.d)) best = { id: e.id, d };
@@ -258,7 +264,7 @@ export class Editor {
         const ids = this.store
           .editable()
           .filter((e) => {
-            if (isSymbol(e)) return inRect(symbolCenter(e), r);
+            if (isSymbol(e)) return inRect(symbolCenter(e, this.unit), r);
             return crossing ? segmentTouchesRect(e.a, e.b, r) : inRect(e.a, r) && inRect(e.b, r);
           })
           .map((e) => e.id);

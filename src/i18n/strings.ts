@@ -30,6 +30,8 @@ const STRINGS = {
   delete: { sq: 'Fshi', en: 'Delete', it: 'Elimina', de: 'Löschen' },
   fit: { sq: 'Gjithë planin', en: 'Whole plan', it: 'Tutta la pianta', de: 'Ganzer Plan' },
   fitTitle: { sq: 'Shfaq gjithë planin (F)', en: 'Show the whole plan (F)', it: 'Mostra tutta la pianta (F)', de: 'Ganzen Plan zeigen (F)' },
+  sheetScaleLabel: { sq: 'Shkalla e fletës', en: 'Sheet scale', it: 'Scala del foglio', de: 'Blattmaßstab' },
+  sheetScale: { sq: 'Shkalla 1:{v}', en: 'Scale 1:{v}', it: 'Scala 1:{v}', de: 'Maßstab 1:{v}' },
   thickness: { sq: 'Trashësia e murit', en: 'Wall thickness', it: 'Spessore muro', de: 'Wandstärke' },
   snapTitle: { sq: 'Kap pikat dhe rrjetën (F9)', en: 'Snap to points and grid (F9)', it: 'Aggancia a punti e griglia (F9)', de: 'Fang an Punkten und Raster (F9)' },
   grid: { sq: 'Rrjeta', en: 'Grid', it: 'Griglia', de: 'Raster' },

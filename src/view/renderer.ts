@@ -1,7 +1,8 @@
-import { isSymbol, isWall, type Doc, type Entity, type SymbolEntity, type Vec, type Wall } from '../core/types';
+import { DIM_LAYER, isSymbol, isWall, type Doc, type Entity, type SymbolEntity, type Vec, type Wall } from '../core/types';
 import { add, dist, formatMeters, mid, sub } from '../core/geometry';
-import { symbolDef, UNIT_MM } from '../symbols/library';
-import { screenRotation, symbolCenter, SYMBOL_HIT_MM } from '../symbols/place';
+import { symbolDef, unitMm } from '../symbols/library';
+import { screenRotation, symbolCenter, symbolHitMm } from '../symbols/place';
+import { DIM_PAPER, dimText, scaleBarLength, wallDimensions } from './dimensions';
 import type { Viewport } from './viewport';
 
 export type SnapKind = 'endpoint' | 'midpoint' | 'grid' | 'wall' | 'none';
@@ -26,6 +27,8 @@ export interface RenderState {
   selection: Set<string>;
   showGrid: boolean;
   overlay: Overlay;
+  /** Teksti i vizores, p.sh. "Shkalla 1:50". */
+  scaleLabel: string;
 }
 
 const COLORS = {
@@ -55,6 +58,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   const ov = st.overlay;
 
   const colorOf = new Map(st.doc.layers.map((l) => [l.id, l.color]));
+  const unit = unitMm(st.doc.scale);
   const shifted = (e: Entity): Entity => {
     const d = ov.moveIds?.has(e.id) ? ov.moveDelta : undefined;
     if (!d) return e;
@@ -70,12 +74,16 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     drawWall(ctx, vp, e, color);
   }
 
+  if (!hidden.has(DIM_LAYER)) {
+    drawDimensions(ctx, vp, visible.filter(isWall), st.doc.scale, colorOf.get(DIM_LAYER) ?? COLORS.label);
+  }
+
   for (const e of visible) {
     if (!isSymbol(e)) continue;
     let color = colorOf.get(e.layer) ?? COLORS.wall;
     if (st.selection.has(e.id)) color = COLORS.selected;
-    drawSymbol(ctx, vp, e, color, 1);
-    if (ov.hoverId === e.id && !st.selection.has(e.id)) drawSymbolRing(ctx, vp, e, COLORS.wallHover, true);
+    drawSymbol(ctx, vp, e, color, 1, unit);
+    if (ov.hoverId === e.id && !st.selection.has(e.id)) drawSymbolRing(ctx, vp, e, COLORS.wallHover, true, unit);
   }
 
   for (const e of visible) {
@@ -84,7 +92,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
       drawGrip(ctx, vp.toScreen(e.a));
       drawGrip(ctx, vp.toScreen(e.b));
     } else {
-      drawSymbolRing(ctx, vp, e, COLORS.selected, false);
+      drawSymbolRing(ctx, vp, e, COLORS.selected, false, unit);
     }
   }
 
@@ -92,7 +100,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     const p = ov.symbolPreview;
     const def = symbolDef(p.symbol);
     const ghost: SymbolEntity = { id: '', kind: 'symbol', layer: def?.layer ?? '', symbol: p.symbol, pos: p.pos, angle: p.angle };
-    drawSymbol(ctx, vp, ghost, colorOf.get(ghost.layer) ?? COLORS.selected, 0.6);
+    drawSymbol(ctx, vp, ghost, colorOf.get(ghost.layer) ?? COLORS.selected, 0.6, unit);
   }
 
   if (ov.wallPreview) {
@@ -106,6 +114,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   if (ov.box) drawBox(ctx, ov.box);
   if (ov.snap && ov.snap.kind !== 'none') drawSnap(ctx, vp.toScreen(ov.snap.p), ov.snap.kind);
   if (ov.cursor) drawCrosshair(ctx, ov.cursor);
+  drawScaleBar(ctx, vp, st.scaleLabel);
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D, vp: Viewport): void {
@@ -167,11 +176,11 @@ function path(d: string): Path2D {
   return p;
 }
 
-function drawSymbol(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity, color: string, alpha: number): void {
+function drawSymbol(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity, color: string, alpha: number, unit: number): void {
   const def = symbolDef(e.symbol);
   if (!def) return;
   const s = vp.toScreen(e.pos);
-  const unitPx = UNIT_MM * vp.scale;
+  const unitPx = unit * vp.scale;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(s.x, s.y);
@@ -190,9 +199,9 @@ function drawSymbol(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity
   ctx.restore();
 }
 
-function drawSymbolRing(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity, color: string, dashed: boolean): void {
-  const c = vp.toScreen(symbolCenter(e));
-  const r = Math.max(10, SYMBOL_HIT_MM * vp.scale);
+function drawSymbolRing(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity, color: string, dashed: boolean, unit: number): void {
+  const c = vp.toScreen(symbolCenter(e, unit));
+  const r = Math.max(10, symbolHitMm(unit) * vp.scale);
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineWidth = 1.5;
@@ -200,6 +209,95 @@ function drawSymbolRing(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEn
   ctx.beginPath();
   ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
   ctx.stroke();
+  ctx.restore();
+}
+
+function drawDimensions(ctx: CanvasRenderingContext2D, vp: Viewport, walls: Wall[], scale: number, color: string): void {
+  const paperPx = scale * vp.scale; // piksela për 1 mm letre
+  const textPx = DIM_PAPER.text * paperPx;
+  if (textPx < 5) return; // shumë larg: kuotat do bëheshin njolla
+  const tick = DIM_PAPER.tick * paperPx;
+  const over = DIM_PAPER.overshoot * paperPx;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 1;
+  ctx.font = `500 ${Math.min(textPx, 40)}px "IBM Plex Mono", ui-monospace, monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  for (const d of wallDimensions(walls, scale)) {
+    const a = vp.toScreen(d.a);
+    const b = vp.toScreen(d.b);
+    const da = vp.toScreen(d.da);
+    const db = vp.toScreen(d.db);
+    // drejtimi pingul në ekran (Y poshtë)
+    const nx = d.n.x;
+    const ny = -d.n.y;
+    const ux = (db.x - da.x) / Math.hypot(db.x - da.x, db.y - da.y);
+    const uy = (db.y - da.y) / Math.hypot(db.x - da.x, db.y - da.y);
+    ctx.beginPath();
+    // vijat ndihmëse: nga afër murit deri pak përtej vijës së kuotës
+    const gap = 1.5 * paperPx;
+    for (const [w, k] of [[a, da], [b, db]] as const) {
+      const len = Math.hypot(k.x - w.x, k.y - w.y);
+      ctx.moveTo(w.x + nx * Math.min(gap + 0, len), w.y + ny * Math.min(gap, len));
+      ctx.lineTo(k.x + nx * over, k.y + ny * over);
+    }
+    // vija e kuotës, pak më e gjatë se pikat
+    ctx.moveTo(da.x - ux * over, da.y - uy * over);
+    ctx.lineTo(db.x + ux * over, db.y + uy * over);
+    // vijat e pjerrëta 45° në skaje
+    for (const p of [da, db]) {
+      const tx = (ux + nx) * (tick / Math.SQRT2);
+      const ty = (uy + ny) * (tick / Math.SQRT2);
+      ctx.moveTo(p.x - tx, p.y - ty);
+      ctx.lineTo(p.x + tx, p.y + ty);
+    }
+    ctx.stroke();
+
+    // teksti mbi vijë, i lexueshëm nga poshtë ose nga e djathta
+    let ang = Math.atan2(uy, ux);
+    if (ang > Math.PI / 2 || ang <= -Math.PI / 2) ang += Math.PI;
+    const mx = (da.x + db.x) / 2;
+    const my = (da.y + db.y) / 2;
+    const text = dimText(d.length);
+    const span = Math.hypot(db.x - da.x, db.y - da.y);
+    if (ctx.measureText(text).width > span - 4) continue; // muri shumë i shkurtër për tekstin
+    ctx.save();
+    ctx.translate(mx, my);
+    ctx.rotate(ang);
+    // teksti vendoset nga ana e jashtme e vijës
+    const side = Math.sin(ang) * nx - Math.cos(ang) * ny > 0 ? -1 : 1;
+    ctx.textBaseline = side < 0 ? 'bottom' : 'top';
+    ctx.fillText(text, 0, side * paperPx * 0.8);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawScaleBar(ctx: CanvasRenderingContext2D, vp: Viewport, label: string): void {
+  const mm = scaleBarLength(vp.scale);
+  const w = mm * vp.scale;
+  const x = 16;
+  const y = vp.height - 22;
+  const h = 6;
+  ctx.save();
+  ctx.fillStyle = 'rgba(244, 245, 247, 0.9)';
+  ctx.fillRect(x - 8, y - 30, w + 16 + 120, 44);
+  ctx.strokeStyle = COLORS.label;
+  ctx.lineWidth = 1;
+  ctx.fillStyle = COLORS.label;
+  ctx.fillRect(x, y, w / 2, h);
+  ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+  ctx.font = '500 11px "IBM Plex Mono", ui-monospace, monospace';
+  ctx.textBaseline = 'bottom';
+  ctx.textAlign = 'center';
+  ctx.fillText('0', x, y - 3);
+  ctx.fillText(mm >= 1000 ? `${mm / 1000} m` : `${mm / 10} cm`, x + w, y - 3);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = '600 12px "IBM Plex Sans", system-ui, sans-serif';
+  ctx.fillText(label, x + w + 16, y + h / 2 - 6);
   ctx.restore();
 }
 

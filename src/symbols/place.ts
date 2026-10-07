@@ -1,6 +1,6 @@
 import type { SymbolEntity, Vec, Wall } from '../core/types';
 import { distToSegment } from '../core/geometry';
-import { HIT_RADIUS_UNITS, localCenter, symbolDef, UNIT_MM } from './library';
+import { HIT_RADIUS_UNITS, localCenter, symbolDef } from './library';
 
 const rad = (deg: number) => (deg * Math.PI) / 180;
 
@@ -11,23 +11,27 @@ export function screenRotation(angleDeg: number): number {
 }
 
 /** Kthen një pikë në njësi lokale të simbolit në koordinata bote (mm). */
-export function localToWorld(pos: Vec, angleDeg: number, local: Vec): Vec {
+export function localToWorld(pos: Vec, angleDeg: number, local: Vec, unit: number): Vec {
   const a = rad(angleDeg);
   const n = { x: Math.cos(a), y: Math.sin(a) };
   const phi = screenRotation(angleDeg);
   const xAxis = { x: Math.cos(phi), y: -Math.sin(phi) };
   return {
-    x: pos.x + (xAxis.x * local.x + n.x * local.y) * UNIT_MM,
-    y: pos.y + (xAxis.y * local.x + n.y * local.y) * UNIT_MM,
+    x: pos.x + (xAxis.x * local.x + n.x * local.y) * unit,
+    y: pos.y + (xAxis.y * local.x + n.y * local.y) * unit,
   };
 }
 
-export function symbolCenter(e: SymbolEntity): Vec {
+/** Qendra e simbolit në plan; unit = mm për njësi lokale (shih unitMm). */
+export function symbolCenter(e: SymbolEntity, unit: number): Vec {
   const def = symbolDef(e.symbol);
-  return def ? localToWorld(e.pos, e.angle, localCenter(def)) : e.pos;
+  return def ? localToWorld(e.pos, e.angle, localCenter(def), unit) : e.pos;
 }
 
-export const SYMBOL_HIT_MM = HIT_RADIUS_UNITS * UNIT_MM;
+/** Rrezja e zgjedhjes së simbolit në plan, mm. */
+export function symbolHitMm(unit: number): number {
+  return HIT_RADIUS_UNITS * unit;
+}
 
 /** Normalizon këndin në [0, 360). */
 export function normAngle(deg: number): number {
