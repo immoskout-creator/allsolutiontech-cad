@@ -2,12 +2,13 @@ import { EXTRA, type ExtraLang } from './extra';
 
 /** Gjuhët bazë: tekstet e tyre janë këtu dhe te libraria e simboleve. */
 export type CoreLang = 'sq' | 'en' | 'it' | 'de';
-/** Të gjitha gjuhët: bazë + gjuhët e tjera zyrtare të BE-së (te ./extra). */
+/** Të gjitha gjuhët: bazë + gjuhët e tjera të BE-së dhe të Ballkanit (te ./extra). */
 export type Lang = CoreLang | ExtraLang;
 
 /** Gjuhët në zgjedhës, me emrin në gjuhën e vet. */
 export const LANGS: { id: Lang; label: string }[] = [
   { id: 'sq', label: 'Shqip' },
+  { id: 'bs', label: 'Bosanski' },
   { id: 'bg', label: 'Български' },
   { id: 'cs', label: 'Čeština' },
   { id: 'da', label: 'Dansk' },
@@ -18,10 +19,12 @@ export const LANGS: { id: Lang; label: string }[] = [
   { id: 'es', label: 'Español' },
   { id: 'fr', label: 'Français' },
   { id: 'ga', label: 'Gaeilge' },
+  { id: 'cnr', label: 'Crnogorski' },
   { id: 'hr', label: 'Hrvatski' },
   { id: 'it', label: 'Italiano' },
   { id: 'lv', label: 'Latviešu' },
   { id: 'lt', label: 'Lietuvių' },
+  { id: 'mk', label: 'Македонски' },
   { id: 'hu', label: 'Magyar' },
   { id: 'mt', label: 'Malti' },
   { id: 'nl', label: 'Nederlands' },
@@ -30,8 +33,10 @@ export const LANGS: { id: Lang; label: string }[] = [
   { id: 'ro', label: 'Română' },
   { id: 'sk', label: 'Slovenčina' },
   { id: 'sl', label: 'Slovenščina' },
+  { id: 'sr', label: 'Srpski' },
   { id: 'fi', label: 'Suomi' },
   { id: 'sv', label: 'Svenska' },
+  { id: 'tr', label: 'Türkçe' },
 ];
 
 type Dict = Record<string, Record<CoreLang, string>>;

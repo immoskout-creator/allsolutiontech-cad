@@ -28,8 +28,16 @@ import ro from './ro';
 import sk from './sk';
 import sl from './sl';
 import sv from './sv';
+import bs from './bs';
+import cnr from './cnr';
+import mk from './mk';
+import sr from './sr';
+import tr from './tr';
 
-/** Gjuhët e tjera zyrtare të Bashkimit Europian (përveç anglishtes, italishtes dhe gjermanishtes). */
-export const EXTRA = { bg, cs, da, el, es, et, fi, fr, ga, hr, hu, lt, lv, mt, nl, pl, pt, ro, sk, sl, sv } satisfies Record<string, ExtraLocale>;
+/**
+ * Gjuhët e tjera zyrtare të Bashkimit Europian (përveç anglishtes, italishtes dhe gjermanishtes)
+ * dhe gjuhët e Ballkanit jashtë BE-së.
+ */
+export const EXTRA = { bg, cs, da, el, es, et, fi, fr, ga, hr, hu, lt, lv, mt, nl, pl, pt, ro, sk, sl, sv, bs, cnr, mk, sr, tr } satisfies Record<string, ExtraLocale>;
 
 export type ExtraLang = keyof typeof EXTRA;

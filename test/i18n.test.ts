@@ -6,7 +6,7 @@ import { CATEGORIES, SYMBOLS, categoryName, symbolName } from '../src/symbols/li
 
 const tokens = (s: string) => [...s.matchAll(/\{\w+\}|<\/?\w+>/g)].map((m) => m[0]).sort();
 
-test('çdo gjuhë e BE-së ka gjithë tekstet, me të njëjtat {vlera} dhe <etiketa>', () => {
+test('çdo gjuhë ka gjithë tekstet, me të njëjtat {vlera} dhe <etiketa>', () => {
   for (const [lang, loc] of Object.entries(EXTRA)) {
     for (const [key, src] of Object.entries(STRINGS)) {
       const v = (loc.ui as Record<string, string>)[key];
@@ -18,9 +18,9 @@ test('çdo gjuhë e BE-së ka gjithë tekstet, me të njëjtat {vlera} dhe <etik
   }
 });
 
-test('zgjedhësi ka 25 gjuhë dhe secila përkthen ndërfaqen dhe simbolet', () => {
-  assert.equal(LANGS.length, 25);
-  assert.equal(new Set(LANGS.map((l) => l.id)).size, 25);
+test('zgjedhësi ka 30 gjuhë dhe secila përkthen ndërfaqen dhe simbolet', () => {
+  assert.equal(LANGS.length, 30);
+  assert.equal(new Set(LANGS.map((l) => l.id)).size, 30);
   setLang('fr');
   assert.notEqual(t('save'), '');
   assert.ok(symbolName(SYMBOLS[0]).length > 0);
