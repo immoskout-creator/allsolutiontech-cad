@@ -25,9 +25,9 @@ test('simboli i lirë del drejt (pa rrotullim në ekran)', () => {
 });
 
 test('+y lokale shkon drejt dhomës', () => {
-  const p = localToWorld({ x: 0, y: 0 }, 90, { x: 0, y: 10 });
+  const p = localToWorld({ x: 0, y: 0 }, 90, { x: 0, y: 10 }, 15);
   assert.ok(near(p.x, 0) && p.y > 0);
-  const q = localToWorld({ x: 0, y: 0 }, 0, { x: 0, y: 10 });
+  const q = localToWorld({ x: 0, y: 0 }, 0, { x: 0, y: 10 }, 15);
   assert.ok(q.x > 0 && near(q.y, 0));
 });
 

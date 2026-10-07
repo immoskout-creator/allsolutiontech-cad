@@ -3,12 +3,19 @@ import type { Lang } from '../i18n/strings';
 /**
  * Libraria e simboleve elektrike civile.
  *
- * Çdo simbol vizatohet në njësi lokale (1 njësi = UNIT_MM mm në plan).
+ * Çdo simbol vizatohet në njësi lokale; 1 njësi = PAPER_UNIT_MM mm në letër,
+ * pra në plan madhësia varet nga shkalla e fletës (shih unitMm).
  * Simbolet e murit ("wall") kanë origjinën te faqja e murit dhe zgjaten drejt +y (brenda dhomës);
  * simbolet e qendrës ("center") kanë origjinën në qendër.
  */
 
-export const UNIT_MM = 15;
+/** Madhësia e një njësie lokale në letër, mm (simboli tipik ~ 6-8 mm në letër). */
+export const PAPER_UNIT_MM = 0.3;
+
+/** Sa mm në plan është një njësi lokale për shkallën 1:scale. */
+export function unitMm(scale: number): number {
+  return PAPER_UNIT_MM * scale;
+}
 
 export type Names = Record<Lang, string>;
 

@@ -46,11 +46,16 @@ export interface Doc {
   format: 'astcad';
   version: 1;
   name: string;
+  /** Shkalla e fletës, p.sh. 50 për 1:50. Përcakton madhësinë e simboleve, teksteve dhe kuotave. */
+  scale: number;
   layers: Layer[];
   entities: Entity[];
 }
 
 export const WALL_LAYER = 'muret';
+export const DIM_LAYER = 'kuotat';
+export const SCALES = [20, 50, 100, 200] as const;
+export const DEFAULT_SCALE = 50;
 
 export function defaultLayers(): Layer[] {
   return [
@@ -65,7 +70,7 @@ export function defaultLayers(): Layer[] {
 }
 
 export function emptyDoc(name = 'Projekt i ri'): Doc {
-  return { format: 'astcad', version: 1, name, layers: defaultLayers(), entities: [] };
+  return { format: 'astcad', version: 1, name, scale: DEFAULT_SCALE, layers: defaultLayers(), entities: [] };
 }
 
 export const isWall = (e: Entity): e is Wall => e.kind === 'wall';

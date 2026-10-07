@@ -1,4 +1,4 @@
-import { defaultLayers, type Doc, type Entity, type Layer } from '../core/types';
+import { DEFAULT_SCALE, defaultLayers, type Doc, type Entity, type Layer } from '../core/types';
 import { symbolDef } from '../symbols/library';
 
 const AUTOSAVE_KEY = 'astcad.autosave.v1';
@@ -37,6 +37,7 @@ export function parse(text: string): Doc {
     format: 'astcad',
     version: 1,
     name: typeof d.name === 'string' && d.name.trim() ? d.name : 'Projekt',
+    scale: isNum(d.scale) && d.scale >= 1 && d.scale <= 1000 ? d.scale : DEFAULT_SCALE,
     layers,
     entities,
   };
