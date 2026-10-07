@@ -84,7 +84,7 @@ button:disabled { cursor: default; opacity: 0.45; }
 .tool[aria-pressed="true"] { background: #2F3D52; border-color: var(--accent-line); color: #FFFFFF; }
 .settings { gap: 6px; }
 .field-inline { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
-.field-inline select, .field select, .field input {
+.field-inline select, .field-inline input, .field select, .field input {
   background: var(--bg); border: 1px solid var(--line-2); border-radius: 6px; padding: 6px 8px; color: var(--fg);
 }
 .chip {
@@ -260,3 +260,12 @@ button:disabled { cursor: default; opacity: 0.45; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.btn-row .btn { flex: 1 1 auto; }
+.summary.rooms tbody tr { cursor: pointer; }
+.summary.rooms tbody tr:hover td { background: rgba(255, 255, 255, 0.04); }
+.summary tfoot td { font-weight: 600; border-top: 1px solid var(--line, #2C333D); padding-top: 6px; }
+.opening-size { gap: 6px; }
+.opening-size .num { width: 64px; }
+.opening-size .unit { color: var(--muted); font-size: 12px; }

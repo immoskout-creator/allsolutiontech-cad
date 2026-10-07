@@ -1,5 +1,21 @@
-import { DIM_LAYER, isSymbol, isWall, type Doc, type Entity, type SymbolEntity, type Vec, type Wall } from '../core/types';
-import { add, dist, formatMeters, mid, sub } from '../core/geometry';
+import {
+  DIM_LAYER,
+  isOpening,
+  isRoom,
+  isSymbol,
+  isWall,
+  type Doc,
+  type Entity,
+  type Opening,
+  type Room,
+  type SymbolEntity,
+  type Vec,
+  type Wall,
+} from '../core/types';
+import { moveEntity, wallMap } from '../core/move';
+import { openingFrame, sizeText, wallLength, wallPieces } from '../core/openings';
+import { areaText, findRoomCached } from '../core/rooms';
+import { dist, formatMeters, mid, sub } from '../core/geometry';
 import { symbolDef, unitMm } from '../symbols/library';
 import { screenRotation, symbolCenter, symbolHitMm } from '../symbols/place';
 import { DIM_PAPER, dimText, scaleBarLength, wallDimensions } from './dimensions';
@@ -13,6 +29,10 @@ export interface Overlay {
   moveDelta?: Vec;
   /** Simboli që po vendoset, nën kursor. */
   symbolPreview?: { symbol: string; pos: Vec; angle: number };
+  /** Dera ose dritarja që po vendoset. */
+  openingPreview?: Omit<Opening, 'id' | 'layer'>;
+  /** Kontura e dhomës nën kursor kur vegla Dhomë është aktive. */
+  roomPreview?: Vec[];
   /** Muri që po vizatohet (nga pika e parë te kursori). */
   wallPreview?: { a: Vec; b: Vec; thickness: number };
   /** Kutia e përzgjedhjes në ekran; crossing = nga e djathta në të majtë. */
@@ -43,7 +63,15 @@ const COLORS = {
   snap: '#E8780C',
   label: '#1F242B',
   cursor: '#1F242B',
+  roomFill: 'rgba(15, 118, 110, 0.10)',
+  roomHover: 'rgba(15, 118, 110, 0.06)',
+  selectedFill: 'rgba(47, 111, 214, 0.10)',
 };
+
+/** Madhësia e teksteve të dhomës në letër, mm. */
+const ROOM_TEXT = { name: 3.5, area: 2.5 };
+/** Lartësia e tekstit të masave të dyerve/dritareve në letër, mm. */
+const OPENING_TEXT = 2;
 
 const GRID_STEPS = [10, 50, 100, 500, 1000, 5000, 10000, 50000];
 
@@ -59,23 +87,64 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
 
   const colorOf = new Map(st.doc.layers.map((l) => [l.id, l.color]));
   const unit = unitMm(st.doc.scale);
-  const shifted = (e: Entity): Entity => {
-    const d = ov.moveIds?.has(e.id) ? ov.moveDelta : undefined;
-    if (!d) return e;
-    return isWall(e) ? { ...e, a: add(e.a, d), b: add(e.b, d) } : { ...e, pos: add(e.pos, d) };
-  };
-  const visible = st.doc.entities.filter((e) => !hidden.has(e.layer)).map(shifted);
+  const docWalls = wallMap(st.doc.entities);
+  const shifted = (e: Entity): Entity =>
+    ov.moveIds?.has(e.id) && ov.moveDelta ? moveEntity(e, ov.moveDelta, ov.moveIds, docWalls) : e;
+  const all = st.doc.entities.map(shifted);
+  const visible = all.filter((e) => !hidden.has(e.layer));
+  const walls = all.filter(isWall);
+  const openingsOf = new Map<string, Opening[]>();
+  for (const o of all.filter(isOpening)) openingsOf.set(o.wall, [...(openingsOf.get(o.wall) ?? []), o]);
+  const wallById = new Map(walls.map((w) => [w.id, w]));
+  const paperPx = st.doc.scale * vp.scale;
+
+  // dhomat: ngjyrë e lehtë për atë nën kursor, të zgjedhurën dhe atë që po shtohet
+  for (const e of visible) {
+    if (!isRoom(e)) continue;
+    const sel = st.selection.has(e.id);
+    if (!sel && ov.hoverId !== e.id) continue;
+    const shape = findRoomCached(walls, e.pos);
+    if (shape) fillPolygon(ctx, vp, shape.poly, sel ? COLORS.selectedFill : COLORS.roomHover);
+  }
+  if (ov.roomPreview) fillPolygon(ctx, vp, ov.roomPreview, COLORS.roomFill);
 
   for (const e of visible) {
     if (!isWall(e)) continue;
     let color = COLORS.wall;
     if (st.selection.has(e.id)) color = COLORS.selected;
     else if (ov.hoverId === e.id) color = COLORS.wallHover;
-    drawWall(ctx, vp, e, color);
+    drawWall(ctx, vp, e, color, openingsOf.get(e.id) ?? []);
+  }
+
+  for (const e of visible) {
+    if (!isOpening(e)) continue;
+    const w = wallById.get(e.wall);
+    if (!w) continue;
+    let color = colorOf.get(e.layer) ?? COLORS.wall;
+    if (st.selection.has(e.id)) color = COLORS.selected;
+    else if (ov.hoverId === e.id) color = COLORS.wallHover;
+    drawOpening(ctx, vp, e, w, color);
+    drawOpeningLabel(ctx, vp, e, w, color, paperPx);
+  }
+  if (ov.openingPreview) {
+    const w = wallById.get(ov.openingPreview.wall);
+    if (w) {
+      const ghost: Opening = { ...ov.openingPreview, id: '', layer: '' };
+      drawWall(ctx, vp, w, COLORS.wall, [...(openingsOf.get(w.id) ?? []), ghost]);
+      drawOpening(ctx, vp, ghost, w, COLORS.selected);
+      drawOpeningLabel(ctx, vp, ghost, w, COLORS.selected, paperPx);
+    }
   }
 
   if (!hidden.has(DIM_LAYER)) {
     drawDimensions(ctx, vp, visible.filter(isWall), st.doc.scale, colorOf.get(DIM_LAYER) ?? COLORS.label);
+  }
+
+  for (const e of visible) {
+    if (!isRoom(e)) continue;
+    const shape = findRoomCached(walls, e.pos);
+    const color = st.selection.has(e.id) ? COLORS.selected : (colorOf.get(e.layer) ?? COLORS.label);
+    drawRoomLabel(ctx, vp, e, shape ? areaText(shape.area) : null, color, paperPx);
   }
 
   for (const e of visible) {
@@ -91,7 +160,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     if (isWall(e)) {
       drawGrip(ctx, vp.toScreen(e.a));
       drawGrip(ctx, vp.toScreen(e.b));
-    } else {
+    } else if (isSymbol(e)) {
       drawSymbolRing(ctx, vp, e, COLORS.selected, false, unit);
     }
   }
@@ -154,16 +223,158 @@ function drawGrid(ctx: CanvasRenderingContext2D, vp: Viewport): void {
   ctx.stroke();
 }
 
-function drawWall(ctx: CanvasRenderingContext2D, vp: Viewport, w: Wall, color: string): void {
-  const a = vp.toScreen(w.a);
-  const b = vp.toScreen(w.b);
+/** Muri si drejtkëndësh i mbushur, me boshllëqe aty ku ka dyer e dritare. */
+function drawWall(ctx: CanvasRenderingContext2D, vp: Viewport, w: Wall, color: string, openings: Opening[] = []): void {
+  const L = wallLength(w);
+  const h = w.thickness / 2;
+  ctx.fillStyle = color;
+  if (L < 1) return;
+  const u = { x: (w.b.x - w.a.x) / L, y: (w.b.y - w.a.y) / L };
+  const n = { x: -u.y, y: u.x };
+  const minPx = 0.75 / vp.scale; // muri të duket edhe kur është shumë larg
+  const hh = Math.max(h, minPx);
   ctx.beginPath();
-  ctx.moveTo(a.x, a.y);
-  ctx.lineTo(b.x, b.y);
+  for (const [s0, s1] of wallPieces(w, openings)) {
+    // skajet e vërteta të murit zgjaten me gjysmën e trashësisë (qoshet mbyllen); skajet te hapjet jo
+    const e0 = s0 <= 0 ? -h : 0;
+    const e1 = s1 >= L ? h : 0;
+    const corners = [
+      [s0 + e0, -hh],
+      [s1 + e1, -hh],
+      [s1 + e1, hh],
+      [s0 + e0, hh],
+    ].map(([along, across]) =>
+      vp.toScreen({ x: w.a.x + u.x * along + n.x * across, y: w.a.y + u.y * along + n.y * across }),
+    );
+    ctx.moveTo(corners[0].x, corners[0].y);
+    for (const c of corners.slice(1)) ctx.lineTo(c.x, c.y);
+    ctx.closePath();
+  }
+  ctx.fill();
+}
+
+/** Dera: krahu dhe harku i hapjes. Dritarja: tri vija (faqet dhe xhami). */
+function drawOpening(ctx: CanvasRenderingContext2D, vp: Viewport, o: Opening, w: Wall, color: string): void {
+  const f = openingFrame(o, w);
+  if (!f) return;
+  const at = (base: Vec, k: number) => vp.toScreen({ x: base.x + f.n.x * k, y: base.y + f.n.y * k });
+  ctx.save();
   ctx.strokeStyle = color;
-  ctx.lineWidth = Math.max(w.thickness * vp.scale, 1.5);
-  ctx.lineCap = 'square';
-  ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  // kufijtë e hapjes, nga njëra faqe e murit te tjetra
+  for (const p of [f.p1, f.p2]) {
+    const a = at(p, -f.half);
+    const b = at(p, f.half);
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+  }
+  if (o.type === 'window') {
+    for (const k of [-f.half, -f.half * 0.2, f.half * 0.2, f.half]) {
+      const a = at(f.p1, k);
+      const b = at(f.p2, k);
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+    }
+    ctx.stroke();
+  } else {
+    ctx.stroke();
+    const width = Math.hypot(f.p2.x - f.p1.x, f.p2.y - f.p1.y);
+    const hingeBase = o.hinge === 'a' ? f.p1 : f.p2;
+    const otherBase = o.hinge === 'a' ? f.p2 : f.p1;
+    const face = f.half * o.side;
+    const hinge = { x: hingeBase.x + f.n.x * face, y: hingeBase.y + f.n.y * face };
+    const other = { x: otherBase.x + f.n.x * face, y: otherBase.y + f.n.y * face };
+    const tip = { x: hinge.x + f.n.x * o.side * width, y: hinge.y + f.n.y * o.side * width };
+    const H = vp.toScreen(hinge);
+    const T = vp.toScreen(tip);
+    const O = vp.toScreen(other);
+    const r = width * vp.scale;
+    // krahu i derës
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(H.x, H.y);
+    ctx.lineTo(T.x, T.y);
+    ctx.stroke();
+    // harku nga maja e krahut te kasa tjetër
+    const a0 = Math.atan2(T.y - H.y, T.x - H.x);
+    const a1 = Math.atan2(O.y - H.y, O.x - H.x);
+    let d = a1 - a0;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.arc(H.x, H.y, r, a0, a0 + d, d < 0);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Masat e hapjes (p.sh. "90/210") pranë saj; dera nga ana pa hapje, dritarja nga brenda. */
+function drawOpeningLabel(ctx: CanvasRenderingContext2D, vp: Viewport, o: Opening, w: Wall, color: string, paperPx: number): void {
+  const textPx = OPENING_TEXT * paperPx;
+  if (textPx < 7) return;
+  const f = openingFrame(o, w);
+  if (!f) return;
+  const side = o.type === 'door' ? -o.side : o.side;
+  const off = f.half + 1.2 * paperPx / vp.scale;
+  const c = vp.toScreen({ x: (f.p1.x + f.p2.x) / 2 + f.n.x * side * off, y: (f.p1.y + f.p2.y) / 2 + f.n.y * side * off });
+  // drejtimi i murit në ekran, i kthyer që teksti të lexohet nga poshtë ose nga e djathta
+  let ang = Math.atan2(-f.u.y, f.u.x);
+  if (ang > Math.PI / 2 || ang <= -Math.PI / 2) ang += Math.PI;
+  // ana e tekstit në ekran: larg murit
+  const nx = f.n.x * side;
+  const ny = -f.n.y * side;
+  const away = -Math.sin(ang) * nx + Math.cos(ang) * ny;
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  ctx.rotate(ang);
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = away > 0 ? 'top' : 'bottom';
+  ctx.font = `500 ${Math.min(textPx, 32)}px "IBM Plex Mono", ui-monospace, monospace`;
+  ctx.fillText(sizeText(o), 0, 0);
+  ctx.restore();
+}
+
+function fillPolygon(ctx: CanvasRenderingContext2D, vp: Viewport, poly: Vec[], color: string): void {
+  if (poly.length < 3) return;
+  ctx.beginPath();
+  poly.forEach((p, i) => {
+    const s = vp.toScreen(p);
+    if (i === 0) ctx.moveTo(s.x, s.y);
+    else ctx.lineTo(s.x, s.y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+/** Emri i dhomës dhe sipërfaqja, me madhësi letre sipas shkallës. */
+function drawRoomLabel(
+  ctx: CanvasRenderingContext2D,
+  vp: Viewport,
+  r: Room,
+  area: string | null,
+  color: string,
+  paperPx: number,
+): void {
+  const namePx = Math.max(ROOM_TEXT.name * paperPx, 9);
+  const areaPx = Math.max(ROOM_TEXT.area * paperPx, 8);
+  if (ROOM_TEXT.area * paperPx < 4) return;
+  const c = vp.toScreen(r.pos);
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.font = `600 ${Math.min(namePx, 48)}px "IBM Plex Sans", system-ui, sans-serif`;
+  ctx.fillText(r.name, c.x, c.y);
+  ctx.textBaseline = 'top';
+  ctx.font = `500 ${Math.min(areaPx, 36)}px "IBM Plex Mono", ui-monospace, monospace`;
+  ctx.fillText(area === null ? '— m²' : `${area} m²`, c.x, c.y + areaPx * 0.25);
+  ctx.restore();
 }
 
 const pathCache = new Map<string, Path2D>();

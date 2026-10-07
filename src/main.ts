@@ -1,5 +1,7 @@
 import { Store } from './core/store';
-import { SCALES, emptyDoc, isSymbol, isWall, type SymbolEntity, type Wall } from './core/types';
+import { SCALES, emptyDoc, isOpening, isRoom, isSymbol, isWall, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
+import { DEFAULT_SILL, DOOR_HEIGHTS, DOOR_WIDTHS, SIZE_LIMITS, WINDOW_HEIGHTS, WINDOW_WIDTHS, openingFrame, openingHeight } from './core/openings';
+import { areaText, findRoom } from './core/rooms';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
 import { sampleDoc } from './core/sample';
 import { Viewport } from './view/viewport';
@@ -21,8 +23,9 @@ const vp = new Viewport();
 const editor = new Editor(
   store,
   vp,
-  { snap: true, grid: true, ortho: false, gridStep: 100, wallThickness: 250 },
+  { snap: true, grid: true, ortho: false, gridStep: 100, wallThickness: 250, doorWidth: 900, windowWidth: 1200, doorHeight: 2100, windowHeight: 1400 },
   () => scheduleRender(),
+  (m) => toast(t(m === 'roomNotClosed' ? 'toastRoomNotClosed' : m === 'roomExists' ? 'toastRoomExists' : 'toastNoWall'), true),
 );
 
 // ---- gjuha ----
@@ -55,6 +58,7 @@ function applyLang(lang: Lang): void {
   propsKey = '';
   layersKey = '';
   summaryKey = '';
+  roomsKey = '';
   syncUi();
 }
 langSelect.addEventListener('change', () => isLang(langSelect.value) && applyLang(langSelect.value));
@@ -98,7 +102,7 @@ function resize(): void {
 }
 
 function fitAll(): void {
-  const pts = store.doc.entities.flatMap((e) => (isWall(e) ? [e.a, e.b] : [e.pos]));
+  const pts = store.doc.entities.flatMap((e) => (isWall(e) ? [e.a, e.b] : isOpening(e) ? [] : [e.pos]));
   if (pts.length === 0) {
     vp.fit({ minX: 0, minY: 0, maxX: 12000, maxY: 8000 });
   } else {
@@ -152,6 +156,56 @@ function setTool(tool: ToolId): void {
   syncUi();
 }
 toolButtons.forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool as ToolId)));
+
+/**
+ * Gjerësia dhe lartësia e derës/dritares shfaqen në shirit vetëm kur vegla përkatëse është aktive.
+ * Shkruhet çdo masë në cm; lista jep vetëm masat standarde si sugjerim.
+ */
+const widthInput = $<HTMLInputElement>('openingWidth');
+const heightInput = $<HTMLInputElement>('openingHeight');
+let sizeFor = '';
+function syncWidthField(): void {
+  const placing = editor.tool === 'door' || editor.tool === 'window';
+  $('openingWidthField').hidden = !placing;
+  $('wallThicknessField').hidden = placing;
+  if (!placing) return;
+  const door = editor.tool === 'door';
+  if (sizeFor !== editor.tool) {
+    sizeFor = editor.tool;
+    const opts = (list: number[]) => list.map((v) => `<option value="${v / 10}"></option>`).join('');
+    $('openingWidthList').innerHTML = opts(door ? DOOR_WIDTHS : WINDOW_WIDTHS);
+    $('openingHeightList').innerHTML = opts(door ? DOOR_HEIGHTS : WINDOW_HEIGHTS);
+  }
+  const s = editor.settings;
+  if (document.activeElement !== widthInput) widthInput.value = String((door ? s.doorWidth : s.windowWidth) / 10);
+  if (document.activeElement !== heightInput) heightInput.value = String((door ? s.doorHeight : s.windowHeight) / 10);
+}
+/** Lexon cm nga fusha dhe kthen mm, ose null nëse masa nuk pranohet. */
+function sizeMm(input: HTMLInputElement): number | null {
+  const mm = Math.round(Number(input.value.replace(',', '.')) * 10);
+  if (!(mm >= SIZE_LIMITS.min && mm <= SIZE_LIMITS.max)) {
+    toast(t('sizeRange'), true);
+    return null;
+  }
+  return mm;
+}
+widthInput.addEventListener('change', () => {
+  const mm = sizeMm(widthInput);
+  if (mm === null) return syncWidthField();
+  if (editor.tool === 'door') editor.settings.doorWidth = mm;
+  else editor.settings.windowWidth = mm;
+  scheduleRender();
+});
+heightInput.addEventListener('change', () => {
+  const mm = sizeMm(heightInput);
+  if (mm === null) return syncWidthField();
+  if (editor.tool === 'door') editor.settings.doorHeight = mm;
+  else editor.settings.windowHeight = mm;
+});
+for (const input of [widthInput, heightInput]) {
+  // Enter e kthen fokusin te plani, që të vazhdosh menjëherë me vendosjen
+  input.addEventListener('keydown', (e) => e.key === 'Enter' && canvas.focus());
+}
 
 $('btnUndo').addEventListener('click', () => store.undo());
 $('btnRedo').addEventListener('click', () => store.redo());
@@ -289,6 +343,12 @@ $('btnNew').addEventListener('click', () => {
   newName.focus();
 });
 $('confirmCancel').addEventListener('click', () => (modal.hidden = true));
+$('confirmSample').addEventListener('click', () => {
+  modal.hidden = true;
+  store.replace(sampleDoc());
+  fitAll();
+  setTool('select');
+});
 $('confirmOk').addEventListener('click', () => {
   modal.hidden = true;
   store.replace(emptyDoc(newName.value.trim() || t('newDefault')));
@@ -329,6 +389,9 @@ window.addEventListener('keydown', (e) => {
   }
   if (ctrl || e.altKey) return;
   if (k === 'w') setTool('wall');
+  else if (k === 'd') setTool('door');
+  else if (k === 'n') setTool('window');
+  else if (k === 'm') setTool('room');
   else if (k === 'v') setTool('select');
   else if (k === 'h') setTool('pan');
   else if (k === 'f') fitAll();
@@ -348,7 +411,7 @@ function thicknessOptions(current: number | null): string {
   return opts.join('');
 }
 
-function update<T extends Wall | SymbolEntity>(id: string, fn: (x: T) => void): void {
+function update<T extends Entity>(id: string, fn: (x: T) => void): void {
   store.commit((d) => {
     const x = d.entities.find((e) => e.id === id);
     if (x) fn(x as T);
@@ -369,7 +432,7 @@ function renderProps(): void {
   if (sel.length === 0) {
     const walls = store.doc.entities.filter(isWall);
     const total = walls.reduce((s, w) => s + dist(w.a, w.b), 0);
-    const symbols = store.doc.entities.length - walls.length;
+    const symbols = store.doc.entities.filter(isSymbol).length;
     el.innerHTML = `
       <label class="field" for="propName">${esc(t('projectName'))}
         <input id="propName" type="text" value="${esc(store.doc.name)}">
@@ -412,6 +475,16 @@ function renderProps(): void {
     onNum('propPower', (x, v) => (v === undefined ? delete x.power : (x.power = Math.max(0, Math.round(v)))));
     onNum('propAngle', (x, v) => v !== undefined && (x.angle = normAngle(v + 270)));
     $('propDelete').addEventListener('click', () => editor.deleteSelection());
+    return;
+  }
+
+  if (sel.length === 1 && isOpening(sel[0])) {
+    renderOpeningProps(el, sel[0]);
+    return;
+  }
+
+  if (sel.length === 1 && isRoom(sel[0])) {
+    renderRoomProps(el, sel[0]);
     return;
   }
 
@@ -473,6 +546,98 @@ function renderProps(): void {
   });
   $('propDelete').addEventListener('click', () => editor.deleteSelection());
 }
+
+const DOOR_ICON =
+  '<svg viewBox="0 0 24 24" class="ic" style="color:#9CC5FF;width:30px;height:30px"><path d="M3 20h4M17 20h4"></path><path d="M7 20V6"></path><path d="M7 6a14 14 0 0 1 14 14" stroke-dasharray="2.5 2"></path></svg>';
+const WINDOW_ICON =
+  '<svg viewBox="0 0 24 24" class="ic" style="color:#9CC5FF;width:30px;height:30px"><rect x="3" y="9" width="18" height="6"></rect><path d="M3 12h18"></path></svg>';
+const ROOM_ICON =
+  '<svg viewBox="0 0 24 24" class="ic" style="color:#5EEAD4;width:30px;height:30px"><rect x="3" y="4" width="18" height="16"></rect><path d="M8 13h3M8 10h8"></path></svg>';
+
+function renderOpeningProps(el: HTMLElement, o: Opening): void {
+  const door = o.type === 'door';
+  const wall = store.doc.entities.find((e): e is Wall => isWall(e) && e.id === o.wall);
+  const f = wall && openingFrame(o, wall);
+  el.innerHTML = `
+    <div class="prop-head">${door ? DOOR_ICON : WINDOW_ICON}<div><b>${esc(t(door ? 'door' : 'window'))}</b>
+      <span>${esc(t('layer'))}: ${esc(layerName(o.layer, o.layer))}</span></div></div>
+    <div class="prop-grid">
+      ${numField('propWidth', t('widthCm'), Math.round(o.width / 10))}
+      ${numField('propHeight', t('openingHeightCm'), Math.round(openingHeight(o) / 10))}
+      ${door ? '' : numField('propSill', t('sillCm'), Math.round((o.sill ?? DEFAULT_SILL) / 10))}
+      ${numField('propFrom', t('fromWallStart'), f ? Math.round(f.s1 / 10) : '')}
+    </div>
+    ${door ? `<div class="btn-row"><button class="btn" id="propFlipSide" type="button">${esc(t('flipSide'))}</button>
+      <button class="btn" id="propFlipHinge" type="button">${esc(t('flipHinge'))}</button></div>` : ''}
+    <button class="btn danger" id="propDelete" type="button">${esc(t('delete'))}</button>`;
+  $<HTMLInputElement>('propWidth').addEventListener('change', (e) => {
+    const mm = sizeMm(e.target as HTMLInputElement);
+    if (mm === null) return void (propsKey = '', renderProps());
+    update<Opening>(o.id, (x) => void (x.width = mm));
+  });
+  $<HTMLInputElement>('propHeight').addEventListener('change', (e) => {
+    const mm = sizeMm(e.target as HTMLInputElement);
+    if (mm === null) return void (propsKey = '', renderProps());
+    update<Opening>(o.id, (x) => void (x.height = mm));
+  });
+  $('propSill')?.addEventListener('change', (e) => {
+    const cm = Number((e.target as HTMLInputElement).value);
+    if (Number.isFinite(cm) && cm >= 0) update<Opening>(o.id, (x) => void (x.sill = Math.round(cm * 10)));
+  });
+  $<HTMLInputElement>('propFrom').addEventListener('change', (e) => {
+    const cm = Number((e.target as HTMLInputElement).value);
+    if (Number.isFinite(cm) && cm >= 0) update<Opening>(o.id, (x) => void (x.t = Math.round(cm * 10 + x.width / 2)));
+  });
+  $('propFlipSide')?.addEventListener('click', () => update<Opening>(o.id, (x) => void (x.side = x.side === 1 ? -1 : 1)));
+  $('propFlipHinge')?.addEventListener('click', () => update<Opening>(o.id, (x) => void (x.hinge = x.hinge === 'a' ? 'b' : 'a')));
+  $('propDelete').addEventListener('click', () => editor.deleteSelection());
+}
+
+function renderRoomProps(el: HTMLElement, r: Room): void {
+  const shape = findRoom(store.doc.entities.filter(isWall), r.pos);
+  el.innerHTML = `
+    <div class="prop-head">${ROOM_ICON}<div><b>${esc(r.name)}</b><span>${esc(t('layer'))}: ${esc(layerName(r.layer, r.layer))}</span></div></div>
+    <label class="field" for="propRoomName">${esc(t('roomName'))}
+      <input id="propRoomName" type="text" value="${esc(r.name)}">
+    </label>
+    <div class="stats">
+      <div class="stat"><span>${esc(t('area'))}</span><b>${shape ? `${areaText(shape.area)} m²` : '—'}</b></div>
+      <div class="stat"><span>${esc(t('perimeter'))}</span><b>${shape ? formatMeters(shape.perimeter) : '—'}</b></div>
+    </div>
+    ${shape ? '' : `<p class="muted small">${esc(t('roomOpen'))}</p>`}
+    <button class="btn danger" id="propDelete" type="button">${esc(t('delete'))}</button>`;
+  const input = $<HTMLInputElement>('propRoomName');
+  input.addEventListener('change', () => {
+    const name = input.value.trim();
+    if (name) update<Room>(r.id, (x) => void (x.name = name));
+  });
+  $('propDelete').addEventListener('click', () => editor.deleteSelection());
+}
+
+// ---- lista e dhomave ----
+
+let roomsKey = '';
+function renderRoomSummary(): void {
+  const walls = store.doc.entities.filter(isWall);
+  const rooms = store.doc.entities.filter(isRoom).map((r) => ({ r, shape: findRoom(walls, r.pos) }));
+  const key = JSON.stringify([getLang(), walls, rooms.map((x) => x.r)]);
+  if (key === roomsKey) return;
+  roomsKey = key;
+  if (rooms.length === 0) {
+    $('roomSummary').innerHTML = `<p class="muted small">${esc(t('noRooms'))}</p>`;
+    return;
+  }
+  const total = rooms.reduce((s, x) => s + (x.shape?.area ?? 0), 0);
+  const rows = rooms
+    .map(({ r, shape }) => `<tr data-room="${r.id}"><td>${esc(r.name)}</td><td class="qty">${shape ? areaText(shape.area) : '—'}</td></tr>`)
+    .join('');
+  $('roomSummary').innerHTML = `<table class="summary rooms"><thead><tr><th>${esc(t('room'))}</th><th class="qty">m²</th></tr></thead>
+    <tbody>${rows}</tbody><tfoot><tr><td>${esc(t('totalArea'))}</td><td class="qty">${areaText(total)}</td></tr></tfoot></table>`;
+}
+$('roomSummary').addEventListener('click', (e) => {
+  const row = (e.target as HTMLElement).closest<HTMLElement>('[data-room]');
+  if (row) store.setSelection([row.dataset.room!]);
+});
 
 // ---- lista e simboleve në plan ----
 
@@ -544,14 +709,27 @@ function updateStatus(): void {
   const p = editor.cursorWorld;
   $('stCoords').textContent = `X ${(p.x / 1000).toFixed(2)} m · Y ${(p.y / 1000).toFixed(2)} m`;
   const sk = editor.snapKind;
-  $('stSnap').textContent = (editor.tool === 'wall' || editor.tool === 'symbol') && sk !== 'none' ? t(SNAP_KEYS[sk]) : '';
+  $('stSnap').textContent =
+    (editor.tool === 'wall' || editor.tool === 'symbol' || editor.isPlacingOpening) && sk !== 'none' ? t(SNAP_KEYS[sk]) : '';
   $('stZoom').textContent = `1 m = ${Math.round(vp.scale * 1000)} px`;
 
   const def = editor.activeSymbol ? symbolDef(editor.activeSymbol) : undefined;
   const info =
     editor.tool === 'symbol' && def
       ? t('infoSymbol', { name: symName(def) })
-      : t(editor.tool === 'wall' ? 'infoWall' : editor.tool === 'pan' ? 'infoPan' : 'infoSelect');
+      : t(
+          (
+            {
+              wall: 'infoWall',
+              pan: 'infoPan',
+              door: 'infoDoor',
+              window: 'infoWindow',
+              room: 'infoRoom',
+              select: 'infoSelect',
+              symbol: 'infoSelect',
+            } as const
+          )[editor.tool],
+        );
   $('stInfo').textContent = info;
 
   if (editor.tool === 'wall') {
@@ -579,7 +757,9 @@ function syncUi(): void {
   syncLibraryPressed();
   renderProps();
   renderSummary();
+  renderRoomSummary();
   renderLayers();
+  syncWidthField();
   updateStatus();
 }
 

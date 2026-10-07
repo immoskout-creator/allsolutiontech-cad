@@ -35,6 +35,15 @@
       <button class="tool" data-tool="wall" type="button" data-i18n-title="wallTitle">
         <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="6"></rect><path d="M7 9v6M11 9v6M15 9v6M19 9v6"></path></svg><span data-i18n="wall"></span>
       </button>
+      <button class="tool" data-tool="door" type="button" data-i18n-title="doorTitle">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M3 20h4M17 20h4"></path><path d="M7 20V6"></path><path d="M7 6a14 14 0 0 1 14 14" stroke-dasharray="2.5 2"></path></svg><span data-i18n="door"></span>
+      </button>
+      <button class="tool" data-tool="window" type="button" data-i18n-title="windowTitle">
+        <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="6"></rect><path d="M3 12h18"></path></svg><span data-i18n="window"></span>
+      </button>
+      <button class="tool" data-tool="room" type="button" data-i18n-title="roomTitle">
+        <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16"></rect><path d="M8 13h3M8 10h8"></path><path d="M14 15.5h1.5a1 1 0 0 0 0-2H14v4h2" stroke-width="1.4"></path></svg><span data-i18n="room"></span>
+      </button>
       <button class="tool" data-tool="pan" type="button" data-i18n-title="panTitle">
         <svg class="ic" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12"></path><path d="M11 11.5v-7a1.5 1.5 0 0 1 3 0V12"></path><path d="M14 6.5a1.5 1.5 0 0 1 3 0V13"></path><path d="M17 9.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-5-2.7L4.3 14a1.6 1.6 0 0 1 2.6-1.8L8 13.5"></path></svg><span data-i18n="pan"></span>
       </button>
@@ -62,7 +71,16 @@
       <label class="field-inline" for="sheetScale"><span data-i18n="sheetScaleLabel"></span>
         <select id="sheetScale"></select>
       </label>
-      <label class="field-inline" for="wallThickness"><span data-i18n="thickness"></span>
+      <div class="field-inline opening-size" id="openingWidthField" hidden>
+        <label for="openingWidth"><span data-i18n="openingWidth"></span></label>
+        <input id="openingWidth" class="num" type="number" min="30" max="600" step="5" list="openingWidthList">
+        <label for="openingHeight"><span data-i18n="openingHeight"></span></label>
+        <input id="openingHeight" class="num" type="number" min="30" max="600" step="5" list="openingHeightList">
+        <span class="unit">cm</span>
+        <datalist id="openingWidthList"></datalist>
+        <datalist id="openingHeightList"></datalist>
+      </div>
+      <label class="field-inline" for="wallThickness" id="wallThicknessField"><span data-i18n="thickness"></span>
         <select id="wallThickness">
           <option value="100">10 cm</option>
           <option value="120">12 cm</option>
@@ -121,6 +139,10 @@
         <div id="symbolSummary"></div>
       </section>
       <section class="panel">
+        <h2 class="panel-title" data-i18n="rooms"></h2>
+        <div id="roomSummary"></div>
+      </section>
+      <section class="panel">
         <h2 class="panel-title" data-i18n="layers"></h2>
         <ul class="layers" id="layers"></ul>
       </section>
@@ -128,6 +150,8 @@
         <h2 class="panel-title" data-i18n="shortcuts"></h2>
         <dl class="keys">
           <dt>W</dt><dd data-i18n="kWall"></dd>
+          <dt>D / N</dt><dd data-i18n="kDoor"></dd>
+          <dt>M</dt><dd data-i18n="kRoom"></dd>
           <dt>V</dt><dd data-i18n="kSelect"></dd>
           <dt data-i18n="kTypedKey"></dt><dd data-i18n="kTyped"></dd>
           <dt>R</dt><dd data-i18n="kRotate"></dd>
@@ -160,6 +184,8 @@
         <input id="newName" type="text">
       </label>
       <div class="modal-actions">
+        <button class="btn" id="confirmSample" type="button" data-i18n="openSample"></button>
+        <span class="spacer"></span>
         <button class="btn" id="confirmCancel" type="button" data-i18n="cancel"></button>
         <button class="btn btn-primary" id="confirmOk" type="button" data-i18n="create"></button>
       </div>

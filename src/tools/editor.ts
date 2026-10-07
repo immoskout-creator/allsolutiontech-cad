@@ -1,5 +1,23 @@
 import type { Store } from '../core/store';
-import { isSymbol, isWall, newId, WALL_LAYER, type SymbolEntity, type Vec, type Wall } from '../core/types';
+import {
+  isOpening,
+  isRoom,
+  isSymbol,
+  isWall,
+  newId,
+  OPENING_LAYER,
+  ROOM_LAYER,
+  WALL_LAYER,
+  type Opening,
+  type Room,
+  type SymbolEntity,
+  type Vec,
+  type Wall,
+} from '../core/types';
+import { moveEntity, wallMap } from '../core/move';
+import { DEFAULT_SILL, openingFrame, placeOnWall } from '../core/openings';
+import { findRoom } from '../core/rooms';
+import { t } from '../i18n/strings';
 import {
   add,
   dist,
@@ -20,7 +38,7 @@ import { attachToWall, normAngle, symbolCenter, symbolHitMm } from '../symbols/p
 import type { Overlay, SnapKind } from '../view/renderer';
 import type { Viewport } from '../view/viewport';
 
-export type ToolId = 'select' | 'wall' | 'pan' | 'symbol';
+export type ToolId = 'select' | 'wall' | 'pan' | 'symbol' | 'door' | 'window' | 'room';
 
 export interface Settings {
   snap: boolean;
@@ -30,7 +48,19 @@ export interface Settings {
   gridStep: number;
   /** Trashësia e mureve të reja, mm. */
   wallThickness: number;
+  /** Gjerësia e dyerve dhe dritareve të reja, mm. */
+  doorWidth: number;
+  windowWidth: number;
+  /** Lartësia e dyerve dhe dritareve të reja, mm. */
+  doorHeight: number;
+  windowHeight: number;
 }
+
+/** Mesazhet që editori i tregon përdoruesit. */
+export type EditorMessage = 'roomNotClosed' | 'roomExists' | 'noWallHere';
+
+/** Rrezja e zgjedhjes së etiketës së dhomës, mm letre. */
+const ROOM_HIT_PAPER_MM = 6;
 
 const SNAP_PX = 10;
 const HIT_PX = 6;
@@ -62,6 +92,8 @@ export class Editor {
   activeSymbol: string | null = null;
   /** Rrotullimi shtesë i simbolit të lirë, në gradë. */
   private symbolAngle = FREE_ANGLE;
+  /** Menteshat e derës që po vendoset (R i ndryshon). */
+  private placeHinge: 'a' | 'b' = 'a';
 
   private drag: Drag | null = null;
   private spaceDown = false;
@@ -72,6 +104,7 @@ export class Editor {
     private vp: Viewport,
     public settings: Settings,
     private onChange: () => void,
+    private onMessage: (m: EditorMessage) => void = () => {},
   ) {}
 
   setTool(tool: ToolId): void {
@@ -80,6 +113,8 @@ export class Editor {
     this.endChain();
     this.overlay.hoverId = null;
     this.overlay.symbolPreview = undefined;
+    this.overlay.openingPreview = undefined;
+    this.overlay.roomPreview = undefined;
     this.onChange();
   }
 
@@ -157,12 +192,21 @@ export class Editor {
     const p = this.vp.toWorld(screen);
     const unit = this.unit;
     let best: { id: string; d: number } | null = null;
+    const walls = wallMap(this.store.doc.entities);
     for (const e of this.store.editable()) {
       let d: number;
       if (isWall(e)) d = distToSegment(p, e.a, e.b) - e.thickness / 2;
-      else d = dist(p, symbolCenter(e, unit)) - Math.max(symbolHitMm(unit), this.vp.px(10));
-      // simbolet fitojnë mbi muret kur mbivendosen
-      if (isSymbol(e)) d -= this.vp.px(4);
+      else if (isSymbol(e)) d = dist(p, symbolCenter(e, unit)) - Math.max(symbolHitMm(unit), this.vp.px(10));
+      else if (isRoom(e)) d = dist(p, e.pos) - Math.max(ROOM_HIT_PAPER_MM * this.store.doc.scale, this.vp.px(14));
+      else {
+        const w = walls.get(e.wall);
+        const f = w && openingFrame(e, w);
+        if (!f) continue;
+        d = distToSegment(p, f.p1, f.p2) - f.half;
+      }
+      // simbolet dhe hapjet fitojnë mbi muret kur mbivendosen; dhomat kanë përparësinë më të ulët
+      if (isSymbol(e) || isOpening(e)) d -= this.vp.px(4);
+      if (isRoom(e)) d += this.vp.px(2);
       if (d <= this.vp.px(HIT_PX) && (!best || d < best.d)) best = { id: e.id, d };
     }
     return best?.id ?? null;
@@ -178,10 +222,20 @@ export class Editor {
     }
     if (button === 2) {
       if (this.tool === 'wall') this.endChain();
-      if (this.tool === 'symbol') this.setTool('select');
+      if (this.tool === 'symbol' || this.isPlacingOpening || this.tool === 'room') this.setTool('select');
       return;
     }
     if (button !== 0) return;
+
+    if (this.isPlacingOpening) {
+      this.placeOpening(screen);
+      return;
+    }
+
+    if (this.tool === 'room') {
+      this.placeRoom(screen);
+      return;
+    }
 
     if (this.tool === 'wall') {
       const { p } = this.snapPoint(screen, this.chainStart);
@@ -246,6 +300,14 @@ export class Editor {
       this.cursorWorld = pl?.pos ?? this.vp.toWorld(screen);
       this.snapKind = pl?.kind ?? 'none';
       this.overlay.symbolPreview = pl && this.activeSymbol ? { symbol: this.activeSymbol, pos: pl.pos, angle: pl.angle } : undefined;
+    } else if (this.isPlacingOpening && d?.kind !== 'pan') {
+      const pl = this.openingPlacement(screen);
+      this.cursorWorld = this.vp.toWorld(screen);
+      this.snapKind = pl ? 'wall' : 'none';
+      this.overlay.openingPreview = pl ?? undefined;
+    } else if (this.tool === 'room' && d?.kind !== 'pan') {
+      this.cursorWorld = this.vp.toWorld(screen);
+      this.overlay.roomPreview = findRoom(this.walls(), this.cursorWorld)?.poly;
     } else {
       this.cursorWorld = this.vp.toWorld(screen);
       if (this.tool === 'select' && !d) this.overlay.hoverId = this.hitTest(screen);
@@ -265,6 +327,12 @@ export class Editor {
           .editable()
           .filter((e) => {
             if (isSymbol(e)) return inRect(symbolCenter(e, this.unit), r);
+            if (isRoom(e)) return inRect(e.pos, r);
+            if (isOpening(e)) {
+              const w = this.walls().find((x) => x.id === e.wall);
+              const f = w && openingFrame(e, w);
+              return !!f && (crossing ? segmentTouchesRect(f.p1, f.p2, r) : inRect(f.p1, r) && inRect(f.p2, r));
+            }
             return crossing ? segmentTouchesRect(e.a, e.b, r) : inRect(e.a, r) && inRect(e.b, r);
           })
           .map((e) => e.id);
@@ -276,15 +344,8 @@ export class Editor {
       this.overlay.moveDelta = undefined;
       if (d.active && delta && (delta.x !== 0 || delta.y !== 0)) {
         this.store.commit((doc) => {
-          for (const e of doc.entities) {
-            if (!d.ids.has(e.id)) continue;
-            if (isWall(e)) {
-              e.a = add(e.a, delta);
-              e.b = add(e.b, delta);
-            } else {
-              e.pos = add(e.pos, delta);
-            }
-          }
+          const walls = wallMap(doc.entities);
+          doc.entities = doc.entities.map((e) => (d.ids.has(e.id) ? moveEntity(e, delta, d.ids, walls) : e));
         });
       }
     }
@@ -296,6 +357,8 @@ export class Editor {
     this.overlay.snap = undefined;
     this.overlay.hoverId = null;
     this.overlay.symbolPreview = undefined;
+    this.overlay.openingPreview = undefined;
+    this.overlay.roomPreview = undefined;
     this.onChange();
   }
 
@@ -369,8 +432,89 @@ export class Editor {
     });
   }
 
-  /** Rrotullon simbolin që po vendoset, ose simbolet e zgjedhura, me 90°. */
+  // ---- dyert dhe dritaret ----
+
+  get isPlacingOpening(): boolean {
+    return this.tool === 'door' || this.tool === 'window';
+  }
+
+  private openingPlacement(screen: Vec): Omit<Opening, 'id' | 'layer'> | null {
+    const type = this.tool === 'window' ? 'window' : 'door';
+    const width = type === 'door' ? this.settings.doorWidth : this.settings.windowWidth;
+    const walls = this.store.editable().filter(isWall);
+    const hit = placeOnWall(this.vp.toWorld(screen), walls, width, this.settings.snap ? 50 : 0);
+    if (!hit) return null;
+    const height = type === 'door' ? this.settings.doorHeight : this.settings.windowHeight;
+    const o: Omit<Opening, 'id' | 'layer'> = { kind: 'opening', type, wall: hit.wall, t: hit.t, width, height, side: hit.side, hinge: this.placeHinge };
+    if (type === 'window') o.sill = DEFAULT_SILL;
+    return o;
+  }
+
+  private placeOpening(screen: Vec): void {
+    const pl = this.openingPlacement(screen);
+    if (!pl) {
+      this.onMessage('noWallHere');
+      return;
+    }
+    const o: Opening = { ...pl, id: newId('o'), layer: OPENING_LAYER };
+    this.store.commit((doc) => {
+      doc.entities.push(o);
+    });
+  }
+
+  // ---- dhomat ----
+
+  private placeRoom(screen: Vec): void {
+    const p = this.vp.toWorld(screen);
+    const walls = this.walls();
+    const shape = findRoom(walls, p);
+    if (!shape) {
+      this.onMessage('roomNotClosed');
+      return;
+    }
+    const rooms = this.store.doc.entities.filter(isRoom);
+    const key = (poly: Vec[]) => poly.map((v) => `${Math.round(v.x)},${Math.round(v.y)}`).join(';');
+    const k = key(shape.poly);
+    if (rooms.some((r) => { const s = findRoom(walls, r.pos); return s && key(s.poly) === k; })) {
+      this.onMessage('roomExists');
+      return;
+    }
+    const room: Room = {
+      id: newId('r'),
+      kind: 'room',
+      layer: ROOM_LAYER,
+      name: t('roomDefault', { n: rooms.length + 1 }),
+      pos: { x: Math.round(p.x), y: Math.round(p.y) },
+    };
+    this.store.commit((doc) => {
+      doc.entities.push(room);
+    });
+    this.store.setSelection([room.id]);
+  }
+
+  /** Rrotullon simbolin që po vendoset, ose simbolet e zgjedhura, me 90°. Te dyert ndryshon krahun. */
   rotate(): void {
+    if (this.isPlacingOpening) {
+      this.placeHinge = this.placeHinge === 'a' ? 'b' : 'a';
+      if (this.overlay.cursor) this.pointerMove(this.overlay.cursor, this.shiftDown);
+      return;
+    }
+    const doors = this.store.selected().filter((e): e is Opening => isOpening(e) && e.type === 'door');
+    if (doors.length) {
+      const ids = new Set(doors.map((x) => x.id));
+      // katër gjendjet e derës: mentesha a/b × hapje majtas/djathtas
+      this.store.commit((doc) => {
+        for (const e of doc.entities) {
+          if (!ids.has(e.id) || !isOpening(e)) continue;
+          if (e.hinge === 'a') e.hinge = 'b';
+          else {
+            e.hinge = 'a';
+            e.side = e.side === 1 ? -1 : 1;
+          }
+        }
+      });
+      return;
+    }
     if (this.tool === 'symbol') {
       this.symbolAngle = normAngle(this.symbolAngle - 90);
       if (this.overlay.cursor) this.pointerMove(this.overlay.cursor, this.shiftDown);
@@ -416,7 +560,7 @@ export class Editor {
     }
     if (e.key === 'Escape') {
       if (this.chainStart) this.endChain();
-      else if (this.tool === 'symbol') this.setTool('select');
+      else if (this.tool === 'symbol' || this.isPlacingOpening || this.tool === 'room') this.setTool('select');
       else this.store.setSelection([]);
       return true;
     }
@@ -436,7 +580,8 @@ export class Editor {
     const ids = this.store.selection;
     if (ids.size === 0) return;
     this.store.commit((doc) => {
-      doc.entities = doc.entities.filter((x) => !ids.has(x.id));
+      // dyert dhe dritaret e një muri të fshirë fshihen bashkë me të
+      doc.entities = doc.entities.filter((x) => !ids.has(x.id) && !(isOpening(x) && ids.has(x.wall)));
     });
   }
 }
