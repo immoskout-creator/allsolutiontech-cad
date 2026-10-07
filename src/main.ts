@@ -60,6 +60,7 @@ function applyLang(lang: Lang): void {
   summaryKey = '';
   roomsKey = '';
   syncUi();
+  scheduleRender(); // teksti i vizores dhe emrat në plan
 }
 langSelect.addEventListener('change', () => isLang(langSelect.value) && applyLang(langSelect.value));
 

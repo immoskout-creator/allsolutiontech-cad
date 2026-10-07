@@ -33,11 +33,12 @@ import cnr from './cnr';
 import mk from './mk';
 import sr from './sr';
 import tr from './tr';
+import { cyrillicLocale } from './cyrillic';
 
 /**
  * Gjuhët e tjera zyrtare të Bashkimit Europian (përveç anglishtes, italishtes dhe gjermanishtes)
- * dhe gjuhët e Ballkanit jashtë BE-së.
+ * dhe gjuhët e Ballkanit jashtë BE-së. Serbishtja me cirilicë del vetë nga ajo me latinisht.
  */
-export const EXTRA = { bg, cs, da, el, es, et, fi, fr, ga, hr, hu, lt, lv, mt, nl, pl, pt, ro, sk, sl, sv, bs, cnr, mk, sr, tr } satisfies Record<string, ExtraLocale>;
+export const EXTRA = { bg, cs, da, el, es, et, fi, fr, ga, hr, hu, lt, lv, mt, nl, pl, pt, ro, sk, sl, sv, bs, cnr, mk, sr, 'sr-Cyrl': cyrillicLocale(sr), tr } satisfies Record<string, ExtraLocale>;
 
 export type ExtraLang = keyof typeof EXTRA;

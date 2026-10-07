@@ -34,6 +34,7 @@ export const LANGS: { id: Lang; label: string }[] = [
   { id: 'sk', label: 'Slovenčina' },
   { id: 'sl', label: 'Slovenščina' },
   { id: 'sr', label: 'Srpski' },
+  { id: 'sr-Cyrl', label: 'Српски' },
   { id: 'fi', label: 'Suomi' },
   { id: 'sv', label: 'Svenska' },
   { id: 'tr', label: 'Türkçe' },

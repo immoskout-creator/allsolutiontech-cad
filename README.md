@@ -20,7 +20,9 @@ Program 2D për projektimin e instalimeve elektrike në shtëpi. Vetëm 2D.
 - Paneli "Dhomat" liston çdo dhomë me m² dhe totalin.
 
 ## Gjuhët
-Ndërfaqja dhe simbolet: Shqip, English, Italiano, Deutsch (zgjedhja lart djathtas).
+Ndërfaqja dhe emrat e simboleve në 31 gjuhë (zgjedhja lart djathtas): shqip, 24 gjuhët zyrtare të BE-së, serbisht (latinisht dhe cirilicë), boshnjakisht, malazezisht, maqedonisht dhe turqisht. Kodet AST janë të njëjta në çdo gjuhë.
+- Gjuhët bazë (sq, en, it, de) janë te `src/i18n/strings.ts` dhe `src/symbols/library.ts`; të tjerat te `src/i18n/extra/<kodi>.ts`. Serbishtja me cirilicë del vetë nga ajo me latinisht.
+- Përkthimet e gjuhëve shtesë janë bërë automatikisht; mirë është t'i kontrollojë një folës i gjuhës. Testi `test/i18n.test.ts` kontrollon që çdo gjuhë ka të gjitha tekstet.
 
 ## Struktura
 - `src/core` modeli i dokumentit, gjeometria, historia (zhbëj/ribëj)
