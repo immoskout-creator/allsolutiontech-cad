@@ -1,8 +1,16 @@
-import { emptyDoc, newId, WALL_LAYER, type Doc, type SymbolEntity, type Vec } from './types';
+import { emptyDoc, newId, OPENING_LAYER, ROOM_LAYER, WALL_LAYER, type Doc, type Opening, type Room, type SymbolEntity, type Vec, type Wall } from './types';
 import { symbolDef } from '../symbols/library';
 
 function wall(a: Vec, b: Vec, thickness: number) {
   return { id: newId('w'), kind: 'wall' as const, layer: WALL_LAYER, a, b, thickness };
+}
+
+function opening(w: Wall, type: Opening['type'], t: number, width: number, side: 1 | -1, hinge: 'a' | 'b'): Opening {
+  return { id: newId('o'), kind: 'opening', layer: OPENING_LAYER, type, wall: w.id, t, width, side, hinge };
+}
+
+function room(name: string, x: number, y: number): Room {
+  return { id: newId('r'), kind: 'room', layer: ROOM_LAYER, name, pos: { x, y } };
 }
 
 function sym(symbol: string, x: number, y: number, angle: number): SymbolEntity {
@@ -24,13 +32,45 @@ export function sampleDoc(): Doc {
     { x: W, y: H },
     { x: 0, y: H },
   ];
-  for (let i = 0; i < 4; i++) doc.entities.push(wall(outer[i], outer[(i + 1) % 4], 250));
+  const [south, east, north, west] = outer.map((p, i) => wall(p, outer[(i + 1) % 4], 250));
+  const middle = wall({ x: 0, y: 4000 }, { x: W, y: 4000 }, 120);
+  const hall = wall({ x: 9600, y: 4000 }, { x: 9600, y: H }, 120);
   doc.entities.push(
-    wall({ x: 0, y: 4000 }, { x: W, y: 4000 }, 120),
-    wall({ x: 9600, y: 4000 }, { x: 9600, y: H }, 120),
+    south,
+    east,
+    north,
+    west,
+    middle,
+    hall,
     wall({ x: 5000, y: 0 }, { x: 5000, y: 4000 }, 120),
     wall({ x: 8600, y: 0 }, { x: 8600, y: 4000 }, 120),
     wall({ x: 11600, y: 0 }, { x: 11600, y: 4000 }, 120),
+  );
+  doc.entities.push(
+    // hyrja nga veriu dhe dyert e brendshme
+    opening(north, 'door', W - 13300, 1000, 1, 'b'),
+    opening(middle, 'door', 4000, 800, -1, 'b'),
+    opening(middle, 'door', 7400, 700, -1, 'a'),
+    opening(middle, 'door', 10600, 800, -1, 'a'),
+    opening(middle, 'door', 13600, 800, -1, 'a'),
+    opening(hall, 'door', 3200, 900, -1, 'a'),
+    // dritaret
+    opening(south, 'window', 2500, 1500, 1, 'a'),
+    opening(south, 'window', 7800, 600, 1, 'a'),
+    opening(south, 'window', 10100, 1200, 1, 'a'),
+    opening(south, 'window', 13100, 1200, 1, 'a'),
+    opening(north, 'window', W - 4500, 1800, 1, 'a'),
+    opening(north, 'window', W - 1500, 1500, 1, 'a'),
+    opening(west, 'window', H - 2000, 1200, 1, 'a'),
+    opening(east, 'window', 6300, 1200, 1, 'a'),
+  );
+  doc.entities.push(
+    room('Dhomë gjumi', 2500, 1300),
+    room('Banjo', 6800, 1300),
+    room('Dhomë fëmijësh', 10100, 1300),
+    room('Studio', 13100, 1300),
+    room('Sallon + kuzhinë', 3200, 5300),
+    room('Hyrje', 12100, 5300),
   );
   doc.entities.push(
     sym('nd-tavan', 2500, 2000, 270),

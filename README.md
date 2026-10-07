@@ -14,6 +14,11 @@ Program 2D për projektimin e instalimeve elektrike në shtëpi. Vetëm 2D.
 - Simbolet e murit ngjiten vetë te faqja e murit; `R` i rrotullon.
 - Lista "Simbolet në plan" numëron çdo simbol me kod.
 
+## Dyer, dritare dhe dhoma
+- Vegla **Derë** (`D`) dhe **Dritare** (`N`): kliko mbi mur. Hapja e pret murin, ndjek murin kur ai lëviz dhe rrëshqet përgjatë tij kur zhvendoset. Gjerësia zgjidhet te shiriti. Te dera, kursori zgjedh anën e hapjes dhe `R` ndryshon menteshat.
+- Vegla **Dhomë** (`M`): kliko brenda një dhome të mbyllur me mure. Programi e gjen konturën vetë dhe llogarit sipërfaqen neto (pa trashësinë e mureve) dhe perimetrin. Kur muret ndryshojnë, m² përditësohen vetë.
+- Paneli "Dhomat" liston çdo dhomë me m² dhe totalin.
+
 ## Gjuhët
 Ndërfaqja dhe simbolet: Shqip, English, Italiano, Deutsch (zgjedhja lart djathtas).
 
