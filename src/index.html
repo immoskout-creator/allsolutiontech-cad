@@ -112,6 +112,12 @@
         <li class="lib"><span data-i18n="libAp"></span><small data-i18n="later"></small></li>
         <li class="lib"><span data-i18n="libAudio"></span><small data-i18n="later"></small></li>
       </ul>
+      <div class="lib-actions">
+        <button class="btn btn-small" id="btnNewSymbol" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg><span data-i18n="newSymbol"></span></button>
+        <button class="btn btn-small" id="btnImportLib" type="button" data-i18n-title="importLibTitle" data-i18n="importLib"></button>
+        <button class="btn btn-small" id="btnExportLib" type="button" data-i18n-title="exportLibTitle" data-i18n="exportLib"></button>
+        <input type="file" id="libInput" accept=".json,application/json" hidden>
+      </div>
       <label class="search" for="symbolSearch">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>
         <input id="symbolSearch" type="search" data-i18n-placeholder="searchSymbol" data-i18n-aria="searchSymbol">
@@ -175,6 +181,60 @@
   </footer>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <div class="modal" id="symbolEditor" hidden>
+    <div class="modal-box se-box" role="dialog" aria-modal="true" aria-labelledby="seTitle">
+      <h2 id="seTitle"></h2>
+      <div class="se-body">
+        <div class="se-draw">
+          <div class="se-tools" role="toolbar">
+            <button class="chip" type="button" data-shape="line" data-i18n="seLine"></button>
+            <button class="chip" type="button" data-shape="rect" data-i18n="seRect"></button>
+            <button class="chip" type="button" data-shape="circle" data-i18n="seCircle"></button>
+            <button class="chip" type="button" data-shape="arc" data-i18n="seArc"></button>
+            <button class="chip" type="button" data-shape="text" data-i18n="seText"></button>
+            <span class="se-sep" aria-hidden="true"></span>
+            <button class="chip" type="button" id="seFill" aria-pressed="false" data-i18n="seFill" data-i18n-title="seFillTitle"></button>
+            <button class="chip" type="button" id="seUndo" data-i18n="undo"></button>
+            <button class="chip" type="button" id="seClear" data-i18n="seClear"></button>
+          </div>
+          <div class="se-text" id="seTextRow" hidden>
+            <label class="field-inline" for="seText"><span data-i18n="seTextValue"></span><input id="seText" type="text" maxlength="8" value="M"></label>
+            <label class="field-inline" for="seTextSize"><span data-i18n="seTextSize"></span>
+              <select id="seTextSize"><option value="4">4</option><option value="6" selected>6</option><option value="8">8</option><option value="10">10</option></select>
+            </label>
+          </div>
+          <canvas id="seCanvas"></canvas>
+          <p class="muted small" id="seHint"></p>
+        </div>
+        <div class="se-form">
+          <div class="se-preview" id="sePreview"></div>
+          <div class="prop-grid">
+            <label class="field" for="seCode"><span data-i18n="code"></span><input id="seCode" type="text" maxlength="16"></label>
+            <label class="field" for="seMount"><span data-i18n="seMount"></span>
+              <select id="seMount"><option value="wall" data-i18n="seMountWall"></option><option value="center" data-i18n="seMountCenter"></option></select>
+            </label>
+          </div>
+          <label class="field" for="seLayer"><span data-i18n="layer"></span><select id="seLayer"></select></label>
+          <label class="field" for="seName_sq"><span>Shqip</span><input id="seName_sq" type="text"></label>
+          <label class="field" for="seName_en"><span>English</span><input id="seName_en" type="text"></label>
+          <label class="field" for="seName_it"><span>Italiano</span><input id="seName_it" type="text"></label>
+          <label class="field" for="seName_de"><span>Deutsch</span><input id="seName_de" type="text"></label>
+          <p class="muted small" data-i18n="seNamesHelp"></p>
+          <div class="prop-grid">
+            <label class="field" for="seHeight"><span data-i18n="heightCm"></span><input id="seHeight" class="num" type="number" min="0"></label>
+            <label class="field" for="sePower"><span data-i18n="powerW"></span><input id="sePower" class="num" type="number" min="0"></label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn danger" id="seDelete" type="button" data-i18n="seDelete"></button>
+        <span class="spacer"></span>
+        <button class="btn" id="seCancel" type="button" data-i18n="cancel"></button>
+        <button class="btn btn-primary" id="seSave" type="button" data-i18n="seSave"></button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal" id="confirmNew" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">

@@ -1,5 +1,7 @@
 // Të gjitha koordinatat janë në milimetra, me boshtin Y lart (si në CAD).
 
+import type { CustomSymbol } from '../symbols/custom';
+
 export interface Vec {
   x: number;
   y: number;
@@ -81,6 +83,8 @@ export interface Doc {
   scale: number;
   layers: Layer[];
   entities: Entity[];
+  /** Simbolet e vizatuara nga përdoruesi, që udhëtojnë bashkë me projektin. */
+  symbols?: CustomSymbol[];
 }
 
 export const WALL_LAYER = 'muret';

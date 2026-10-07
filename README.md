@@ -19,6 +19,11 @@ Program 2D për projektimin e instalimeve elektrike në shtëpi. Vetëm 2D.
 - Vegla **Dhomë** (`M`): kliko brenda një dhome të mbyllur me mure. Programi e gjen konturën vetë dhe llogarit sipërfaqen neto (pa trashësinë e mureve) dhe perimetrin. Kur muret ndryshojnë, m² përditësohen vetë.
 - Paneli "Dhomat" liston çdo dhomë me m² dhe totalin.
 
+## Simbolet e mia
+Butoni **Simbol i ri** te libraria hap redaktorin: vizaton me vija, drejtkëndësha, rrathë (bosh ose të mbushur), harqe dhe tekst, mbi një rrjetë ku shihet edhe muri. I jep kodin (p.sh. AST-U-01), emrin, shtresën, vendosjen (në mur ose e lirë), lartësinë dhe fuqinë.
+- Simbolet ruhen brenda projektit dhe dalin te "Simbolet e mia"; lapsi mbi pllakë i ndryshon.
+- **Eksporto** i ruan si librari (`.astlib.json`), **Importo** i merr nga një librari ose nga një projekt tjetër.
+
 ## Gjuhët
 Ndërfaqja dhe emrat e simboleve në 31 gjuhë (zgjedhja lart djathtas): shqip, 24 gjuhët zyrtare të BE-së, serbisht (latinisht dhe cirilicë), boshnjakisht, malazezisht, maqedonisht dhe turqisht. Kodet AST janë të njëjta në çdo gjuhë.
 - Gjuhët bazë (sq, en, it, de) janë te `src/i18n/strings.ts` dhe `src/symbols/library.ts`; të tjerat te `src/i18n/extra/<kodi>.ts`. Serbishtja me cirilicë del vetë nga ajo me latinisht.
