@@ -40,9 +40,10 @@ export interface SymbolDef {
   power?: number;
 }
 
-export type CategoryId = 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'sensore' | 'komunikim';
+export type CategoryId = 'custom' | 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'sensore' | 'komunikim';
 
 export const CATEGORIES: { id: CategoryId; names: Names }[] = [
+  { id: 'custom', names: { sq: 'Simbolet e mia', en: 'My symbols', it: 'I miei simboli', de: 'Meine Symbole' } },
   { id: 'priza', names: { sq: 'Priza', en: 'Sockets', it: 'Prese', de: 'Steckdosen' } },
   { id: 'celesa', names: { sq: 'Çelësa', en: 'Switches', it: 'Interruttori', de: 'Schalter' } },
   { id: 'ndricim', names: { sq: 'Ndriçim', en: 'Lighting', it: 'Illuminazione', de: 'Beleuchtung' } },
@@ -81,7 +82,39 @@ const GLYPHS: Record<string, string> = {
   W: 'M0 0 L1 6 L2 2.5 L3 6 L4 0',
   '3': 'M0 0.5 Q1 0 2 0 Q4 0 4 1.5 Q4 3 2 3 Q4 3 4 4.5 Q4 6 2 6 Q1 6 0 5.5',
   '4': 'M3 6 V0 L0 4 H4',
+  A: 'M0 6 L2 0 L4 6 M0.7 4 H3.3',
+  C: 'M4 1 Q3 0 2 0 Q0 0 0 3 Q0 6 2 6 Q3 6 4 5',
+  D: 'M0 0 V6 H2 Q4 6 4 3 Q4 0 2 0 Z',
+  E: 'M4 0 H0 V6 H4 M0 3 H3',
+  J: 'M4 0 V4.5 Q4 6 2 6 Q0 6 0 4.5',
+  K: 'M0 0 V6 M4 0 L0 3.5 M1.3 2.6 L4 6',
+  L: 'M0 0 V6 H4',
+  N: 'M0 6 V0 L4 6 V0',
+  Q: 'M2 0 Q4 0 4 3 Q4 6 2 6 Q0 6 0 3 Q0 0 2 0 Z M2.5 4.5 L4 6',
+  R: 'M0 6 V0 H3 Q4 0 4 1.5 Q4 3 3 3 H0 M2 3 L4 6',
+  T: 'M0 0 H4 M2 0 V6',
+  V: 'M0 0 L2 6 L4 0',
+  X: 'M0 0 L4 6 M4 0 L0 6',
+  Y: 'M0 0 L2 3 L4 0 M2 3 V6',
+  Z: 'M0 0 H4 L0 6 H4',
+  '0': 'M2 0 Q4 0 4 3 Q4 6 2 6 Q0 6 0 3 Q0 0 2 0 Z M0.6 5 L3.4 1',
+  '1': 'M1 1 L2 0 V6 M1 6 H3',
+  '2': 'M0 1 Q1 0 2 0 Q4 0 4 1.7 Q4 3 0 6 H4',
+  '5': 'M4 0 H0.3 L0 3 Q1 2.5 2 2.5 Q4 2.5 4 4.2 Q4 6 2 6 Q1 6 0 5.4',
+  '6': 'M3.6 0.4 Q3 0 2 0 Q0 0 0 3.5 Q0 6 2 6 Q4 6 4 4.2 Q4 2.5 2 2.5 Q0.5 2.5 0 3.8',
+  '7': 'M0 0 H4 L1.5 6',
+  '8': 'M2 3 Q0.2 3 0.2 1.5 Q0.2 0 2 0 Q3.8 0 3.8 1.5 Q3.8 3 2 3 Q0 3 0 4.5 Q0 6 2 6 Q4 6 4 4.5 Q4 3 2 3 Z',
+  '9': 'M0.4 5.6 Q1 6 2 6 Q4 6 4 2.5 Q4 0 2 0 Q0 0 0 1.8 Q0 3.5 2 3.5 Q3.5 3.5 4 2.2',
+  '-': 'M0.5 3 H3.5',
+  '+': 'M0.5 3 H3.5 M2 1.5 V4.5',
+  '/': 'M0.5 6 L3.5 0',
+  '.': 'M1.6 5.6 H2.4 V6 H1.6 Z',
+  '~': 'M0 3.5 Q1 2 2 3 Q3 4 4 2.5',
+  '°': 'M2 0 Q3 0 3 1 Q3 2 2 2 Q1 2 1 1 Q1 0 2 0 Z',
 };
+
+/** Shkronjat që mund të vizatohen me strokeText (të tjerat kthehen në të mëdha ose hiqen). */
+export const STROKE_CHARS = new Set([...Object.keys(GLYPHS), ' ']);
 
 /** Teksti si rrugë SVG, me qendër në (cx, cy) dhe lartësi h. */
 export function strokeText(text: string, cx: number, cy: number, h: number): string {
@@ -536,6 +569,21 @@ export const SYMBOLS: SymbolDef[] = [
 
 const BY_ID = new Map(SYMBOLS.map((s) => [s.id, s]));
 
+/** Simbolet e krijuara nga përdoruesi në projektin aktual (shih symbols/custom.ts). */
+let customDefs: SymbolDef[] = [];
+const customById = new Map<string, SymbolDef>();
+
+export function setCustomSymbols(defs: SymbolDef[]): void {
+  customDefs = defs;
+  customById.clear();
+  for (const d of defs) customById.set(d.id, d);
+}
+
+/** Të gjithë simbolet: të krijuarit nga përdoruesi së pari, pastaj libraria standarde. */
+export function allSymbols(): SymbolDef[] {
+  return [...customDefs, ...SYMBOLS];
+}
+
 /** Emri i simbolit në gjuhën aktuale. */
 export function symbolName(def: SymbolDef): string {
   return localName(def.names, def.id, 'symbols');
@@ -547,7 +595,7 @@ export function categoryName(cat: { id: CategoryId; names: Names }): string {
 }
 
 export function symbolDef(id: string): SymbolDef | undefined {
-  return BY_ID.get(id);
+  return BY_ID.get(id) ?? customById.get(id);
 }
 
 /** Qendra vizuale e simbolit në njësi lokale (për zgjedhjen me mi). */

@@ -43,5 +43,7 @@ export function toCyrillic(text: string): string {
 export function cyrillicLocale(src: ExtraLocale): ExtraLocale {
   const map = <T extends Record<string, string>>(o: T): T =>
     Object.fromEntries(Object.entries(o).map(([k, v]) => [k, toCyrillic(v)])) as T;
-  return { ui: map(src.ui), symbols: map(src.symbols), categories: map(src.categories) };
+  // shkurtimet me shkronja të mëdha mbeten latinisht, por etiketa e murit është fjalë e zakonshme
+  const ui = { ...map(src.ui), seWall: toCyrillic(src.ui.seWall.toLowerCase()).toUpperCase() };
+  return { ui, symbols: map(src.symbols), categories: map(src.categories) };
 }

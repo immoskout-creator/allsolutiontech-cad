@@ -1,5 +1,6 @@
 import { DEFAULT_SCALE, defaultLayers, type Doc, type Entity, type Layer } from '../core/types';
-import { symbolDef } from '../symbols/library';
+import { setCustomSymbols, symbolDef } from '../symbols/library';
+import { parseCustomSymbols, toSymbolDef } from '../symbols/custom';
 
 const AUTOSAVE_KEY = 'astcad.autosave.v1';
 
@@ -22,6 +23,9 @@ export function parse(text: string): Doc {
   const d = raw as Partial<Doc>;
   if (!d || d.format !== 'astcad') throw new Error('Skedari nuk është projekt AllSolutionTech CAD.');
   if (d.version !== 1) throw new Error(`Versioni ${String(d.version)} i skedarit nuk mbështetet ende.`);
+  // simbolet e përdoruesit duhen njohur para se të kontrollohen objektet që i përdorin
+  const symbols = parseCustomSymbols(d.symbols);
+  setCustomSymbols(symbols.map(toSymbolDef));
   const raw2 = Array.isArray(d.entities) ? (d.entities as unknown[]) : [];
   const entities = raw2.filter((x): x is Entity => {
     const e = x as Partial<Entity> | null;
@@ -57,6 +61,7 @@ export function parse(text: string): Doc {
     scale: isNum(d.scale) && d.scale >= 1 && d.scale <= 1000 ? d.scale : DEFAULT_SCALE,
     layers,
     entities: kept,
+    ...(symbols.length ? { symbols } : {}),
   };
 }
 
@@ -109,12 +114,10 @@ function getDownloads(): Promise<DownloadsApi | null> {
 }
 
 /**
- * Ruan projektin si skedar. Brenda claude.ai kalon nga konfirmimi i shkarkimit;
+ * Ruan të dhëna si skedar. Brenda claude.ai kalon nga konfirmimi i shkarkimit;
  * jashtë tij (kur programi hapet si skedar lokal) shkarkon direkt.
  */
-export async function saveFile(doc: Doc): Promise<'saved' | 'declined'> {
-  const filename = fileName(doc);
-  const data = serialize(doc);
+export async function saveData(filename: string, data: string): Promise<'saved' | 'declined'> {
   const api = await getDownloads();
   if (api) {
     try {
@@ -133,6 +136,10 @@ export async function saveFile(doc: Doc): Promise<'saved' | 'declined'> {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   return 'saved';
+}
+
+export function saveFile(doc: Doc): Promise<'saved' | 'declined'> {
+  return saveData(fileName(doc), serialize(doc));
 }
 
 export function readFile(file: File): Promise<Doc> {

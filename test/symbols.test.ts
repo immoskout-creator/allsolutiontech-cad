@@ -83,6 +83,6 @@ test('shkronjat me vija japin rrugë të vlefshme', () => {
 
 test('çdo kategori ka simbole dhe çdo simbol ka shtresë ekzistuese', () => {
   const layers = new Set(emptyDoc().layers.map((l) => l.id));
-  for (const c of CATEGORIES) assert.ok(SYMBOLS.some((s) => s.category === c.id), c.id);
+  for (const c of CATEGORIES.filter((c) => c.id !== 'custom')) assert.ok(SYMBOLS.some((s) => s.category === c.id), c.id);
   for (const s of SYMBOLS) assert.ok(layers.has(s.layer), s.id);
 });

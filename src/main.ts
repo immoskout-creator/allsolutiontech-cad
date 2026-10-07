@@ -7,9 +7,11 @@ import { sampleDoc } from './core/sample';
 import { Viewport } from './view/viewport';
 import { render } from './view/renderer';
 import { Editor, type ToolId } from './tools/editor';
-import { loadAutosave, readFile, saveFile, writeAutosave } from './io/files';
+import { loadAutosave, readFile, saveData, saveFile, writeAutosave } from './io/files';
+import { mergeSymbols, parseLibrary, serializeLibrary, toSymbolDef } from './symbols/custom';
+import { SymbolEditor } from './ui/symbolEditor';
 import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang } from './i18n/strings';
-import { CATEGORIES, SYMBOLS, categoryName, symbolDef, symbolName, symbolSvg, type SymbolDef } from './symbols/library';
+import { CATEGORIES, allSymbols, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type SymbolDef } from './symbols/library';
 import { normAngle } from './symbols/place';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -19,6 +21,20 @@ const ctx = canvas.getContext('2d')!;
 const app = $<HTMLDivElement>('app');
 
 const store = new Store(loadAutosave() ?? sampleDoc());
+
+/** Simbolet e përdoruesit ndjekin dokumentin (edhe pas zhbëj/ribëj dhe hapjes së skedarëve). */
+let customKey = '';
+function syncCustomSymbols(): boolean {
+  const key = JSON.stringify(store.doc.symbols ?? []);
+  if (key === customKey) return false;
+  customKey = key;
+  setCustomSymbols((store.doc.symbols ?? []).map(toSymbolDef));
+  return true;
+}
+syncCustomSymbols();
+store.subscribe(() => {
+  if (syncCustomSymbols()) renderLibrary();
+});
 const vp = new Viewport();
 const editor = new Editor(
   store,
@@ -267,15 +283,19 @@ function renderLibrary(): void {
   const q = searchInput.value.trim().toLowerCase();
   const matches = (d: SymbolDef) =>
     !q || d.code.toLowerCase().includes(q) || [symName(d), ...Object.values(d.names)].some((n) => n.toLowerCase().includes(q));
+  const all = allSymbols();
   const html = CATEGORIES.map((cat) => {
-    const defs = SYMBOLS.filter((d) => d.category === cat.id && matches(d));
+    const defs = all.filter((d) => d.category === cat.id && matches(d));
     if (defs.length === 0) return '';
     const tiles = defs
-      .map(
-        (d) => `<button class="tile" type="button" data-symbol="${d.id}" aria-pressed="${editor.activeSymbol === d.id}"
+      .map((d) => {
+        const tile = `<button class="tile" type="button" data-symbol="${d.id}" aria-pressed="${editor.activeSymbol === d.id}"
           title="${esc(`${d.code} · ${symName(d)}`)}" style="--tile-color:${TILE_COLORS[d.layer] ?? '#9CC5FF'}">
-          ${symbolSvg(d)}<span class="tile-name">${esc(symName(d))}</span><span class="tile-code">${d.code}</span></button>`,
-      )
+          ${symbolSvg(d)}<span class="tile-name">${esc(symName(d))}</span><span class="tile-code">${esc(d.code)}</span></button>`;
+        if (d.category !== 'custom') return tile;
+        return `<div class="tile-wrap">${tile}<button class="tile-edit" type="button" data-edit-symbol="${d.id}"
+          title="${esc(t('editSymbol'))}" aria-label="${esc(`${t('editSymbol')}: ${d.code}`)}">${PENCIL}</button></div>`;
+      })
       .join('');
     return `<section><h3 class="sym-cat">${esc(categoryName(cat))}</h3><div class="tiles">${tiles}</div></section>`;
   }).join('');
@@ -283,6 +303,8 @@ function renderLibrary(): void {
 }
 
 $('symbolGroups').addEventListener('click', (e) => {
+  const edit = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-edit-symbol]');
+  if (edit) return void openSymbolEditor(edit.dataset.editSymbol!);
   const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-symbol]');
   if (!btn) return;
   const id = btn.dataset.symbol!;
@@ -293,6 +315,55 @@ $('symbolGroups').addEventListener('click', (e) => {
     togglePanel('btnLibrary', 'library', false);
     syncUi();
     canvas.focus();
+  }
+});
+
+// ---- simbolet e mia ----
+
+const PENCIL = '<svg class="ic" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="M14 6l4 4"></path></svg>';
+
+const symbolEditor = new SymbolEditor(
+  store,
+  (id) => {
+    editor.pickSymbol(id);
+    renderLibrary();
+    syncUi();
+    canvas.focus();
+  },
+  (msg, error) => toast(msg, error),
+);
+
+function openSymbolEditor(id?: string): void {
+  const existing = id ? store.doc.symbols?.find((s) => s.id === id) : undefined;
+  togglePanel('btnLibrary', 'library', false);
+  symbolEditor.open(existing);
+}
+$('btnNewSymbol').addEventListener('click', () => openSymbolEditor());
+
+$('btnExportLib').addEventListener('click', async () => {
+  const list = store.doc.symbols ?? [];
+  if (list.length === 0) return toast(t('libEmpty'), true);
+  try {
+    const r = await saveData('simbolet-e-mia.astlib.json', serializeLibrary(list));
+    if (r === 'saved') toast(t('libExported', { n: list.length }));
+  } catch (err) {
+    toast((err as Error).message, true);
+  }
+});
+
+const libInput = $<HTMLInputElement>('libInput');
+$('btnImportLib').addEventListener('click', () => libInput.click());
+libInput.addEventListener('change', async () => {
+  const f = libInput.files?.[0];
+  libInput.value = '';
+  if (!f) return;
+  try {
+    const incoming = parseLibrary(await f.text());
+    if (incoming.length === 0) return toast(t('libNone'), true);
+    store.commit((d) => void (d.symbols = mergeSymbols(d.symbols ?? [], incoming)));
+    toast(t('libImported', { n: incoming.length }));
+  } catch {
+    toast(t('libBad'), true);
   }
 });
 
@@ -352,7 +423,10 @@ $('confirmSample').addEventListener('click', () => {
 });
 $('confirmOk').addEventListener('click', () => {
   modal.hidden = true;
-  store.replace(emptyDoc(newName.value.trim() || t('newDefault')));
+  const fresh = emptyDoc(newName.value.trim() || t('newDefault'));
+  // simbolet e mia vazhdojnë edhe në projektin e ri
+  if (store.doc.symbols?.length) fresh.symbols = structuredClone(store.doc.symbols);
+  store.replace(fresh);
   fitAll();
   setTool('wall');
   toast(t('toastNew'));
@@ -368,7 +442,7 @@ const typing = (target: EventTarget | null) =>
   target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
 
 window.addEventListener('keydown', (e) => {
-  if (!modal.hidden || typing(e.target)) return;
+  if (!modal.hidden || symbolEditor.isOpen || typing(e.target)) return;
   const ctrl = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();
   if (ctrl && k === 'z' && !e.shiftKey) return void (e.preventDefault(), store.undo());
@@ -464,7 +538,9 @@ function renderProps(): void {
         ${numField('propPower', t('powerW'), s.power ?? '')}
         ${numField('propAngle', t('rotation'), normAngle(s.angle - 270), '90')}
       </div>
+      ${def.category === 'custom' ? `<button class="btn" id="propEditSymbol" type="button">${esc(t('editSymbol'))}</button>` : ''}
       <button class="btn danger" id="propDelete" type="button">${esc(t('deleteSymbol'))}</button>`;
+    $('propEditSymbol')?.addEventListener('click', () => openSymbolEditor(def.id));
     const onNum = (id: string, fn: (x: SymbolEntity, v: number | undefined) => void) =>
       $(id)?.addEventListener('change', (e) => {
         const raw = (e.target as HTMLInputElement).value;
@@ -653,7 +729,8 @@ function renderSummary(): void {
     $('symbolSummary').innerHTML = `<p class="muted small">${esc(t('noSymbols'))}</p>`;
     return;
   }
-  const rows = SYMBOLS.filter((d) => counts.has(d.id))
+  const rows = allSymbols()
+    .filter((d) => counts.has(d.id))
     .map((d) => `<tr><td class="code">${d.code}</td><td>${esc(symName(d))}</td><td class="qty">${counts.get(d.id)}</td></tr>`)
     .join('');
   $('symbolSummary').innerHTML = `<table class="summary"><thead><tr><th>${esc(t('code'))}</th><th></th><th class="qty">${esc(t('qty'))}</th></tr></thead><tbody>${rows}</tbody></table>`;
