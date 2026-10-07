@@ -28,8 +28,23 @@ export function parse(text: string): Doc {
     if (!e || typeof e.id !== 'string' || typeof e.layer !== 'string') return false;
     if (e.kind === 'wall') return isVec(e.a) && isVec(e.b) && isNum(e.thickness);
     if (e.kind === 'symbol') return typeof e.symbol === 'string' && !!symbolDef(e.symbol) && isVec(e.pos) && isNum(e.angle);
+    if (e.kind === 'room') return typeof e.name === 'string' && isVec(e.pos);
+    if (e.kind === 'opening') {
+      return (
+        (e.type === 'door' || e.type === 'window') &&
+        typeof e.wall === 'string' &&
+        isNum(e.t) &&
+        isNum(e.width) &&
+        e.width > 0 &&
+        (e.side === 1 || e.side === -1) &&
+        (e.hinge === 'a' || e.hinge === 'b')
+      );
+    }
     return false;
   });
+  // derë/dritare pa murin e vet nuk ka kuptim
+  const wallIds = new Set(entities.filter((e) => e.kind === 'wall').map((e) => e.id));
+  const kept = entities.filter((e) => e.kind !== 'opening' || wallIds.has(e.wall));
   // Shto shtresat standarde që mungojnë në skedarët më të vjetër.
   const layers: Layer[] = Array.isArray(d.layers) && d.layers.length ? d.layers : [];
   for (const l of defaultLayers()) if (!layers.some((x) => x.id === l.id)) layers.push(l);
@@ -39,7 +54,7 @@ export function parse(text: string): Doc {
     name: typeof d.name === 'string' && d.name.trim() ? d.name : 'Projekt',
     scale: isNum(d.scale) && d.scale >= 1 && d.scale <= 1000 ? d.scale : DEFAULT_SCALE,
     layers,
-    entities,
+    entities: kept,
   };
 }
 
