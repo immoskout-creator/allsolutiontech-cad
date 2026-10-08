@@ -1,4 +1,4 @@
-import { detectorCalc } from './coverage';
+import { beamCalc, beamPolygon, detectorCalc } from './coverage';
 import { distToSegment, dist } from './geometry';
 import { findRoomCached, pointInPolygon } from './rooms';
 import { isRoom, isSymbol, isWall, type Doc, type SymbolEntity, type Vec } from './types';
@@ -47,7 +47,7 @@ let last: { key: string; result: FireCheck } | null = null;
 
 /** I njëjti kontroll kur muret, dhomat dhe detektorët nuk kanë ndryshuar (vizatimi e kërkon në çdo kornizë). */
 export function checkFireCached(doc: Doc): FireCheck {
-  const key = JSON.stringify(doc.entities.filter((e) => isWall(e) || isRoom(e) || (isSymbol(e) && detectorCalc(e))));
+  const key = JSON.stringify(doc.entities.filter((e) => isWall(e) || isRoom(e) || (isSymbol(e) && (detectorCalc(e) || beamCalc(e)))));
   if (last?.key !== key) last = { key, result: checkFire(doc) };
   return last.result;
 }
@@ -63,6 +63,15 @@ export function checkFire(doc: Doc): FireCheck {
     return shape ? [{ r, shape }] : [];
   });
   const roomOf = (e: SymbolEntity) => shapes.find((s) => pointInPolygon(e.pos, s.shape.poly))?.r.id;
+  // detektori linear është te muri: dhoma e tij gjendet pak më brenda, në drejtimin e rrezes
+  const beams = doc.entities.filter(isSymbol).flatMap((e) => {
+    const b = beamCalc(e);
+    if (!b) return [];
+    const a = (e.angle * Math.PI) / 180;
+    const probe = { x: e.pos.x + Math.cos(a) * 150, y: e.pos.y + Math.sin(a) * 150 };
+    const room = shapes.find((s) => pointInPolygon(probe, s.shape.poly))?.r.id;
+    return [{ room, poly: beamPolygon(e.pos, e.angle, b) }];
+  });
 
   const detectors = new Map<string, DetectorCheck>();
   for (const { e, c } of dets) {
@@ -80,6 +89,7 @@ export function checkFire(doc: Doc): FireCheck {
   // muret e plota ndajnë tymin: një dhomë mbulohet vetëm nga detektorët brenda saj
   const rooms: RoomCoverage[] = shapes.map(({ r, shape }) => {
     const inside = dets.filter(({ e }) => roomOf(e) === r.id);
+    const strips = beams.filter((b) => b.room === r.id);
     const xs = shape.poly.map((p) => p.x);
     const ys = shape.poly.map((p) => p.y);
     const gaps: Vec[] = [];
@@ -89,7 +99,7 @@ export function checkFire(doc: Doc): FireCheck {
         const p = { x, y };
         if (!pointInPolygon(p, shape.poly)) continue;
         total++;
-        if (!inside.some(({ e, c }) => dist(e.pos, p) <= c.radius * 1000)) gaps.push(p);
+        if (!inside.some(({ e, c }) => dist(e.pos, p) <= c.radius * 1000) && !strips.some((b) => pointInPolygon(p, b.poly))) gaps.push(p);
       }
     }
     return { id: r.id, name: r.name, covered: total ? 1 - gaps.length / total : 1, gaps };

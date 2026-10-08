@@ -43,6 +43,8 @@ export interface SymbolEntity {
   range?: number;
   /** Kamera: drejtimi i objektivit kundrejt simbolit, gradë (+ = majtas). */
   pan?: number;
+  /** Kamera: pjerrësia e objektivit poshtë nga horizontalja, gradë. */
+  tilt?: number;
   /** Ndriçues emergjence: fluksi në modalitetin e emergjencës, lm. */
   lumens?: number;
 }
@@ -68,6 +70,8 @@ export interface Circuit {
   label: string;
   kind: CircuitKind;
   phases: 1 | 3;
+  /** Faza e qarkut njëfazor (L1, L2, L3); pa të zgjidhet vetë për balancën e fazave. */
+  line?: 1 | 2 | 3;
   color: string;
   /** Siguresa e zgjedhur me dorë, A; pa të zgjidhet vetë. */
   breaker?: number;

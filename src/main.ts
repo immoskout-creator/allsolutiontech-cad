@@ -17,6 +17,7 @@ import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang, 
 import { syncCableLayers } from './core/systems';
 import { WALL_MIN_M, checkFireCached } from './core/firecheck';
 import { EM_HEIGHT_CM, LUMEN_LIMITS, LUX_OPEN, UNIFORMITY_MAX, checkEmergencyCached, emModel, emModelsFor, luminaireCalc, signCalc } from './core/emergency';
+import { BEAM_LIMITS, TILT_LIMITS, beamCalc, cameraGround } from './core/coverage';
 import { DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraModel, cameraSettings, detectorCalc, modelsFor } from './core/coverage';
 import { EDITION, editionLibs, productName } from './edition';
 import { startLicenseGate } from './license/gate';
@@ -337,7 +338,7 @@ function renderLibrary(): void {
   // çdo program ka librarinë e vet; elektriku tregon edhe ato që vijnë më vonë
   const libs = editionLibs();
   const count = (lib: LibraryId) => all.filter((d) => d.category !== 'custom' && categoryLibrary(d.category) === lib).length;
-  const later = EDITION.id === 'civil' ? (['libIndustrial', 'libAudio'] as const) : [];
+  const later = EDITION.id === 'civil' ? (['libAudio'] as const) : [];
   const item = (lib: LibraryId | '', name: string, n: number) =>
     `<li class="lib${(libFilter ?? '') === lib ? ' active' : ''}" data-lib="${lib}" style="cursor:pointer"><span>${esc(name)}</span><small>${n}</small></li>`;
   $('libList').innerHTML =
@@ -580,6 +581,19 @@ function detectorFields(s: SymbolEntity): string {
     ${placement(s, fmt)}`;
 }
 
+/** Detektori linear: gjatësia e rrezes deri te reflektori dhe shiriti që mbulon. */
+function beamFields(s: SymbolEntity): string {
+  const b = beamCalc(s);
+  if (!b) return '';
+  const fmt = (v: number, digits: number) => v.toLocaleString(getLang(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return `<div class="prop-grid">${numField('propBeam', t('beamLength'), b.length, '1')}</div>
+    <div class="stats">
+      <div class="stat"><span>${esc(t('beamWidth'))}</span><b>${fmt(b.half * 2, 0)} m</b></div>
+      <div class="stat"><span>${esc(t('detArea'))}</span><b>${fmt(b.half * 2 * b.length, 0)} m²</b></div>
+    </div>
+    ${b.tooHigh ? `<p class="warn-text">${esc(t('warnDetHeight', { v: fmt(b.maxHeight, 0) }))}</p>` : ''}`;
+}
+
 /** Largësitë sipas rregullave: nga muri dhe nga detektori fqinj në të njëjtën dhomë. */
 function placement(s: SymbolEntity, fmt: (v: number, digits: number) => string): string {
   const c = checkFireCached(store.doc).detectors.get(s.id);
@@ -599,6 +613,8 @@ function cameraFields(s: SymbolEntity): string {
   if (!cam) return '';
   const models = modelsFor(s.symbol);
   const current = cameraModel(s);
+  const g = cameraGround(s);
+  const fmt = (v: number) => v.toLocaleString(getLang(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const modelSelect = models.length
     ? `<label class="field" for="propModel">${esc(t('camModel'))}<select id="propModel">
         <option value=""${current ? '' : ' selected'}>${esc(t('camCustom'))}</option>
@@ -608,7 +624,12 @@ function cameraFields(s: SymbolEntity): string {
       <label class="field" for="propFov">${esc(t('camFov'))}<input id="propFov" class="num" type="number" step="1" min="${FOV_LIMITS[0]}" max="${FOV_LIMITS[1]}" value="${cam.fov}" list="lensList"></label>
       ${numField('propRange', t('camRange'), cam.range, '0.5')}
       ${numField('propPan', t('camPan'), cam.pan, '5')}
+      ${g && cam.fov < 360 ? numField('propTilt', t('camTilt'), g.tilt, '5') : ''}
     </div>
+    ${g && cam.fov < 360 ? `<div class="stats">
+      <div class="stat"><span>${esc(t('camBlind'))}</span><b>${fmt(g.blind)} m</b></div>
+      <div class="stat"><span>${esc(t('camReach'))}</span><b>${fmt(g.reach)} m</b></div>
+    </div>` : ''}
     <datalist id="lensList">${LENSES.map(([l, v]) => `<option value="${v}" label="${l}"></option>`).join('')}</datalist>`;
 }
 
@@ -690,6 +711,7 @@ function renderProps(): void {
       </div>
       ${cameraFields(s)}
       ${detectorFields(s)}
+      ${beamFields(s)}
       ${emergencyFields(s)}
       ${circuitField('propCircuit', s.circuit ?? '')}
       ${def.category === 'custom' ? `<button class="btn" id="propEditSymbol" type="button">${esc(t('editSymbol'))}</button>` : ''}
@@ -720,6 +742,8 @@ function renderProps(): void {
     // detektori: këndi i sensorit ruhet te i njëjti fushë si këndi i kamerës
     onNum('propDetAngle', (x, v) => (v === undefined ? delete x.fov : (x.fov = Math.min(DETECTOR_ANGLE_LIMITS[1], Math.max(DETECTOR_ANGLE_LIMITS[0], Math.round(v))))));
     onNum('propRange', (x, v) => (v === undefined ? delete x.range : (x.range = Math.min(RANGE_LIMITS[1], Math.max(RANGE_LIMITS[0], Math.round(v * 10) / 10)))));
+    onNum('propBeam', (x, v) => (v === undefined ? delete x.range : (x.range = Math.min(BEAM_LIMITS[1], Math.max(BEAM_LIMITS[0], Math.round(v))))));
+    onNum('propTilt', (x, v) => (v === undefined ? delete x.tilt : (x.tilt = Math.min(TILT_LIMITS[1], Math.max(TILT_LIMITS[0], Math.round(v))))));
     onNum('propPan', (x, v) => (v === undefined || v === 0 ? delete x.pan : (x.pan = Math.min(180, Math.max(-180, Math.round(v))))));
     // emergjenca: modeli vendos fluksin e tij (ose madhësinë e tabelës)
     $('propEmModel')?.addEventListener('change', (ev) => {

@@ -1,4 +1,4 @@
-# AllSolutionTech CAD 2D
+# AllSolutionTech CAD
 
 Program 2D për projektimin e instalimeve elektrike në shtëpi. Vetëm 2D.
 
@@ -24,6 +24,9 @@ Paneli **Qarqet** krijon qarqet e kuadrit (Q1, Q2…), me lloj (ndriçim, priza,
 - Për çdo qark llogariten fuqia, rryma Ib, siguresa, kablloja (3×1.5, 3×2.5 … ose 5× për trefazorin), gjatësia me zbritjet në mur dhe rënia e tensionit (IEC 60364, bakër PVC në tub, metoda B2; 3% ndriçim, 5% të tjerat). Kablloja trashet vetë kur rënia del mbi kufi.
 - **Tabela** jep listën e plotë të qarqeve dhe e eksporton në CSV për Excel.
 
+- Instalimet industriale: qarqet trefazore 400 V (rryma me √3, rënia trefazore, kabllo 5×S), siguresa deri 125 A dhe seksione deri 95 mm². Çdo qark njëfazor merr fazën L1/L2/L3 (vetë, te faza më e lehtë, ose me dorë); tabela e qarqeve tregon ngarkesën e çdo faze dhe paralajmëron kur disbalanca kalon 15%. Pajisja trefazore në qark njëfazor paralajmërohet.
+- Simbolet industriale AST-IN: priza CEE 16/32/63 A 400 V dhe 16 A 230 V, motor trefazor, çelës sigurie 3P, kuadër trefazor, ndriçues high-bay dhe linear IP65.
+
 ## Raportet
 Butoni **Raportet** lart hap tre raporte, secili gati për printim (A4), për ruajtje si HTML dhe, kur ka kuptim, për eksport CSV:
 - **Lista e materialeve**: pajisjet me sasitë, metrat e kabllove sipas llojit (me zbritjet në mur dhe 10% rezervë) dhe siguresat e kuadrit sipas lakores dhe rrymës.
@@ -32,31 +35,32 @@ Butoni **Raportet** lart hap tre raporte, secili gati për printim (A4), për ru
 
 ## Pesë programe: elektrik, CCTV, AP, FIRE dhe EMERGENCY
 Nga i njëjti kod ndërtohen pesë programe të veçanta, secili me emrin, linkun, simbolet dhe projektet e veta (ruajtja automatike nuk përzihet). Planimetria (muret, dyert, dritaret, dhomat, kuotat) është e njëjtë te të gjithë.
-- **AllSolutionTech CAD 2D**: instalimet elektrike civile (`dist/`).
-- **AllSolutionTech CAD 2D CCTV**: kamerat e sigurisë, 8 simbole AST-CC, shtresa Kamerat (`dist/cctv/`).
-- **AllSolutionTech CAD 2D AP**: rrjeti dhe access point, 7 simbole AST-RJ, shtresa Rrjeti / AP (`dist/ap/`).
-- **AllSolutionTech CAD 2D FIRE**: sinjalizimi i zjarrit, 10 simbole AST-ZJ, shtresa Zjarri (`dist/fire/`).
-- **AllSolutionTech CAD 2D EMERGENCY**: ndriçimi i emergjencës, 7 simbole AST-EM, shtresa Emergjenca (`dist/em/`).
+- **AllSolutionTech CAD Electrical**: instalimet elektrike civile (`dist/`).
+- **AllSolutionTech CAD CCTV**: kamerat e sigurisë, 8 simbole AST-CC, shtresa Kamerat (`dist/cctv/`).
+- **AllSolutionTech CAD AP**: rrjeti dhe access point, 7 simbole AST-RJ, shtresa Rrjeti / AP (`dist/ap/`).
+- **AllSolutionTech CAD Fire**: sinjalizimi i zjarrit, 10 simbole AST-ZJ, shtresa Zjarri (`dist/fire/`).
+- **AllSolutionTech CAD Emergency**: ndriçimi i emergjencës, 7 simbole AST-EM, shtresa Emergjenca (`dist/em/`).
 
-Te programi CCTV, çdo kamerë ka **modelin** (bullet, dome, PTZ, fisheye me objektivin dhe distancën IR), **lartësinë e montimit**, **këndin e shikimit** (me objektivat 2.8 / 4 / 6 / 8 / 12 mm si sugjerim), **distancën** dhe **drejtimin**; plani tregon zonën e mbulimit në shkallë, me këndin dhe distancën të shkruara.
+Te programi CCTV, çdo kamerë ka **modelin** (bullet, dome, PTZ, fisheye me objektivin dhe distancën IR), **lartësinë e montimit**, **këndin e shikimit** (me objektivat 2.8 / 4 / 6 / 8 / 12 mm si sugjerim), **distancën**, **drejtimin** dhe **pjerrësinë poshtë**; nga lartësia dhe pjerrësia del zona e verbër poshtë kamerës dhe deri ku arrin pamja në dysheme (sa më lart, aq më larg). Plani tregon zonën e mbulimit në shkallë, me këndin dhe distancën të shkruara.
 
 Te programi FIRE, detektorët e tymit, të nxehtësisë dhe multisensor kanë **lartësinë e montimit** dhe **këndin e sensorit**: rrezja në dysheme është lartësia × tan(këndi/2), jo më shumë se 7.5 m për tymin dhe 5.3 m për nxehtësinë; mbi 10.5 m (tym) ose 9 m (nxehtësi) del paralajmërim. Plani vizaton rrethin e mbulimit me këndin dhe rrezen, të prerë te muret e dhomës.
 - Rregullat e vendosjes (EN 54-14 / BS 5839-1): çdo pikë e dhomës duhet të jetë brenda rrezes së një detektori të asaj dhome (pjesët pa mbulim dalin të kuqe në plan dhe tabela e dhomave tregon mbulimin në %); detektori jo më afër se 0.5 m nga muri; dy detektorë fqinjë në të njëjtën dhomë jo më larg se rrezja × √2 (10.6 m tym, 7.5 m nxehtësi). Detektori që shkel një rregull merr unazë të kuqe dhe paralajmërim te vetitë.
+- Detektori linear me rreze (EN 54-12) për salla të larta mbulon një shirit 15 m të gjerë përgjatë rrezes (gjatësia 5–100 m deri te reflektori, lartësia deri 25 m).
 
 Te programi EMERGENCY (EN 1838), ndriçuesit kanë **modelin** (100–2000 lm), **fluksin në emergjencë** dhe **lartësinë**. Ndriçimi llogaritet si burim Lambertian (I₀ = Φ/π, E = I₀·h²/(h²+d²)²): plani vizaton rrethin 0.5 lux (zonë e hapur) dhe rrethin me pika 1 lux (rrugë evakuimi), të prera te muret e dhomës. Çdo dhomë me ndriçues ose mbi 60 m² kontrollohet: pjesët nën 0.5 lux dalin të kuqe, tabela e dhomave tregon ndriçimin minimal dhe del paralajmërim kur njëtrajtshmëria max/min kalon 40:1. Tabelat EXIT shihen deri në 200 × lartësinë e piktogramit (100 / 150 / 200 / 250 mm); tabela që nuk arrin pikën më të largët të dhomës merr unazë të kuqe.
 
 Te programet e sistemeve, **Qark i ri** krijon linjë (CAM1, NET1, FA1, EM1) pa siguresë: zgjidhet kablloja (U/UTP Cat6, F/UTP Cat6 PE, Cat5e, RG59, Cat6A, fibër OM3, kabllo zjarri PH30/PH120, J-Y(St)Y, NYM-J dhe FE180 3×1.5 për emergjencën) dhe kontrollohen gjatësia e çdo kablloje (90 m për UTP) dhe numri i pajisjeve në zonën e zjarrit (32). Lista e materialeve jep pajisjet, metrat e kabllove, konektorët RJ45 (2 për çdo kabllo UTP) dhe rezistencat e fundit të zonës. Programi zgjidhet në `src/edition.ts`; `build.mjs` i ndërton të pesët.
 
 ## Kodet e aktivizimit
-Çdo program hapet vetëm me një kod aktivizimi nga administratori: **7 ditë, 1 muaj, 6 muaj, 1 vit ose përjetë**. Çdo kod hap **vetëm një program**: elektrik, CCTV, AP, FIRE, EMERGENCY ose ALL-IN-ONE. Kodi i ALL-IN-ONE hap vetëm programin ALL-IN-ONE, jo programet e veçanta. Kodi nuk lidhet me kompjuterin: i njëjti kod punon edhe në një kompjuter tjetër.
+Çdo program hapet vetëm me një kod aktivizimi nga administratori: **7 ditë, 1 muaj, 6 muaj, 1 vit ose përjetë**. Çdo kod hap **vetëm një program**: Electrical, CCTV, AP, Fire, Emergency ose All in One. Kodi i All in One hap vetëm programin All in One, jo programet e veçanta. Kodi nuk lidhet me kompjuterin: i njëjti kod punon edhe në një kompjuter tjetër.
 - Kodet krijohen te faqja e administratorit `admin-dist/index.html` (zgjidh programin, kohëzgjatjen, datën e fillimit dhe klientin). Faqja ruan listën e kodeve të krijuara dhe e shkarkon në CSV, dhe kontrollon çdo kod që i ngjit.
 - Kodi është i nënshkruar me çelësin privat të administratorit (ECDSA P-256); programet kanë vetëm çelësin publik (`src/license/publicKey.ts`), prandaj kodet nuk krijohen dot duke ndryshuar programin. Afati llogaritet nga data e fillimit; dita e fundit vlen.
 - Çelësi privat është në `admin-key.json`, që **nuk futet në git**. Me të, `npm run build` e fut çelësin brenda faqes së administratorit; pa të, faqja kërkon skedarin. `node scripts/keygen.mjs --force` krijon çelës të ri, por kodet e vjetra nuk vlejnë më.
 - Programi kujton kodin në shfletues dhe tregon lart ditët që mbeten; butoni i licencës ndryshon kodin. Kthimi i orës mbrapa nuk e zgjat licencën.
 - Një program në shfletues nuk mbrohet plotësisht nga dikush që di ta ndryshojë kodin e faqes; versioni `.exe` mund ta forcojë më tej.
 
-## Të gjitha bashkë: ALL-IN-ONE
-`dist/all/` është **AllSolutionTech CAD 2D ALL-IN-ONE**: të gjitha libraritë, linjat dhe shtresat e programeve të tjera në një, me ruajtjen e vet. Lista e librarive majtas zgjedh një librari ose "Të gjitha". Programet e reja që shtohen te `EDITIONS` hyjnë vetë këtu.
+## Të gjitha bashkë: All in One
+`dist/all/` është **AllSolutionTech CAD All in One**: të gjitha libraritë, linjat dhe shtresat e programeve të tjera në një, me ruajtjen e vet. Lista e librarive majtas zgjedh një librari ose "Të gjitha". Programet e reja që shtohen te `EDITIONS` hyjnë vetë këtu.
 
 ## Simbolet e mia
 Butoni **Simbol i ri** te libraria hap redaktorin: vizaton me vija, drejtkëndësha, rrathë (bosh ose të mbushur), harqe dhe tekst, mbi një rrjetë ku shihet edhe muri. I jep kodin (p.sh. AST-U-01), emrin, shtresën, vendosjen (në mur ose e lirë), lartësinë dhe fuqinë.

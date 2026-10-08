@@ -6,7 +6,7 @@
  * pastaj nënshkrimi ECDSA P-256 / SHA-256 (64 bajt). Shkruhet me base32 Crockford, në grupe nga 4.
  */
 
-/** Programi që hap një kod. 'all' është programi ALL-IN-ONE; nuk hap programet e veçanta. */
+/** Programi që hap një kod. 'all' është programi All in One; nuk hap programet e veçanta. */
 export const LICENSE_PROGRAMS = ['all', 'civil', 'cctv', 'network', 'fire', 'emergency'] as const;
 export type LicenseProgram = (typeof LICENSE_PROGRAMS)[number];
 

@@ -16,6 +16,10 @@ export interface Coverage {
   label: string;
   /** Rrethi i brendshëm me vijë, mm (ndriçimi 1 lux i rrugës së evakuimit). */
   inner?: number;
+  /** Zona e verbër poshtë kamerës, mm: sektori nis nga kjo largësi. */
+  blind?: number;
+  /** Kontura e gatshme (rreze lineare); kur mungon, zona është sektor ose rreth. */
+  poly?: Vec[];
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -64,10 +68,61 @@ export function cameraSettings(e: SymbolEntity): { fov: number; range: number; p
   };
 }
 
+/** Lartësia standarde e kamerës së tavanit, cm. */
+export const CAMERA_HEIGHT_CM = 270;
+export const TILT_LIMITS = [0, 90] as const;
+/** Pjerrësia standarde poshtë nga horizontalja, gradë. */
+export const DEFAULT_TILT = 30;
+
+export interface CameraGround {
+  /** Lartësia e montimit, m. */
+  height: number;
+  tilt: number;
+  /** Këndi vertikal i shikimit (16:9), gradë. */
+  vfov: number;
+  /** Zona e verbër poshtë kamerës, m. */
+  blind: number;
+  /** Deri ku arrin pamja në dysheme, m (null = deri në distancën e kamerës). */
+  ground: number | null;
+  /** Distanca që mbulohet vërtet: distanca e kamerës ose fundi i pamjes në dysheme. */
+  reach: number;
+}
+
+/**
+ * Sa sheh kamera në dysheme nga lartësia dhe pjerrësia: poshtë saj mbetet një zonë e verbër,
+ * dhe kur pjerrësia është e madhe pamja ndalet në dysheme para distancës së kamerës.
+ * Sa më lart montohet, aq më larg arrin pamja (dhe aq më e madhe zona e verbër).
+ */
+export function cameraGround(e: SymbolEntity): CameraGround | null {
+  const s = cameraSettings(e);
+  const def = symbolDef(e.symbol);
+  if (!s || !def) return null;
+  const height = clamp(num(e.height, def.height ?? CAMERA_HEIGHT_CM), 50, 3000) / 100;
+  // fisheye në tavan sheh drejt poshtë: pa zonë të verbër
+  if (s.fov >= 360) return { height, tilt: 90, vfov: 180, blind: 0, ground: null, reach: s.range };
+  const tilt = clamp(num(e.tilt, DEFAULT_TILT), ...TILT_LIMITS);
+  const vfov = ((2 * Math.atan(Math.tan((s.fov * Math.PI) / 360) * (9 / 16))) * 180) / Math.PI;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const low = tilt + vfov / 2;
+  const high = tilt - vfov / 2;
+  const blind = low >= 89.9 ? 0 : height / Math.tan(rad(low));
+  const ground = high > 0.1 ? height / Math.tan(rad(high)) : null;
+  const reach = Math.max(blind, ground === null ? s.range : Math.min(s.range, ground));
+  return { height, tilt, vfov, blind: Math.min(blind, reach), ground, reach };
+}
+
 export function cameraCoverage(e: SymbolEntity, unit: number): Coverage | null {
   const s = cameraSettings(e);
-  if (!s) return null;
-  return { apex: symbolCenter(e, unit), dir: e.angle + s.pan, fov: s.fov, range: s.range * 1000, label: `${Math.round(s.fov)}° · ${+s.range.toFixed(1)} m` };
+  const g = cameraGround(e);
+  if (!s || !g) return null;
+  return {
+    apex: symbolCenter(e, unit),
+    dir: e.angle + s.pan,
+    fov: s.fov,
+    range: g.reach * 1000,
+    blind: g.blind * 1000,
+    label: `${Math.round(s.fov)}° · ${+g.reach.toFixed(1)} m`,
+  };
 }
 
 /** Lartësia standarde e tavanit për detektorët, cm. */
@@ -102,10 +157,50 @@ export function detectorCalc(e: SymbolEntity): DetectorCalc | null {
   return { height, angle, radius, area: Math.PI * radius * radius, tooHigh: height > d.maxHeight, maxHeight: d.maxHeight };
 }
 
+export const BEAM_LIMITS = [5, 100] as const;
+
+export interface BeamCalc {
+  /** Gjatësia e rrezes deri te reflektori, m. */
+  length: number;
+  /** Gjerësia e mbulimit në secilën anë të rrezes, m. */
+  half: number;
+  height: number;
+  tooHigh: boolean;
+  maxHeight: number;
+}
+
+/** Detektori linear me rreze (EN 54-12): mbulon një shirit 2 × 7.5 m të gjerë përgjatë rrezes. */
+export function beamCalc(e: SymbolEntity): BeamCalc | null {
+  const b = symbolDef(e.symbol)?.beam;
+  if (!b) return null;
+  const height = clamp(num(e.height, symbolDef(e.symbol)?.height ?? 600), 100, 4000) / 100;
+  return { length: clamp(num(e.range, b.range), ...BEAM_LIMITS), half: b.half, height, tooHigh: height > b.maxHeight, maxHeight: b.maxHeight };
+}
+
+/** Shiriti që mbulon rrezja: nga detektori, në drejtimin e tij, me gjerësinë në të dy anët. */
+export function beamPolygon(apex: Vec, dir: number, b: Pick<BeamCalc, 'length' | 'half'>): Vec[] {
+  const a = (dir * Math.PI) / 180;
+  const u = { x: Math.cos(a), y: Math.sin(a) };
+  const n = { x: -u.y, y: u.x };
+  const L = b.length * 1000;
+  const H = b.half * 1000;
+  return [
+    { x: apex.x + n.x * H, y: apex.y + n.y * H },
+    { x: apex.x + u.x * L + n.x * H, y: apex.y + u.y * L + n.y * H },
+    { x: apex.x + u.x * L - n.x * H, y: apex.y + u.y * L - n.y * H },
+    { x: apex.x - n.x * H, y: apex.y - n.y * H },
+  ];
+}
+
 /** Zona e çdo simboli që ka mbulim: sektori i kamerës, rrethi i detektorit ose i ndriçuesit të emergjencës. */
 export function symbolCoverage(e: SymbolEntity, unit: number): Coverage | null {
   const cam = cameraCoverage(e, unit);
   if (cam) return cam;
+  const beam = beamCalc(e);
+  if (beam) {
+    const apex = symbolCenter(e, unit);
+    return { apex, dir: e.angle, fov: 0, range: beam.length * 1000, poly: beamPolygon(apex, e.angle, beam), label: `${+beam.length.toFixed(0)} m · ±${beam.half} m` };
+  }
   const det = detectorCalc(e);
   if (!det) return emergencyCoverage(e, unit);
   return {
@@ -120,6 +215,7 @@ export function symbolCoverage(e: SymbolEntity, unit: number): Coverage | null {
 
 /** Kontura e zonës si shumëkëndësh: sektor rrethi, ose rreth i plotë për 360°. */
 export function coveragePolygon(c: Coverage, steps = 48): Vec[] {
+  if (c.poly) return c.poly;
   const full = c.fov >= 360;
   const start = c.dir - c.fov / 2;
   const n = Math.max(8, Math.ceil((steps * c.fov) / 360));
@@ -128,5 +224,11 @@ export function coveragePolygon(c: Coverage, steps = 48): Vec[] {
     const a = ((start + (c.fov * i) / n) * Math.PI) / 180;
     arc.push({ x: c.apex.x + Math.cos(a) * c.range, y: c.apex.y + Math.sin(a) * c.range });
   }
-  return full ? arc.slice(0, -1) : [c.apex, ...arc];
+  if (full) return arc.slice(0, -1);
+  // me zonë të verbër: unazë sektori, nga largësia e verbër deri te distanca
+  if (c.blind && c.blind > 0) {
+    const inner = arc.map((p) => ({ x: c.apex.x + ((p.x - c.apex.x) * c.blind!) / c.range, y: c.apex.y + ((p.y - c.apex.y) * c.blind!) / c.range }));
+    return [...arc, ...inner.reverse()];
+  }
+  return [c.apex, ...arc];
 }

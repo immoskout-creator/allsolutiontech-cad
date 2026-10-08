@@ -12,13 +12,13 @@ export const VOLTAGE = { 1: 230, 3: 400 } as const;
 /** Rezistiviteti i bakrit në temperaturën e punës, Ω·mm²/m. */
 export const RHO_CU = 0.0225;
 /** Siguresat standarde, A. */
-export const BREAKERS = [6, 10, 13, 16, 20, 25, 32, 40, 50, 63];
+export const BREAKERS = [6, 10, 13, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125];
 /** Seksionet standarde, mm². */
-export const SECTIONS = [1.5, 2.5, 4, 6, 10, 16, 25];
+export const SECTIONS = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95];
 /** Kapaciteti Iz (A), metoda B2, PVC: me 2 dhe 3 përcjellës nën ngarkesë. */
 const IZ: Record<1 | 3, number[]> = {
-  1: [16.5, 23, 30, 38, 52, 69, 90],
-  3: [15, 20, 27, 34, 46, 62, 80],
+  1: [16.5, 23, 30, 38, 52, 69, 90, 111, 133, 168, 201],
+  3: [15, 20, 27, 34, 46, 62, 80, 99, 118, 149, 179],
 };
 /** Kufiri i rënies së tensionit, %. */
 export const DROP_LIMIT: Record<CircuitKind, number> = { lighting: 3, sockets: 5, appliance: 5, cctv: 0, network: 0, fire: 0, emergency: 0 };
@@ -85,8 +85,8 @@ export function pointPower(s: SymbolEntity): number {
   return def?.category === 'priza' ? SOCKET_W : 0;
 }
 
-/** overload/drop për energjinë; run = kabllo më e gjatë se lejohet; devices = shumë pajisje në zonë. */
-export type CircuitWarning = 'overload' | 'drop' | 'run' | 'devices';
+/** overload/drop për energjinë; phase = pajisje trefazore në qark njëfazor; run = kabllo më e gjatë se lejohet; devices = shumë pajisje në zonë. */
+export type CircuitWarning = 'overload' | 'drop' | 'phase' | 'run' | 'devices';
 
 export interface CircuitCalc {
   circuit: Circuit;
@@ -141,6 +141,7 @@ export function calcCircuit(circuit: Circuit, symbols: SymbolEntity[], lengthMm:
   }
   const ib = designCurrent(power, phases);
   const warnings: CircuitWarning[] = [];
+  if (phases === 1 && symbols.some((s) => symbolDef(s.symbol)?.phases === 3)) warnings.push('phase');
 
   let breaker = circuit.breaker ?? BREAKERS.find((b) => b >= Math.max(ib, MIN_BREAKER[circuit.kind])) ?? BREAKERS[BREAKERS.length - 1];
   if (ib > breaker) warnings.push('overload');
@@ -192,4 +193,42 @@ export function calcAll(doc: Doc, centers: Map<string, Vec>): CircuitCalc[] {
     const runs = cables.filter((k) => k.circuit === c.id).map((k) => cableRunLength(k, symbols, centers));
     return calcCircuit(c, pts, runs.reduce((s, v) => s + v, 0), Math.max(0, ...runs));
   });
+}
+
+/** Disbalanca mbi këtë përqindje paralajmërohet. */
+export const BALANCE_LIMIT = 15;
+
+export interface PhaseBalance {
+  /** Ngarkesa në L1, L2, L3, W. */
+  loads: [number, number, number];
+  /** Faza e çdo qarku njëfazor (e zgjedhur me dorë ose vetë). */
+  lines: Map<string, 1 | 2 | 3>;
+  /** Shmangia më e madhe nga mesatarja, % (0 kur s'ka ngarkesë). */
+  imbalance: number;
+}
+
+/**
+ * Ndarja e qarqeve në faza: trefazorët ngarkojnë njësoj L1, L2, L3; njëfazorët me fazë të zgjedhur qëndrojnë aty,
+ * të tjerët shkojnë një nga një, nga më i ngarkuari, te faza më e lehtë.
+ */
+export function phaseBalance(res: CircuitCalc[]): PhaseBalance {
+  const loads: [number, number, number] = [0, 0, 0];
+  const lines = new Map<string, 1 | 2 | 3>();
+  const power = res.filter((r) => !r.system);
+  for (const r of power) {
+    if (r.circuit.phases === 3) for (let i = 0; i < 3; i++) loads[i] += r.power / 3;
+    else if (r.circuit.line) {
+      loads[r.circuit.line - 1] += r.power;
+      lines.set(r.circuit.id, r.circuit.line);
+    }
+  }
+  const auto = power.filter((r) => r.circuit.phases === 1 && !r.circuit.line).sort((a, b) => b.power - a.power);
+  for (const r of auto) {
+    const i = loads.indexOf(Math.min(...loads));
+    loads[i] += r.power;
+    lines.set(r.circuit.id, (i + 1) as 1 | 2 | 3);
+  }
+  const avg = (loads[0] + loads[1] + loads[2]) / 3;
+  const imbalance = avg > 0 ? (Math.max(...loads.map((l) => Math.abs(l - avg))) / avg) * 100 : 0;
+  return { loads, lines, imbalance };
 }

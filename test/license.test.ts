@@ -51,7 +51,7 @@ test('kontrolli: secili program me kodin e vet, dhe skadimi', async () => {
   assert.equal((await checkCode(fire, 'fire', pair.publicKey, today)).ok, true);
   assert.deepEqual(await checkCode(fire, 'cctv', pair.publicKey, today).then((c) => !c.ok && c.reason), 'wrongProgram');
   assert.deepEqual(await checkCode(fire, 'all', pair.publicKey, today).then((c) => !c.ok && c.reason), 'wrongProgram');
-  // çdo kod hap vetëm programin e vet; kodi ALL-IN-ONE vetëm programin ALL-IN-ONE
+  // çdo kod hap vetëm programin e vet; kodi All in One vetëm programin All in One
   const programs = ['civil', 'cctv', 'network', 'fire', 'emergency', 'all'] as const;
   for (const owner of programs) {
     const code = await make(owner, today + 1);

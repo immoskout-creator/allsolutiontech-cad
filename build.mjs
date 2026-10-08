@@ -1,7 +1,7 @@
 // Ndërton programin si një faqe HTML të vetme (pa skedarë të jashtëm përveç fonteve).
-//   node build.mjs         -> pesë programet dhe ALL-IN-ONE, secili me index.html (hapet direkt në shfletues) dhe artifact.html:
+//   node build.mjs         -> pesë programet dhe All in One, secili me index.html (hapet direkt në shfletues) dhe artifact.html:
 //                             dist/ (elektrik), dist/cctv/, dist/ap/, dist/fire/, dist/em/
-//                             dist/all/ (të gjitha programet bashkë, ALL-IN-ONE)
+//                             dist/all/ (të gjitha programet bashkë, All in One)
 //                          -> faqja e administratorit për kodet e aktivizimit: admin-dist/index.html
 //                             (me çelësin brenda kur admin-key.json është këtu; jashtë dist/ që të mos publikohet me programet)
 //   node build.mjs --test  -> përpilon testet në dist-test/
@@ -13,13 +13,13 @@ const FONTS =
   '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
   '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">';
 const EDITIONS = [
-  { id: 'civil', dir: 'dist', title: 'AllSolutionTech CAD 2D' },
-  { id: 'cctv', dir: 'dist/cctv', title: 'AllSolutionTech CAD 2D CCTV' },
-  { id: 'network', dir: 'dist/ap', title: 'AllSolutionTech CAD 2D AP' },
-  { id: 'fire', dir: 'dist/fire', title: 'AllSolutionTech CAD 2D FIRE' },
-  { id: 'emergency', dir: 'dist/em', title: 'AllSolutionTech CAD 2D EMERGENCY' },
+  { id: 'civil', dir: 'dist', title: 'AllSolutionTech CAD Electrical' },
+  { id: 'cctv', dir: 'dist/cctv', title: 'AllSolutionTech CAD CCTV' },
+  { id: 'network', dir: 'dist/ap', title: 'AllSolutionTech CAD AP' },
+  { id: 'fire', dir: 'dist/fire', title: 'AllSolutionTech CAD Fire' },
+  { id: 'emergency', dir: 'dist/em', title: 'AllSolutionTech CAD Emergency' },
 ];
-EDITIONS.push({ id: 'all', dir: 'dist/all', title: 'AllSolutionTech CAD 2D ALL-IN-ONE' });
+EDITIONS.push({ id: 'all', dir: 'dist/all', title: 'AllSolutionTech CAD All in One' });
 
 if (process.argv.includes('--test')) {
   const tests = (await readdir('test')).filter((f) => f.endsWith('.test.ts')).map((f) => `test/${f}`);
