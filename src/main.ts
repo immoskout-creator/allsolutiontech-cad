@@ -15,6 +15,7 @@ import { ReportsDialog } from './ui/reports';
 import { cableRunLength } from './core/circuits';
 import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang, type StringKey } from './i18n/strings';
 import { syncCableLayers } from './core/systems';
+import { WALL_MIN_M, checkFireCached } from './core/firecheck';
 import { DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraModel, cameraSettings, detectorCalc, modelsFor } from './core/coverage';
 import { EDITION, productName } from './edition';
 import { CATEGORIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
@@ -550,7 +551,21 @@ function detectorFields(s: SymbolEntity): string {
       <div class="stat"><span>${esc(t('detRadius'))}</span><b>${fmt(d.radius, 1)} m</b></div>
       <div class="stat"><span>${esc(t('detArea'))}</span><b>${fmt(d.area, 0)} m²</b></div>
     </div>
-    ${d.tooHigh ? `<p class="warn-text">${esc(t('warnDetHeight', { v: fmt(d.maxHeight, 1) }))}</p>` : ''}`;
+    ${d.tooHigh ? `<p class="warn-text">${esc(t('warnDetHeight', { v: fmt(d.maxHeight, 1) }))}</p>` : ''}
+    ${placement(s, fmt)}`;
+}
+
+/** Largësitë sipas rregullave: nga muri dhe nga detektori fqinj në të njëjtën dhomë. */
+function placement(s: SymbolEntity, fmt: (v: number, digits: number) => string): string {
+  const c = checkFireCached(store.doc).detectors.get(s.id);
+  if (!c) return '';
+  const m = (v: number | null) => (v === null ? '—' : `${fmt(v, 2)} m`);
+  return `<div class="stats">
+      <div class="stat"><span>${esc(t('detWall'))}</span><b>${m(c.wall)}</b></div>
+      <div class="stat"><span>${esc(t('detNeighbour'))}</span><b>${m(c.neighbour)} <small class="muted">≤ ${fmt(c.maxSpacing, 1)} m</small></b></div>
+    </div>
+    ${c.issues.includes('wall') ? `<p class="warn-text">${esc(t('warnDetWall', { v: fmt(WALL_MIN_M, 1) }))}</p>` : ''}
+    ${c.issues.includes('spacing') ? `<p class="warn-text">${esc(t('warnDetSpacing', { v: fmt(c.maxSpacing, 1) }))}</p>` : ''}`;
 }
 
 /** Fushat e kamerës: këndi i shikimit, distanca dhe drejtimi i objektivit. */
@@ -850,7 +865,10 @@ let roomsKey = '';
 function renderRoomSummary(): void {
   const walls = store.doc.entities.filter(isWall);
   const rooms = store.doc.entities.filter(isRoom).map((r) => ({ r, shape: findRoom(walls, r.pos) }));
-  const key = JSON.stringify([getLang(), walls, rooms.map((x) => x.r)]);
+  // te programi i zjarrit tregohet sa mbulohet çdo dhomë nga detektorët
+  const fire = EDITION.id === 'fire' ? checkFireCached(store.doc) : null;
+  const cover = new Map(fire?.rooms.map((r) => [r.id, r.covered]) ?? []);
+  const key = JSON.stringify([getLang(), walls, rooms.map((x) => x.r), [...cover]]);
   if (key === roomsKey) return;
   roomsKey = key;
   if (rooms.length === 0) {
@@ -859,10 +877,15 @@ function renderRoomSummary(): void {
   }
   const total = rooms.reduce((s, x) => s + (x.shape?.area ?? 0), 0);
   const rows = rooms
-    .map(({ r, shape }) => `<tr data-room="${r.id}"><td>${esc(r.name)}</td><td class="qty">${shape ? areaText(shape.area) : '—'}</td></tr>`)
+    .map(({ r, shape }) => {
+      const c = cover.get(r.id);
+      const pct = c === undefined ? '' : `<td class="qty${c < 0.999 ? ' warn-cell' : ''}">${Math.floor(c * 100)}%</td>`;
+      return `<tr data-room="${r.id}"><td>${esc(r.name)}</td><td class="qty">${shape ? areaText(shape.area) : '—'}</td>${fire ? pct || '<td class="qty">—</td>' : ''}</tr>`;
+    })
     .join('');
-  $('roomSummary').innerHTML = `<table class="summary rooms"><thead><tr><th>${esc(t('room'))}</th><th class="qty">m²</th></tr></thead>
-    <tbody>${rows}</tbody><tfoot><tr><td>${esc(t('totalArea'))}</td><td class="qty">${areaText(total)}</td></tr></tfoot></table>`;
+  const coverHead = fire ? `<th class="qty">${esc(t('coverage'))}</th>` : '';
+  $('roomSummary').innerHTML = `<table class="summary rooms"><thead><tr><th>${esc(t('room'))}</th><th class="qty">m²</th>${coverHead}</tr></thead>
+    <tbody>${rows}</tbody><tfoot><tr><td>${esc(t('totalArea'))}</td><td class="qty">${areaText(total)}</td>${fire ? '<td></td>' : ''}</tr></tfoot></table>`;
 }
 $('roomSummary').addEventListener('click', (e) => {
   const row = (e.target as HTMLElement).closest<HTMLElement>('[data-room]');

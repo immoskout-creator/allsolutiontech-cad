@@ -327,3 +327,5 @@ button:disabled { cursor: default; opacity: 0.45; }
 .report-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .report-tabs .chip[aria-selected="true"] { border-color: var(--accent-line); background: var(--accent-soft); color: #CFE2FF; }
 .report-frame { flex: 1 1 auto; min-height: 240px; width: 100%; border: 1px solid var(--line-2); border-radius: 8px; background: #FFFFFF; }
+
+.summary td.warn-cell { color: #F87171; font-weight: 600; }

@@ -170,6 +170,7 @@ function addFire(doc: Doc): void {
     sym('zj-tym', 4800, 6300, 270),
     sym('zj-nxehtesi', 2000, 7200, 270),
     sym('zj-tym', 2500, 2000, 270),
+    sym('zj-nxehtesi', 6800, 2000, 270),
     sym('zj-tym', 10100, 2000, 270),
     sym('zj-tym', 13100, 2000, 270),
   ];
