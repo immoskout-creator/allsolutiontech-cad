@@ -123,14 +123,14 @@ export function writeAutosave(doc: Doc): void {
   }
 }
 
-export function fileName(doc: Doc): string {
+export function fileName(doc: Doc, ext = 'astcad.json'): string {
   const base = doc.name
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^A-Za-z0-9 _-]+/g, '')
     .trim()
     .replace(/\s+/g, '-');
-  return `${base || 'projekt'}.astcad.json`;
+  return `${base || 'projekt'}.${ext}`;
 }
 
 interface DownloadsApi {
@@ -140,11 +140,12 @@ interface DownloadsApi {
 declare global {
   interface Window {
     claude?: { use(name: string): Promise<unknown> };
+    /** Programi i instaluar në Windows (desktop/preload.cjs): ruajtja me dritaren "Ruaj si". */
+    astDesktop?: { saveFile(filename: string, data: string | Uint8Array): Promise<'saved' | 'declined'> };
   }
 }
 
 let downloads: Promise<DownloadsApi | null> | null = null;
-
 function getDownloads(): Promise<DownloadsApi | null> {
   if (!downloads) {
     downloads = window.claude?.use
@@ -155,12 +156,20 @@ function getDownloads(): Promise<DownloadsApi | null> {
 }
 
 /**
- * Ruan të dhëna si skedar. Brenda claude.ai kalon nga konfirmimi i shkarkimit;
- * jashtë tij (kur programi hapet si skedar lokal) shkarkon direkt.
+ * Ruan të dhëna si skedar. Në programin e Windows hap dritaren "Ruaj si"; brenda claude.ai kalon nga
+ * konfirmimi i shkarkimit; në shfletues (skedar lokal) shkarkon direkt.
  */
-export async function saveData(filename: string, data: string, type = 'application/json'): Promise<'saved' | 'declined'> {
-  const api = await getDownloads();
-  if (api) {
+export async function saveData(filename: string, data: string | Uint8Array<ArrayBuffer>, type = 'application/json'): Promise<'saved' | 'declined'> {
+  if (window.astDesktop) {
+    try {
+      return await window.astDesktop.saveFile(filename, data);
+    } catch {
+      throw new Error('Skedari nuk u ruajt: kontrollo dosjen dhe provo përsëri.');
+    }
+  }
+  // brenda claude.ai shkarkimi merr vetëm tekst; PDF-ja dhe bajtët e tjerë shkarkohen direkt
+  const api = typeof data === 'string' ? await getDownloads() : null;
+  if (api && typeof data === 'string') {
     try {
       await api.save({ filename, data });
       return 'saved';

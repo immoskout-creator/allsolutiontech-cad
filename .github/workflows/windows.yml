@@ -57,7 +57,9 @@ jobs:
           cd installers
           for f in *.exe; do zip -q -0 "${f%.exe}.zip" "$f"; done
           zip -q -0 AllSolutionTech-CAD-te-gjitha-programet.zip *.exe
-          ls -la
+          # kodet SHA256: në Windows kontrollohen me  certutil -hashfile <skedari> SHA256
+          sha256sum *.exe *.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
       - name: Publiko instaluesit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -65,6 +67,6 @@ jobs:
         run: |
           TAG=windows-latest
           gh release delete "$TAG" --yes --cleanup-tag || true
-          gh release create "$TAG" installers/*.exe installers/*.zip --target "$GITHUB_SHA" \
+          gh release create "$TAG" installers/*.exe installers/*.zip installers/SHA256SUMS.txt --target "$GITHUB_SHA" \
             --title "Programet për Windows (0.1.${{ github.run_number }})" \
-            --notes "Instaluesit e gjashtë programeve AllSolutionTech CAD. Shkarko .exe e programit që të duhet dhe hape, ose skedarin .zip (një program, ose të gjitha bashkë te AllSolutionTech-CAD-te-gjitha-programet.zip). Windows mund të shfaqë një paralajmërim (SmartScreen) sepse instaluesit ende nuk janë të nënshkruar: kliko \"More info\" dhe pastaj \"Run anyway\"."
+            --notes "Instaluesit e gjashtë programeve AllSolutionTech CAD. Shkarko .exe e programit që të duhet dhe hape, ose skedarin .zip (një program, ose të gjitha bashkë te AllSolutionTech-CAD-te-gjitha-programet.zip). Windows mund të shfaqë një paralajmërim (SmartScreen) sepse instaluesit ende nuk janë të nënshkruar: kliko \"More info\" dhe pastaj \"Run anyway\". Kodet SHA256 janë te SHA256SUMS.txt (në Windows: certutil -hashfile <skedari> SHA256)."
