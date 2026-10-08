@@ -18,6 +18,35 @@ export interface Coverage {
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 
+/** Modelet e kamerave: objektivi, këndi horizontal i shikimit dhe distanca (IR) që japin prodhuesit. */
+export interface CameraModel {
+  id: string;
+  /** Emri pa gjuhë, del edhe në listën e materialeve. */
+  name: string;
+  /** Simboli që e përdor modelin. */
+  symbol: string;
+  fov: number;
+  range: number;
+}
+
+export const CAMERA_MODELS: CameraModel[] = [
+  { id: 'b2-28', name: 'Bullet 2MP · 2.8 mm', symbol: 'cc-bullet', fov: 105, range: 20 },
+  { id: 'b4-4', name: 'Bullet 4MP · 4 mm', symbol: 'cc-bullet', fov: 85, range: 30 },
+  { id: 'b4-6', name: 'Bullet 4MP · 6 mm', symbol: 'cc-bullet', fov: 55, range: 40 },
+  { id: 'b4-v', name: 'Bullet 4MP · 2.8–12 mm', symbol: 'cc-bullet', fov: 60, range: 50 },
+  { id: 'b8-4', name: 'Bullet 8MP · 4 mm', symbol: 'cc-bullet', fov: 100, range: 40 },
+  { id: 'd2-28', name: 'Dome 2MP · 2.8 mm', symbol: 'cc-dome', fov: 105, range: 15 },
+  { id: 'd4-28', name: 'Dome 4MP · 2.8 mm', symbol: 'cc-dome', fov: 105, range: 30 },
+  { id: 'd4-4', name: 'Dome 4MP · 4 mm', symbol: 'cc-dome', fov: 85, range: 30 },
+  { id: 'd4-v', name: 'Dome 4MP · 2.8–12 mm', symbol: 'cc-dome', fov: 60, range: 40 },
+  { id: 'p4-25x', name: 'PTZ 4MP · 25×', symbol: 'cc-ptz', fov: 60, range: 100 },
+  { id: 'p4-45x', name: 'PTZ 4MP · 45×', symbol: 'cc-ptz', fov: 55, range: 200 },
+  { id: 'f12', name: 'Fisheye 12MP · 360°', symbol: 'cc-fisheye', fov: 360, range: 10 },
+];
+
+export const modelsFor = (symbol: string) => CAMERA_MODELS.filter((m) => m.symbol === symbol);
+export const cameraModel = (e: SymbolEntity) => CAMERA_MODELS.find((m) => m.id === e.model && m.symbol === e.symbol);
+
 export const FOV_LIMITS = [5, 360] as const;
 export const RANGE_LIMITS = [1, 300] as const;
 

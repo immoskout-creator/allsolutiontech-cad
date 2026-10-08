@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { calcAll, newCircuit } from '../src/core/circuits';
-import { breakerSpec, cableSpec, materialList } from '../src/core/materials';
+import { breakerSpec, cableSpec, materialList, usedSymbols } from '../src/core/materials';
 import { ZONE_MAX_DEVICES, syncCableLayers } from '../src/core/systems';
-import { cameraCoverage, cameraSettings, coveragePolygon, detectorCalc, symbolCoverage } from '../src/core/coverage';
+import { CAMERA_MODELS, cameraCoverage, cameraSettings, coveragePolygon, detectorCalc, modelsFor, symbolCoverage } from '../src/core/coverage';
 import { parse, serialize } from '../src/io/files';
 import { CATEGORIES, SYMBOLS, categoryLibrary, symbolDef } from '../src/symbols/library';
 import { EDITION, EDITIONS, productName } from '../src/edition';
@@ -148,4 +148,12 @@ test('detektori i zjarrit: rrezja del nga lartësia dhe këndi, me kufirin e det
   const cov = symbolCoverage(det, 1)!;
   assert.equal(cov.fov, 360);
   assert.equal(cov.label, '140° · R 7.4 m');
+});
+
+test('modeli i kamerës del në listën e materialeve, i ndarë sipas modelit', () => {
+  for (const m of CAMERA_MODELS) assert.ok(symbolDef(m.symbol)?.cover, m.id);
+  assert.ok(modelsFor('cc-bullet').length >= 4);
+  const used = usedSymbols(sampleDoc('cctv'));
+  const bullets = used.filter((u) => u.def.id === 'cc-bullet').map((u) => [u.model, u.qty]);
+  assert.deepEqual(bullets, [['Bullet 2MP · 2.8 mm', 1], ['Bullet 4MP · 4 mm', 2]]);
 });

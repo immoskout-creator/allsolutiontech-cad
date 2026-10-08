@@ -132,11 +132,11 @@ function addCameras(doc: Doc): void {
   const nvr = sym('cc-nvr', 125, 4800, 0);
   const cams = [
     // kamerat në qoshet e dhomave, të drejtuara diagonalisht nga brenda
-    { ...sym('cc-bullet', 125, 8200, 0), pan: -30, range: 8 },
-    { ...sym('cc-dome', 9300, 4300, 270), pan: -135, range: 7 },
-    { ...sym('cc-bullet', 14475, 8200, 180), pan: 35, range: 6 },
-    { ...sym('cc-bullet', 14475, 700, 180), pan: -35, range: 5 },
-    { ...sym('cc-dome', 4700, 3700, 270), pan: -45, range: 5 },
+    { ...sym('cc-bullet', 125, 8200, 0), model: 'b4-4', fov: 85, pan: -30, range: 8 },
+    { ...sym('cc-dome', 9300, 4300, 270), model: 'd4-28', fov: 105, pan: -135, range: 7 },
+    { ...sym('cc-bullet', 14475, 8200, 180), model: 'b4-4', fov: 85, pan: 35, range: 6 },
+    { ...sym('cc-bullet', 14475, 700, 180), model: 'b2-28', fov: 105, pan: -35, range: 5 },
+    { ...sym('cc-dome', 4700, 3700, 270), model: 'd2-28', fov: 105, pan: -45, range: 5 },
   ];
   doc.entities.push(nvr, ...cams);
   const c: Circuit = { id: newId('q'), name: 'CAM1', label: 'Kamerat', kind: 'cctv', phases: 1, color: '#0891B2' };

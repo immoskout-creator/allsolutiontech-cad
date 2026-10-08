@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Et kabel er længere end {v} m, maksimum for denne kabeltype.',
     warnDevices: 'Sektionen har mere end {v} enheder; opdel den i to sektioner.',
     cableGeneric: 'Kabel {v}',
+    camModel: 'Kameramodel',
+    camCustom: 'Fri (egne værdier)',
     camFov: 'Synsvinkel (°)',
     camRange: 'Rækkevidde (m)',
     camPan: 'Kameraretning (°)',

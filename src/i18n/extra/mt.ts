@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Kejbil itwal minn {v} m, il-massimu għal dan it-tip ta\' kejbil.',
     warnDevices: 'Iż-żona għandha aktar minn {v} apparat; aqsamha f\'żewġ żoni.',
     cableGeneric: 'Kejbil {v}',
+    camModel: 'Mudell tal-kamera',
+    camCustom: 'Ħieles (il-valuri tiegħi)',
     camFov: 'Angolu tal-viżjoni (°)',
     camRange: 'Distanza (m)',
     camPan: 'Direzzjoni tal-kamera (°)',

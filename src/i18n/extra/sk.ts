@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Kábel je dlhší ako {v} m, čo je maximum pre tento typ kábla.',
     warnDevices: 'Zóna má viac ako {v} zariadení; rozdeľte ju na dve zóny.',
     cableGeneric: 'Kábel {v}',
+    camModel: 'Model kamery',
+    camCustom: 'Vlastný (moje hodnoty)',
     camFov: 'Zorný uhol (°)',
     camRange: 'Dosah (m)',
     camPan: 'Smer kamery (°)',

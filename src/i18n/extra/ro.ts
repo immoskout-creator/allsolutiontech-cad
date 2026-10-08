@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Un cablu depășește {v} m, maximul pentru acest tip de cablu.',
     warnDevices: 'Zona are peste {v} dispozitive; împărțiți-o în două zone.',
     cableGeneric: 'Cablu {v}',
+    camModel: 'Model cameră',
+    camCustom: 'Liber (valorile mele)',
     camFov: 'Unghi de vizualizare (°)',
     camRange: 'Distanță (m)',
     camPan: 'Direcția camerei (°)',

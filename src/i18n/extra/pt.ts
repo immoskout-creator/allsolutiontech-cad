@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Um cabo excede {v} m, o máximo para este tipo de cabo.',
     warnDevices: 'A zona tem mais de {v} dispositivos; divida-a em duas zonas.',
     cableGeneric: 'Cabo {v}',
+    camModel: 'Modelo de câmara',
+    camCustom: 'Livre (os meus valores)',
     camFov: 'Ângulo de visão (°)',
     camRange: 'Alcance (m)',
     camPan: 'Direção da câmara (°)',

@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Een kabel is langer dan {v} m, het maximum voor dit kabeltype.',
     warnDevices: 'De zone heeft meer dan {v} apparaten; splits deze in twee zones.',
     cableGeneric: 'Kabel {v}',
+    camModel: 'Cameramodel',
+    camCustom: 'Vrij (eigen waarden)',
     camFov: 'Kijkhoek (°)',
     camRange: 'Bereik (m)',
     camPan: 'Camerarichting (°)',

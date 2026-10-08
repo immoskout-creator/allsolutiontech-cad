@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Tá cábla níos faide ná {v} m, an t-uasmhéid don chineál cábla seo.',
     warnDevices: 'Tá níos mó ná {v} gléas sa chrios; roinn é ina dhá chrios.',
     cableGeneric: 'Cábla {v}',
+    camModel: 'Samhail an cheamara',
+    camCustom: 'Saor (mo luachanna féin)',
     camFov: 'Uillinn amhairc (°)',
     camRange: 'Raon (m)',
     camPan: 'Treo an cheamara (°)',
