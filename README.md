@@ -39,6 +39,8 @@ Nga i njëjti kod ndërtohen katër programe të veçanta, secili me emrin, link
 
 Te programi CCTV, çdo kamerë ka **këndin e shikimit** (me objektivat 2.8 / 4 / 6 / 8 / 12 mm si sugjerim), **distancën** dhe **drejtimin**; plani tregon zonën e mbulimit në shkallë, me këndin dhe distancën të shkruara.
 
+Te programi FIRE, detektorët e tymit, të nxehtësisë dhe multisensor kanë **lartësinë e montimit** dhe **këndin e sensorit**: rrezja në dysheme është lartësia × tan(këndi/2), jo më shumë se 7.5 m për tymin dhe 5.3 m për nxehtësinë; mbi 10.5 m (tym) ose 9 m (nxehtësi) del paralajmërim. Plani vizaton rrethin e mbulimit me këndin dhe rrezen.
+
 Te programet e sistemeve, **Qark i ri** krijon linjë (CAM1, NET1, FA1) pa siguresë: zgjidhet kablloja (U/UTP Cat6, F/UTP Cat6 PE, Cat5e, RG59, Cat6A, fibër OM3, kabllo zjarri PH30/PH120, J-Y(St)Y) dhe kontrollohen gjatësia e çdo kablloje (90 m për UTP) dhe numri i pajisjeve në zonën e zjarrit (32). Lista e materialeve jep pajisjet, metrat e kabllove, konektorët RJ45 (2 për çdo kabllo UTP) dhe rezistencat e fundit të zonës. Programi zgjidhet në `src/edition.ts`; `build.mjs` i ndërton të katërt.
 
 ## Simbolet e mia

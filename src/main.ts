@@ -15,7 +15,7 @@ import { ReportsDialog } from './ui/reports';
 import { cableRunLength } from './core/circuits';
 import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang, type StringKey } from './i18n/strings';
 import { syncCableLayers } from './core/systems';
-import { FOV_LIMITS, RANGE_LIMITS, cameraSettings } from './core/coverage';
+import { DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraSettings, detectorCalc } from './core/coverage';
 import { EDITION, productName } from './edition';
 import { CATEGORIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
 import { normAngle } from './symbols/place';
@@ -540,6 +540,19 @@ function update<T extends Entity>(id: string, fn: (x: T) => void): void {
 /** Objektivat e zakonshëm dhe këndi i tyre horizontal i shikimit. */
 const LENSES: [string, number][] = [['2.8 mm', 105], ['4 mm', 85], ['6 mm', 55], ['8 mm', 40], ['12 mm', 28]];
 
+/** Detektori i zjarrit: këndi i sensorit dhe rrezja që del nga lartësia. */
+function detectorFields(s: SymbolEntity): string {
+  const d = detectorCalc(s);
+  if (!d) return '';
+  const fmt = (v: number, digits: number) => v.toLocaleString(getLang(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return `<div class="prop-grid">${numField('propDetAngle', t('detAngle'), d.angle, '1')}</div>
+    <div class="stats">
+      <div class="stat"><span>${esc(t('detRadius'))}</span><b>${fmt(d.radius, 1)} m</b></div>
+      <div class="stat"><span>${esc(t('detArea'))}</span><b>${fmt(d.area, 0)} m²</b></div>
+    </div>
+    ${d.tooHigh ? `<p class="warn-text">${esc(t('warnDetHeight', { v: fmt(d.maxHeight, 1) }))}</p>` : ''}`;
+}
+
 /** Fushat e kamerës: këndi i shikimit, distanca dhe drejtimi i objektivit. */
 function cameraFields(s: SymbolEntity): string {
   const cam = cameraSettings(s);
@@ -593,11 +606,12 @@ function renderProps(): void {
       <div class="prop-head" style="--tile-color:${TILE_COLORS[def.layer] ?? '#9CC5FF'}">${symbolSvg(def)}
         <div><b>${esc(symName(def))}</b><span>${def.code} · ${esc(layerName(s.layer, s.layer))}</span></div></div>
       <div class="prop-grid">
-        ${def.mount === 'wall' ? numField('propHeight', t('heightCm'), s.height ?? '') : `<div class="field">${esc(t('heightCm'))}<span class="static">${esc(t('ceiling'))}</span></div>`}
+        ${def.mount === 'wall' || def.detector ? numField('propHeight', t('heightCm'), s.height ?? (def.detector ? DETECTOR_HEIGHT_CM : '')) : `<div class="field">${esc(t('heightCm'))}<span class="static">${esc(t('ceiling'))}</span></div>`}
         ${numField('propPower', t('powerW'), s.power ?? '')}
         ${numField('propAngle', t('rotation'), normAngle(s.angle - 270), '90')}
       </div>
       ${cameraFields(s)}
+      ${detectorFields(s)}
       ${circuitField('propCircuit', s.circuit ?? '')}
       ${def.category === 'custom' ? `<button class="btn" id="propEditSymbol" type="button">${esc(t('editSymbol'))}</button>` : ''}
       <button class="btn danger" id="propDelete" type="button">${esc(t('deleteSymbol'))}</button>`;
@@ -614,6 +628,8 @@ function renderProps(): void {
     onNum('propAngle', (x, v) => v !== undefined && (x.angle = normAngle(v + 270)));
     // kamera: bosh = vlera standarde e simbolit
     onNum('propFov', (x, v) => (v === undefined ? delete x.fov : (x.fov = Math.min(FOV_LIMITS[1], Math.max(FOV_LIMITS[0], Math.round(v))))));
+    // detektori: këndi i sensorit ruhet te i njëjti fushë si këndi i kamerës
+    onNum('propDetAngle', (x, v) => (v === undefined ? delete x.fov : (x.fov = Math.min(DETECTOR_ANGLE_LIMITS[1], Math.max(DETECTOR_ANGLE_LIMITS[0], Math.round(v))))));
     onNum('propRange', (x, v) => (v === undefined ? delete x.range : (x.range = Math.min(RANGE_LIMITS[1], Math.max(RANGE_LIMITS[0], Math.round(v * 10) / 10)))));
     onNum('propPan', (x, v) => (v === undefined || v === 0 ? delete x.pan : (x.pan = Math.min(180, Math.max(-180, Math.round(v))))));
     onCircuit('propCircuit', [s.id]);
