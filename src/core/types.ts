@@ -35,6 +35,12 @@ export interface SymbolEntity {
   power?: number;
   /** Id e qarkut ku është lidhur. */
   circuit?: string;
+  /** Kamera: këndi i shikimit, gradë. */
+  fov?: number;
+  /** Kamera: distanca e shikimit, m. */
+  range?: number;
+  /** Kamera: drejtimi i objektivit kundrejt simbolit, gradë (+ = majtas). */
+  pan?: number;
 }
 
 /** Kabllo e vizatuar si vijë e thyer; gjatësia i shtohet qarkut të saj. */
