@@ -321,3 +321,9 @@ button:disabled { cursor: default; opacity: 0.45; }
 .table-scroll { overflow-x: auto; max-height: 60vh; }
 .circuits-table th, .circuits-table td { white-space: nowrap; }
 .circuits-table tr.has-warn td { background: rgba(251, 191, 36, 0.08); }
+
+/* raportet */
+.modal-report { height: min(860px, calc(100vh - 32px)); }
+.report-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.report-tabs .chip[aria-selected="true"] { border-color: var(--accent-line); background: var(--accent-soft); color: #CFE2FF; }
+.report-frame { flex: 1 1 auto; min-height: 240px; width: 100%; border: 1px solid var(--line-2); border-radius: 8px; background: #FFFFFF; }
