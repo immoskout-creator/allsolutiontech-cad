@@ -40,6 +40,8 @@ export interface SymbolDef {
   power?: number;
   /** Kamera: këndi i shikimit (gradë) dhe distanca (m) standarde. */
   cover?: { fov: number; range: number };
+  /** Detektor zjarri: këndi i sensorit (gradë), rrezja maksimale (m) dhe lartësia maksimale e montimit (m). */
+  detector?: { angle: number; maxRadius: number; maxHeight: number };
 }
 
 export type CategoryId = 'custom' | 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'sensore' | 'komunikim' | 'cctv' | 'rrjet' | 'zjarr';
@@ -658,17 +660,17 @@ export const SYMBOLS: SymbolDef[] = [
 
   // ---- Sinjalizim zjarri ----
   {
-    id: 'zj-tym', code: 'AST-ZJ-01', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    id: 'zj-tym', code: 'AST-ZJ-01', category: 'zjarr', layer: 'zjarri', mount: 'center', detector: { angle: 140, maxRadius: 7.5, maxHeight: 10.5 },
     names: { sq: 'Detektor optik tymi', en: 'Optical smoke detector', it: 'Rivelatore ottico di fumo', de: 'Optischer Rauchmelder' },
     parts: [{ d: circle(0, 0, 10) }, { d: strokeText('S', 0, 0, 9) }],
   },
   {
-    id: 'zj-nxehtesi', code: 'AST-ZJ-02', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    id: 'zj-nxehtesi', code: 'AST-ZJ-02', category: 'zjarr', layer: 'zjarri', mount: 'center', detector: { angle: 126, maxRadius: 5.3, maxHeight: 9 },
     names: { sq: 'Detektor nxehtësie', en: 'Heat detector', it: 'Rivelatore di calore', de: 'Wärmemelder' },
     parts: [{ d: circle(0, 0, 10) }, { d: strokeText('T', 0, 0, 9) }],
   },
   {
-    id: 'zj-multi', code: 'AST-ZJ-03', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    id: 'zj-multi', code: 'AST-ZJ-03', category: 'zjarr', layer: 'zjarri', mount: 'center', detector: { angle: 140, maxRadius: 7.5, maxHeight: 10.5 },
     names: { sq: 'Detektor multisensor (tym + nxehtësi)', en: 'Multisensor detector (smoke + heat)', it: 'Rivelatore multisensore (fumo + calore)', de: 'Multisensormelder (Rauch + Wärme)' },
     parts: [{ d: circle(0, 0, 10) }, { d: strokeText('ST', 0, 0, 7) }],
   },

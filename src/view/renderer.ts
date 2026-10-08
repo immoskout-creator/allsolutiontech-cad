@@ -1,4 +1,4 @@
-import { cameraCoverage, coveragePolygon, type Coverage } from '../core/coverage';
+import { coveragePolygon, symbolCoverage, type Coverage } from '../core/coverage';
 import {
   DIM_LAYER,
   isCable,
@@ -167,10 +167,10 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   }
   if (ov.cablePreview && ov.cablePreview.length >= 2) drawCable(ctx, vp, ov.cablePreview, COLORS.selected, cableW, true);
 
-  // zona e shikimit të kamerave, nën simbolet
+  // zona e kamerave dhe e detektorëve të zjarrit, nën simbolet
   for (const e of visible) {
     if (!isSymbol(e)) continue;
-    const cov = cameraCoverage(e, unit);
+    const cov = symbolCoverage(e, unit);
     if (cov) drawCoverage(ctx, vp, cov, st.selection.has(e.id) ? COLORS.selected : (colorOf.get(e.layer) ?? COLORS.wall), st.selection.has(e.id), paperPx);
   }
 
@@ -508,7 +508,8 @@ function drawCoverage(ctx: CanvasRenderingContext2D, vp: Viewport, c: Coverage, 
   ctx.beginPath();
   pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
   ctx.closePath();
-  ctx.globalAlpha = selected ? 0.16 : 0.09;
+  // rrathët e detektorëve mbivendosen shumë, ndaj mbushen më lehtë
+  ctx.globalAlpha = selected ? 0.16 : c.fov >= 360 ? 0.04 : 0.09;
   ctx.fillStyle = color;
   ctx.fill();
   ctx.globalAlpha = selected ? 0.9 : 0.55;
@@ -522,7 +523,7 @@ function drawCoverage(ctx: CanvasRenderingContext2D, vp: Viewport, c: Coverage, 
     const a = (c.dir * Math.PI) / 180;
     const r = c.range * (c.fov >= 360 ? 0.55 : 0.82);
     const at = vp.toScreen({ x: c.apex.x + Math.cos(a) * r, y: c.apex.y + Math.sin(a) * r });
-    const text = `${Math.round(c.fov)}° · ${+(c.range / 1000).toFixed(1)} m`;
+    const text = c.label;
     ctx.globalAlpha = 1;
     ctx.setLineDash([]);
     ctx.font = `600 ${Math.min(px, 22)}px "IBM Plex Mono", ui-monospace, monospace`;

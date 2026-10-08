@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { calcAll, newCircuit } from '../src/core/circuits';
 import { breakerSpec, cableSpec, materialList } from '../src/core/materials';
 import { ZONE_MAX_DEVICES, syncCableLayers } from '../src/core/systems';
-import { cameraCoverage, cameraSettings, coveragePolygon } from '../src/core/coverage';
+import { cameraCoverage, cameraSettings, coveragePolygon, detectorCalc, symbolCoverage } from '../src/core/coverage';
 import { parse, serialize } from '../src/io/files';
 import { CATEGORIES, SYMBOLS, categoryLibrary, symbolDef } from '../src/symbols/library';
 import { EDITION, EDITIONS, productName } from '../src/edition';
@@ -128,4 +128,24 @@ test('kamera ka kënd shikimi, distancë dhe drejtim; zona vizatohet në shkall�
   const fish = coveragePolygon(fc);
   assert.equal(fish.length, 48);
   for (const p of fish) assert.ok(Math.abs(Math.hypot(p.x - fc.apex.x, p.y - fc.apex.y) - 8000) < 1e-6);
+});
+
+test('detektori i zjarrit: rrezja del nga lartësia dhe këndi, me kufirin e detektorit', () => {
+  const det: SymbolEntity = { id: 'd', kind: 'symbol', layer: 'zjarri', symbol: 'zj-tym', pos: { x: 0, y: 0 }, angle: 270 };
+  // në 2.7 m: 2.7 · tan(70°) = 7.4 m
+  const d = detectorCalc(det)!;
+  assert.equal(d.height, 2.7);
+  assert.ok(Math.abs(d.radius - 7.418) < 0.01);
+  assert.equal(d.tooHigh, false);
+  // më lart rrezja nuk kalon 7.5 m; mbi 10.5 m del paralajmërimi
+  assert.equal(detectorCalc({ ...det, height: 600 })!.radius, 7.5);
+  assert.equal(detectorCalc({ ...det, height: 1100 })!.tooHigh, true);
+  // këndi më i ngushtë zvogëlon rrezen
+  assert.ok(Math.abs(detectorCalc({ ...det, fov: 90 })!.radius - 2.7) < 1e-9);
+  const heat = detectorCalc({ ...det, symbol: 'zj-nxehtesi' })!;
+  assert.ok(Math.abs(heat.radius - 5.3) < 0.01);
+  assert.equal(detectorCalc({ ...det, symbol: 'zj-buton' }), null);
+  const cov = symbolCoverage(det, 1)!;
+  assert.equal(cov.fov, 360);
+  assert.equal(cov.label, '140° · R 7.4 m');
 });
