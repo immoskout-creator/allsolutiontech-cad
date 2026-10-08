@@ -1,5 +1,5 @@
 import { Store } from './core/store';
-import { SCALES, emptyDoc, isOpening, isRoom, isSymbol, isWall, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
+import { SCALES, emptyDoc, isCable, isOpening, isRoom, isSymbol, isWall, type Cable, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
 import { DEFAULT_SILL, DOOR_HEIGHTS, DOOR_WIDTHS, SIZE_LIMITS, WINDOW_HEIGHTS, WINDOW_WIDTHS, openingFrame, openingHeight } from './core/openings';
 import { areaText, findRoom } from './core/rooms';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
@@ -10,6 +10,8 @@ import { Editor, type ToolId } from './tools/editor';
 import { loadAutosave, readFile, saveData, saveFile, writeAutosave } from './io/files';
 import { mergeSymbols, parseLibrary, serializeLibrary, toSymbolDef } from './symbols/custom';
 import { SymbolEditor } from './ui/symbolEditor';
+import { CircuitPanel, symbolCenters } from './ui/circuits';
+import { cableRunLength } from './core/circuits';
 import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang } from './i18n/strings';
 import { CATEGORIES, allSymbols, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type SymbolDef } from './symbols/library';
 import { normAngle } from './symbols/place';
@@ -119,7 +121,7 @@ function resize(): void {
 }
 
 function fitAll(): void {
-  const pts = store.doc.entities.flatMap((e) => (isWall(e) ? [e.a, e.b] : isOpening(e) ? [] : [e.pos]));
+  const pts = store.doc.entities.flatMap((e) => (isWall(e) ? [e.a, e.b] : isOpening(e) ? [] : isCable(e) ? e.points : [e.pos]));
   if (pts.length === 0) {
     vp.fit({ minX: 0, minY: 0, maxX: 12000, maxY: 8000 });
   } else {
@@ -163,6 +165,16 @@ canvas.addEventListener(
     editor.wheel(screenPt(e), e.ctrlKey ? dy * 3 : dy);
   },
   { passive: false },
+);
+
+const circuitPanel = new CircuitPanel(
+  store,
+  editor,
+  () => {
+    syncUi();
+    scheduleRender();
+  },
+  (m) => toast(m),
 );
 
 // ---- veglat dhe butonat ----
@@ -442,7 +454,8 @@ const typing = (target: EventTarget | null) =>
   target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
 
 window.addEventListener('keydown', (e) => {
-  if (!modal.hidden || symbolEditor.isOpen || typing(e.target)) return;
+  if (circuitPanel.isOpen && e.key === 'Escape') return void circuitPanel.closeTable();
+  if (!modal.hidden || symbolEditor.isOpen || circuitPanel.isOpen || typing(e.target)) return;
   const ctrl = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();
   if (ctrl && k === 'z' && !e.shiftKey) return void (e.preventDefault(), store.undo());
@@ -467,6 +480,7 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'd') setTool('door');
   else if (k === 'n') setTool('window');
   else if (k === 'm') setTool('room');
+  else if (k === 'k') setTool('cable');
   else if (k === 'v') setTool('select');
   else if (k === 'h') setTool('pan');
   else if (k === 'f') fitAll();
@@ -499,7 +513,7 @@ const numField = (id: string, label: string, value: number | string, step = '1')
 let propsKey = '';
 function renderProps(): void {
   const sel = store.selected();
-  const key = JSON.stringify([getLang(), store.doc.name, sel, store.doc.entities.length]);
+  const key = JSON.stringify([getLang(), store.doc.name, sel, store.doc.entities.length, store.doc.circuits]);
   if (key === propsKey) return;
   propsKey = key;
   const el = $('props');
@@ -538,6 +552,7 @@ function renderProps(): void {
         ${numField('propPower', t('powerW'), s.power ?? '')}
         ${numField('propAngle', t('rotation'), normAngle(s.angle - 270), '90')}
       </div>
+      ${circuitField('propCircuit', s.circuit ?? '')}
       ${def.category === 'custom' ? `<button class="btn" id="propEditSymbol" type="button">${esc(t('editSymbol'))}</button>` : ''}
       <button class="btn danger" id="propDelete" type="button">${esc(t('deleteSymbol'))}</button>`;
     $('propEditSymbol')?.addEventListener('click', () => openSymbolEditor(def.id));
@@ -551,6 +566,7 @@ function renderProps(): void {
     onNum('propHeight', (x, v) => (v === undefined ? delete x.height : (x.height = Math.max(0, Math.round(v)))));
     onNum('propPower', (x, v) => (v === undefined ? delete x.power : (x.power = Math.max(0, Math.round(v)))));
     onNum('propAngle', (x, v) => v !== undefined && (x.angle = normAngle(v + 270)));
+    onCircuit('propCircuit', [s.id]);
     $('propDelete').addEventListener('click', () => editor.deleteSelection());
     return;
   }
@@ -562,6 +578,11 @@ function renderProps(): void {
 
   if (sel.length === 1 && isRoom(sel[0])) {
     renderRoomProps(el, sel[0]);
+    return;
+  }
+
+  if (sel.length === 1 && isCable(sel[0])) {
+    renderCableProps(el, sel[0]);
     return;
   }
 
@@ -609,11 +630,14 @@ function renderProps(): void {
   const walls = sel.filter(isWall);
   const ts = new Set(walls.map((w) => w.thickness));
   const selLen = walls.reduce((s, w) => s + dist(w.a, w.b), 0);
+  const wired = sel.filter((e): e is SymbolEntity | Cable => isSymbol(e) || isCable(e));
+  const cs = new Set(wired.map((e) => e.circuit ?? ''));
   el.innerHTML = `
     <div class="prop-head">${WALL_ICON}<div><b>${esc(t('nSelected', { n: sel.length }))}</b>
       <span>${walls.length ? esc(t('total', { v: formatMeters(selLen) })) : ''}</span></div></div>
     ${walls.length ? `<label class="field" for="propThick">${esc(t('thicknessAll'))}
       <select id="propThick">${thicknessOptions(ts.size === 1 ? walls[0].thickness : null)}</select></label>` : ''}
+    ${wired.length ? circuitField('propCircuit', cs.size === 1 ? [...cs][0] : null, 'assignCircuit') : ''}
     <button class="btn danger" id="propDelete" type="button">${esc(t('deleteN', { n: sel.length }))}</button>`;
   $('propThick')?.addEventListener('change', (e) => {
     const v = Number((e.target as HTMLSelectElement).value);
@@ -621,6 +645,51 @@ function renderProps(): void {
     const ids = new Set(walls.map((w) => w.id));
     store.commit((d) => d.entities.forEach((x) => isWall(x) && ids.has(x.id) && (x.thickness = v)));
   });
+  onCircuit('propCircuit', wired.map((e) => e.id));
+  $('propDelete').addEventListener('click', () => editor.deleteSelection());
+}
+
+/** Zgjedhja e qarkut për simbolet dhe kabllot; null = vlera të ndryshme. */
+function circuitField(id: string, current: string | null, label: 'circuit' | 'assignCircuit' = 'circuit'): string {
+  const circuits = store.doc.circuits ?? [];
+  const opts = [
+    ...(current === null ? [`<option value="" selected disabled>${esc(t('mixed'))}</option>`] : []),
+    `<option value="__none"${current === '' ? ' selected' : ''}>${esc(t('circuitNone'))}</option>`,
+    ...circuits.map((c) => `<option value="${c.id}"${c.id === current ? ' selected' : ''}>${esc(`${c.name} ${c.label}`.trim())}</option>`),
+  ];
+  return `<label class="field" for="${id}">${esc(t(label))}<select id="${id}">${opts.join('')}</select></label>`;
+}
+
+function onCircuit(id: string, ids: string[]): void {
+  const set = new Set(ids);
+  $(id)?.addEventListener('change', (e) => {
+    const v = (e.target as HTMLSelectElement).value;
+    if (!v) return;
+    store.commit((d) =>
+      d.entities.forEach((x) => {
+        if (!set.has(x.id) || !(isSymbol(x) || isCable(x))) return;
+        if (v === '__none') delete x.circuit;
+        else x.circuit = v;
+      }),
+    );
+  });
+}
+
+const CABLE_ICON =
+  '<svg viewBox="0 0 24 24" class="ic" style="color:#9CC5FF;width:30px;height:30px"><circle cx="4.5" cy="18" r="1.8"></circle><circle cx="19.5" cy="6" r="1.8"></circle><path d="M6.3 18H11V6h6.7"></path></svg>';
+
+function renderCableProps(el: HTMLElement, k: Cable): void {
+  const plan = cableRunLength({ points: k.points }, [], new Map());
+  const run = cableRunLength(k, store.doc.entities.filter(isSymbol), symbolCenters(store.doc));
+  el.innerHTML = `
+    <div class="prop-head">${CABLE_ICON}<div><b>${esc(t('cable'))}</b><span>${esc(t('layer'))}: ${esc(layerName(k.layer, k.layer))}</span></div></div>
+    ${circuitField('propCircuit', k.circuit ?? '')}
+    <div class="stats">
+      <div class="stat"><span>${esc(t('cableLength'))}</span><b>${formatMeters(plan)}</b></div>
+      <div class="stat"><span>${esc(t('cableRun'))}</span><b>${formatMeters(run)}</b></div>
+    </div>
+    <button class="btn danger" id="propDelete" type="button">${esc(t('deleteCable'))}</button>`;
+  onCircuit('propCircuit', [k.id]);
   $('propDelete').addEventListener('click', () => editor.deleteSelection());
 }
 
@@ -781,14 +850,14 @@ $('layers').addEventListener('click', (e) => {
 // ---- statusi ----
 
 const hint = $('hint');
-const SNAP_KEYS = { endpoint: 'snapEndpoint', midpoint: 'snapMidpoint', grid: 'snapGrid', wall: 'snapWall' } as const;
+const SNAP_KEYS = { endpoint: 'snapEndpoint', midpoint: 'snapMidpoint', grid: 'snapGrid', wall: 'snapWall', symbol: 'snapSymbol' } as const;
 
 function updateStatus(): void {
   const p = editor.cursorWorld;
   $('stCoords').textContent = `X ${(p.x / 1000).toFixed(2)} m · Y ${(p.y / 1000).toFixed(2)} m`;
   const sk = editor.snapKind;
   $('stSnap').textContent =
-    (editor.tool === 'wall' || editor.tool === 'symbol' || editor.isPlacingOpening) && sk !== 'none' ? t(SNAP_KEYS[sk]) : '';
+    (editor.tool === 'wall' || editor.tool === 'symbol' || editor.tool === 'cable' || editor.isPlacingOpening) && sk !== 'none' ? t(SNAP_KEYS[sk]) : '';
   $('stZoom').textContent = `1 m = ${Math.round(vp.scale * 1000)} px`;
 
   const def = editor.activeSymbol ? symbolDef(editor.activeSymbol) : undefined;
@@ -803,6 +872,7 @@ function updateStatus(): void {
               door: 'infoDoor',
               window: 'infoWindow',
               room: 'infoRoom',
+              cable: 'infoCable',
               select: 'infoSelect',
               symbol: 'infoSelect',
             } as const
@@ -814,6 +884,10 @@ function updateStatus(): void {
     hint.hidden = false;
     if (!editor.chainStart) hint.textContent = t('hintWallStart', { v: editor.settings.wallThickness / 10 });
     else hint.innerHTML = editor.typed ? t('hintWallTyped', { v: esc(editor.typed) }) : t('hintWallNext');
+  } else if (editor.tool === 'cable') {
+    const c = store.doc.circuits?.find((x) => x.id === editor.activeCircuit);
+    hint.hidden = false;
+    hint.innerHTML = c ? t('hintCable', { name: esc(`${c.name} ${c.label}`.trim()) }) : t('hintCableNone');
   } else if (editor.tool === 'symbol' && def) {
     hint.hidden = false;
     hint.innerHTML = t('hintSymbol', { code: def.code, name: esc(symName(def)) });
@@ -836,6 +910,7 @@ function syncUi(): void {
   renderProps();
   renderSummary();
   renderRoomSummary();
+  circuitPanel.render();
   renderLayers();
   syncWidthField();
   updateStatus();

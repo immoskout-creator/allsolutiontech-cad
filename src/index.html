@@ -44,6 +44,9 @@
       <button class="tool" data-tool="room" type="button" data-i18n-title="roomTitle">
         <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16"></rect><path d="M8 13h3M8 10h8"></path><path d="M14 15.5h1.5a1 1 0 0 0 0-2H14v4h2" stroke-width="1.4"></path></svg><span data-i18n="room"></span>
       </button>
+      <button class="tool" data-tool="cable" type="button" data-i18n-title="cableTitle">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="4.5" cy="18" r="1.8"></circle><circle cx="19.5" cy="6" r="1.8"></circle><path d="M6.3 18H11V6h6.7"></path></svg><span data-i18n="cable"></span>
+      </button>
       <button class="tool" data-tool="pan" type="button" data-i18n-title="panTitle">
         <svg class="ic" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12"></path><path d="M11 11.5v-7a1.5 1.5 0 0 1 3 0V12"></path><path d="M14 6.5a1.5 1.5 0 0 1 3 0V13"></path><path d="M17 9.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-5-2.7L4.3 14a1.6 1.6 0 0 1 2.6-1.8L8 13.5"></path></svg><span data-i18n="pan"></span>
       </button>
@@ -141,6 +144,16 @@
         <div id="props"></div>
       </section>
       <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title" data-i18n="circuits"></h2>
+          <div class="panel-actions">
+            <button class="btn btn-small" id="btnCircuitTable" type="button" data-i18n="circuitTable"></button>
+            <button class="btn btn-small" id="btnNewCircuit" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg><span data-i18n="newCircuit"></span></button>
+          </div>
+        </div>
+        <div id="circuitList"></div>
+      </section>
+      <section class="panel">
         <h2 class="panel-title" data-i18n="inPlan"></h2>
         <div id="symbolSummary"></div>
       </section>
@@ -158,6 +171,7 @@
           <dt>W</dt><dd data-i18n="kWall"></dd>
           <dt>D / N</dt><dd data-i18n="kDoor"></dd>
           <dt>M</dt><dd data-i18n="kRoom"></dd>
+          <dt>K</dt><dd data-i18n="kCable"></dd>
           <dt>V</dt><dd data-i18n="kSelect"></dd>
           <dt data-i18n="kTypedKey"></dt><dd data-i18n="kTyped"></dd>
           <dt>R</dt><dd data-i18n="kRotate"></dd>
@@ -232,6 +246,19 @@
         <span class="spacer"></span>
         <button class="btn" id="seCancel" type="button" data-i18n="cancel"></button>
         <button class="btn btn-primary" id="seSave" type="button" data-i18n="seSave"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="circuitModal" hidden>
+    <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="circuitModalTitle">
+      <h2 id="circuitModalTitle" data-i18n="circuitTableTitle"></h2>
+      <div class="table-scroll" id="circuitTableBody"></div>
+      <p class="muted small" data-i18n="calcNote"></p>
+      <div class="modal-actions">
+        <button class="btn" id="circuitCsv" type="button" data-i18n="exportCsv"></button>
+        <span class="spacer"></span>
+        <button class="btn btn-primary" id="circuitModalClose" type="button" data-i18n="closeCircuit"></button>
       </div>
     </div>
   </div>

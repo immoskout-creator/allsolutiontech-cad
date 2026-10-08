@@ -10,6 +10,8 @@ export function moveEntity(e: Entity, delta: Vec, moving: Set<string>, walls: Ma
   switch (e.kind) {
     case 'wall':
       return { ...e, a: add(e.a, delta), b: add(e.b, delta) };
+    case 'cable':
+      return { ...e, points: e.points.map((p) => add(p, delta)) };
     case 'symbol':
     case 'room':
       return { ...e, pos: add(e.pos, delta) };

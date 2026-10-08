@@ -1,5 +1,6 @@
 import {
   DIM_LAYER,
+  isCable,
   isOpening,
   isRoom,
   isSymbol,
@@ -16,12 +17,12 @@ import { moveEntity, wallMap } from '../core/move';
 import { openingFrame, sizeText, wallLength, wallPieces } from '../core/openings';
 import { areaText, findRoomCached } from '../core/rooms';
 import { dist, formatMeters, mid, sub } from '../core/geometry';
-import { symbolDef, unitMm } from '../symbols/library';
+import { HIT_RADIUS_UNITS, symbolDef, unitMm } from '../symbols/library';
 import { screenRotation, symbolCenter, symbolHitMm } from '../symbols/place';
 import { DIM_PAPER, dimText, scaleBarLength, wallDimensions } from './dimensions';
 import type { Viewport } from './viewport';
 
-export type SnapKind = 'endpoint' | 'midpoint' | 'grid' | 'wall' | 'none';
+export type SnapKind = 'endpoint' | 'midpoint' | 'grid' | 'wall' | 'symbol' | 'none';
 
 export interface Overlay {
   /** Murrët që po zhvendosen, me zhvendosjen aktuale. */
@@ -35,6 +36,8 @@ export interface Overlay {
   roomPreview?: Vec[];
   /** Muri që po vizatohet (nga pika e parë te kursori). */
   wallPreview?: { a: Vec; b: Vec; thickness: number };
+  /** Kabllo që po vizatohet, me pikën e kursorit në fund. */
+  cablePreview?: Vec[];
   /** Kutia e përzgjedhjes në ekran; crossing = nga e djathta në të majtë. */
   box?: { a: Vec; b: Vec; crossing: boolean };
   snap?: { p: Vec; kind: SnapKind };
@@ -70,6 +73,9 @@ const COLORS = {
 
 /** Madhësia e teksteve të dhomës në letër, mm. */
 const ROOM_TEXT = { name: 3.5, area: 2.5 };
+/** Trashësia e kabllos dhe lartësia e etiketës së qarkut në letër, mm. */
+const CABLE_MM = 0.35;
+const CIRCUIT_TEXT = 2;
 /** Lartësia e tekstit të masave të dyerve/dritareve në letër, mm. */
 const OPENING_TEXT = 2;
 
@@ -147,11 +153,26 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     drawRoomLabel(ctx, vp, e, shape ? areaText(shape.area) : null, color, paperPx);
   }
 
+  // kabllot, me ngjyrën e qarkut
+  const circuitOf = new Map((st.doc.circuits ?? []).map((c) => [c.id, c]));
+  const cableW = Math.min(3, Math.max(1.2, CABLE_MM * paperPx));
+  for (const e of visible) {
+    if (!isCable(e)) continue;
+    const c = e.circuit ? circuitOf.get(e.circuit) : undefined;
+    let color = c?.color ?? colorOf.get(e.layer) ?? COLORS.wall;
+    if (st.selection.has(e.id)) color = COLORS.selected;
+    drawCable(ctx, vp, e.points, color, ov.hoverId === e.id && !st.selection.has(e.id) ? cableW + 1.5 : cableW, false);
+    if (c) drawCableTag(ctx, vp, e.points, c.name, color, paperPx);
+  }
+  if (ov.cablePreview && ov.cablePreview.length >= 2) drawCable(ctx, vp, ov.cablePreview, COLORS.selected, cableW, true);
+
   for (const e of visible) {
     if (!isSymbol(e)) continue;
     let color = colorOf.get(e.layer) ?? COLORS.wall;
     if (st.selection.has(e.id)) color = COLORS.selected;
     drawSymbol(ctx, vp, e, color, 1, unit);
+    const c = e.circuit ? circuitOf.get(e.circuit) : undefined;
+    if (c) drawSymbolTag(ctx, vp, e, c.name, c.color, unit, paperPx);
     if (ov.hoverId === e.id && !st.selection.has(e.id)) drawSymbolRing(ctx, vp, e, COLORS.wallHover, true, unit);
   }
 
@@ -410,6 +431,68 @@ function drawSymbol(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity
   ctx.restore();
 }
 
+function drawCable(ctx: CanvasRenderingContext2D, vp: Viewport, points: Vec[], color: string, width: number, dashed: boolean): void {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (dashed) ctx.setLineDash([8, 5]);
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    const s = vp.toScreen(p);
+    if (i === 0) ctx.moveTo(s.x, s.y);
+    else ctx.lineTo(s.x, s.y);
+  });
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Emri i qarkut mbi pjesën më të gjatë të kabllos. */
+function drawCableTag(ctx: CanvasRenderingContext2D, vp: Viewport, points: Vec[], name: string, color: string, paperPx: number): void {
+  const px = Math.max(CIRCUIT_TEXT * paperPx, 9);
+  if (CIRCUIT_TEXT * paperPx < 3.5) return;
+  let best = -1;
+  let at = 1;
+  for (let i = 1; i < points.length; i++) {
+    const d = dist(points[i - 1], points[i]);
+    if (d > best) {
+      best = d;
+      at = i;
+    }
+  }
+  const a = vp.toScreen(points[at - 1]);
+  const b = vp.toScreen(points[at]);
+  if (Math.hypot(b.x - a.x, b.y - a.y) < px * 3) return;
+  let ang = Math.atan2(b.y - a.y, b.x - a.x);
+  if (ang > Math.PI / 2) ang -= Math.PI;
+  if (ang < -Math.PI / 2) ang += Math.PI;
+  ctx.save();
+  ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2);
+  ctx.rotate(ang);
+  ctx.fillStyle = color;
+  ctx.font = `600 ${Math.min(px, 22)}px "IBM Plex Mono", ui-monospace, monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(name, 0, -2);
+  ctx.restore();
+}
+
+/** Emri i qarkut pranë simbolit. */
+function drawSymbolTag(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity, name: string, color: string, unit: number, paperPx: number): void {
+  const px = Math.max(CIRCUIT_TEXT * paperPx, 9);
+  if (CIRCUIT_TEXT * paperPx < 3.5) return;
+  const c = vp.toScreen(symbolCenter(e, unit));
+  const r = HIT_RADIUS_UNITS * unit * vp.scale;
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.font = `600 ${Math.min(px, 22)}px "IBM Plex Mono", ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(name, c.x + r * 0.75, c.y - r * 0.75);
+  ctx.restore();
+}
+
 function drawSymbolRing(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity, color: string, dashed: boolean, unit: number): void {
   const c = vp.toScreen(symbolCenter(e, unit));
   const r = Math.max(10, symbolHitMm(unit) * vp.scale);
@@ -560,6 +643,8 @@ function drawSnap(ctx: CanvasRenderingContext2D, p: Vec, kind: SnapKind): void {
     ctx.lineTo(p.x + 7, p.y);
     ctx.moveTo(p.x - 4, p.y - 5);
     ctx.lineTo(p.x + 4, p.y - 5);
+  } else if (kind === 'symbol') {
+    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
   } else if (kind === 'endpoint') {
     ctx.rect(p.x - 6, p.y - 6, 12, 12);
   } else if (kind === 'midpoint') {

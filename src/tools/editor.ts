@@ -1,5 +1,7 @@
 import type { Store } from '../core/store';
 import {
+  CABLE_LAYER,
+  isCable,
   isOpening,
   isRoom,
   isSymbol,
@@ -8,6 +10,7 @@ import {
   OPENING_LAYER,
   ROOM_LAYER,
   WALL_LAYER,
+  type Cable,
   type Opening,
   type Room,
   type SymbolEntity,
@@ -38,7 +41,7 @@ import { attachToWall, normAngle, symbolCenter, symbolHitMm } from '../symbols/p
 import type { Overlay, SnapKind } from '../view/renderer';
 import type { Viewport } from '../view/viewport';
 
-export type ToolId = 'select' | 'wall' | 'pan' | 'symbol' | 'door' | 'window' | 'room';
+export type ToolId = 'select' | 'wall' | 'pan' | 'symbol' | 'door' | 'window' | 'room' | 'cable';
 
 export interface Settings {
   snap: boolean;
@@ -92,6 +95,10 @@ export class Editor {
   activeSymbol: string | null = null;
   /** Rrotullimi shtesë i simbolit të lirë, në gradë. */
   private symbolAngle = FREE_ANGLE;
+  /** Qarku ku shkojnë simbolet dhe kabllot e reja (null = pa qark). */
+  activeCircuit: string | null = null;
+  /** Pikat e kabllos që po vizatohet. */
+  cablePts: Vec[] = [];
   /** Menteshat e derës që po vendoset (R i ndryshon). */
   private placeHinge: 'a' | 'b' = 'a';
 
@@ -127,6 +134,8 @@ export class Editor {
   }
 
   endChain(): void {
+    this.cablePts = [];
+    this.overlay.cablePreview = undefined;
     this.chainStart = null;
     this.typed = '';
     this.overlay.wallPreview = undefined;
@@ -149,6 +158,18 @@ export class Editor {
         for (const p of [e.a, e.b]) {
           const d = dist(raw, p);
           if (d <= tol && (!best || d < best.d)) best = { p, kind: 'endpoint', d };
+        }
+      }
+      if (this.tool === 'cable') {
+        // kabllot kapen te simbolet dhe te skajet e kabllove të tjera
+        for (const e of this.store.editable()) {
+          const pts = isSymbol(e) ? [symbolCenter(e, this.unit)] : isCable(e) ? [e.points[0], e.points[e.points.length - 1]] : [];
+          for (const p of pts) {
+            const d = dist(raw, p);
+            if (d <= Math.max(tol, isSymbol(e) ? symbolHitMm(this.unit) : 0) && (!best || d < best.d)) {
+              best = { p: { x: Math.round(p.x), y: Math.round(p.y) }, kind: isSymbol(e) ? 'symbol' : 'endpoint', d };
+            }
+          }
         }
       }
       if (!best) {
@@ -198,7 +219,10 @@ export class Editor {
       if (isWall(e)) d = distToSegment(p, e.a, e.b) - e.thickness / 2;
       else if (isSymbol(e)) d = dist(p, symbolCenter(e, unit)) - Math.max(symbolHitMm(unit), this.vp.px(10));
       else if (isRoom(e)) d = dist(p, e.pos) - Math.max(ROOM_HIT_PAPER_MM * this.store.doc.scale, this.vp.px(14));
-      else {
+      else if (isCable(e)) {
+        d = Infinity;
+        for (let i = 1; i < e.points.length; i++) d = Math.min(d, distToSegment(p, e.points[i - 1], e.points[i]));
+      } else {
         const w = walls.get(e.wall);
         const f = w && openingFrame(e, w);
         if (!f) continue;
@@ -222,6 +246,11 @@ export class Editor {
     }
     if (button === 2) {
       if (this.tool === 'wall') this.endChain();
+      if (this.tool === 'cable') {
+        if (this.cablePts.length) this.finishCable();
+        else this.setTool('select');
+        return;
+      }
       if (this.tool === 'symbol' || this.isPlacingOpening || this.tool === 'room') this.setTool('select');
       return;
     }
@@ -245,6 +274,18 @@ export class Editor {
 
     if (this.tool === 'symbol') {
       this.placeSymbol(screen);
+      return;
+    }
+
+    if (this.tool === 'cable') {
+      const last = this.cablePts[this.cablePts.length - 1] ?? null;
+      const { p } = this.snapPoint(screen, last);
+      if (last && same(last, p)) this.finishCable();
+      else {
+        this.cablePts.push(p);
+        this.overlay.cablePreview = [...this.cablePts, p];
+        this.onChange();
+      }
       return;
     }
 
@@ -287,7 +328,14 @@ export class Editor {
 
     this.overlay.snap = undefined;
     this.snapKind = 'none';
-    if (this.tool === 'wall' && d?.kind !== 'pan') {
+    if (this.tool === 'cable' && d?.kind !== 'pan') {
+      const last = this.cablePts[this.cablePts.length - 1] ?? null;
+      const s = this.snapPoint(screen, last);
+      this.cursorWorld = s.p;
+      this.snapKind = s.kind;
+      this.overlay.snap = s;
+      if (last) this.overlay.cablePreview = [...this.cablePts, s.p];
+    } else if (this.tool === 'wall' && d?.kind !== 'pan') {
       const s = this.snapPoint(screen, this.chainStart);
       this.cursorWorld = s.p;
       this.snapKind = s.kind;
@@ -328,6 +376,10 @@ export class Editor {
           .filter((e) => {
             if (isSymbol(e)) return inRect(symbolCenter(e, this.unit), r);
             if (isRoom(e)) return inRect(e.pos, r);
+            if (isCable(e)) {
+              const segs = e.points.slice(1).map((b, i) => [e.points[i], b] as const);
+              return crossing ? segs.some(([a, b]) => segmentTouchesRect(a, b, r)) : e.points.every((q) => inRect(q, r));
+            }
             if (isOpening(e)) {
               const w = this.walls().find((x) => x.id === e.wall);
               const f = w && openingFrame(e, w);
@@ -359,6 +411,7 @@ export class Editor {
     this.overlay.symbolPreview = undefined;
     this.overlay.openingPreview = undefined;
     this.overlay.roomPreview = undefined;
+    if (this.cablePts.length) this.overlay.cablePreview = [...this.cablePts];
     this.onChange();
   }
 
@@ -369,6 +422,30 @@ export class Editor {
 
   doubleClick(): void {
     if (this.tool === 'wall') this.endChain();
+    if (this.tool === 'cable' && this.cablePts.length) this.finishCable();
+  }
+
+  // ---- kabllot ----
+
+  /** Mbyll kabllon që po vizatohet; me më pak se dy pika thjesht anulohet. */
+  finishCable(): void {
+    const pts = this.cablePts.filter((p, i, a) => i === 0 || !same(a[i - 1], p));
+    if (pts.length >= 2) {
+      const cable: Cable = { id: newId('k'), kind: 'cable', layer: CABLE_LAYER, points: pts };
+      const circuit = this.activeCircuit ?? this.circuitAt(pts[0]) ?? this.circuitAt(pts[pts.length - 1]);
+      if (circuit) cable.circuit = circuit;
+      this.store.commit((doc) => {
+        doc.entities.push(cable);
+      });
+    }
+    this.endChain();
+  }
+
+  /** Qarku i simbolit nën një pikë, nëse ka. */
+  private circuitAt(p: Vec): string | undefined {
+    const unit = this.unit;
+    const s = this.store.doc.entities.find((e): e is SymbolEntity => isSymbol(e) && !!e.circuit && dist(symbolCenter(e, unit), p) < 1);
+    return s?.circuit;
   }
 
   // ---- muret ----
@@ -427,6 +504,7 @@ export class Editor {
     };
     if (def.height !== undefined) e.height = def.height;
     if (def.power !== undefined) e.power = def.power;
+    if (this.activeCircuit) e.circuit = this.activeCircuit;
     this.store.commit((doc) => {
       doc.entities.push(e);
     });
@@ -554,13 +632,25 @@ export class Editor {
         return true;
       }
     }
+    if (this.tool === 'cable' && this.cablePts.length) {
+      if (e.key === 'Enter') {
+        this.finishCable();
+        return true;
+      }
+      if (e.key === 'Backspace') {
+        this.cablePts.pop();
+        this.overlay.cablePreview = this.cablePts.length ? [...this.cablePts, this.cursorWorld] : undefined;
+        this.onChange();
+        return true;
+      }
+    }
     if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey) {
       this.rotate();
       return true;
     }
     if (e.key === 'Escape') {
-      if (this.chainStart) this.endChain();
-      else if (this.tool === 'symbol' || this.isPlacingOpening || this.tool === 'room') this.setTool('select');
+      if (this.chainStart || this.cablePts.length) this.endChain();
+      else if (this.tool === 'symbol' || this.isPlacingOpening || this.tool === 'room' || this.tool === 'cable') this.setTool('select');
       else this.store.setSelection([]);
       return true;
     }

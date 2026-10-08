@@ -1,4 +1,4 @@
-import { DEFAULT_SCALE, defaultLayers, type Doc, type Entity, type Layer } from '../core/types';
+import { DEFAULT_SCALE, defaultLayers, type Circuit, type Doc, type Entity, type Layer } from '../core/types';
 import { setCustomSymbols, symbolDef } from '../symbols/library';
 import { parseCustomSymbols, toSymbolDef } from '../symbols/custom';
 
@@ -33,6 +33,7 @@ export function parse(text: string): Doc {
     if (e.kind === 'wall') return isVec(e.a) && isVec(e.b) && isNum(e.thickness);
     if (e.kind === 'symbol') return typeof e.symbol === 'string' && !!symbolDef(e.symbol) && isVec(e.pos) && isNum(e.angle);
     if (e.kind === 'room') return typeof e.name === 'string' && isVec(e.pos);
+    if (e.kind === 'cable') return Array.isArray(e.points) && e.points.length >= 2 && e.points.every(isVec);
     if (e.kind === 'opening') {
       return (
         (e.type === 'door' || e.type === 'window') &&
@@ -51,6 +52,12 @@ export function parse(text: string): Doc {
   // derë/dritare pa murin e vet nuk ka kuptim
   const wallIds = new Set(entities.filter((e) => e.kind === 'wall').map((e) => e.id));
   const kept = entities.filter((e) => e.kind !== 'opening' || wallIds.has(e.wall));
+  const circuits = parseCircuits(d.circuits);
+  // lidhjet me qarqe që nuk ekzistojnë hiqen
+  const circuitIds = new Set(circuits.map((c) => c.id));
+  for (const e of kept) {
+    if ((e.kind === 'symbol' || e.kind === 'cable') && e.circuit !== undefined && (typeof e.circuit !== 'string' || !circuitIds.has(e.circuit))) delete e.circuit;
+  }
   // Shto shtresat standarde që mungojnë në skedarët më të vjetër.
   const layers: Layer[] = Array.isArray(d.layers) && d.layers.length ? d.layers : [];
   for (const l of defaultLayers()) if (!layers.some((x) => x.id === l.id)) layers.push(l);
@@ -62,7 +69,30 @@ export function parse(text: string): Doc {
     layers,
     entities: kept,
     ...(symbols.length ? { symbols } : {}),
+    ...(circuits.length ? { circuits } : {}),
   };
+}
+
+function parseCircuits(raw: unknown): Circuit[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Circuit[] = [];
+  for (const x of raw) {
+    const c = x as Partial<Circuit> | null;
+    if (!c || typeof c.id !== 'string' || typeof c.name !== 'string') continue;
+    if (c.kind !== 'lighting' && c.kind !== 'sockets' && c.kind !== 'appliance') continue;
+    const q: Circuit = {
+      id: c.id,
+      name: c.name,
+      label: typeof c.label === 'string' ? c.label : '',
+      kind: c.kind,
+      phases: c.phases === 3 ? 3 : 1,
+      color: typeof c.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : '#DC2626',
+    };
+    if (isNum(c.breaker) && c.breaker > 0) q.breaker = c.breaker;
+    if (isNum(c.section) && c.section > 0) q.section = c.section;
+    out.push(q);
+  }
+  return out;
 }
 
 export function loadAutosave(): Doc | null {
@@ -117,7 +147,7 @@ function getDownloads(): Promise<DownloadsApi | null> {
  * Ruan të dhëna si skedar. Brenda claude.ai kalon nga konfirmimi i shkarkimit;
  * jashtë tij (kur programi hapet si skedar lokal) shkarkon direkt.
  */
-export async function saveData(filename: string, data: string): Promise<'saved' | 'declined'> {
+export async function saveData(filename: string, data: string, type = 'application/json'): Promise<'saved' | 'declined'> {
   const api = await getDownloads();
   if (api) {
     try {
@@ -129,7 +159,7 @@ export async function saveData(filename: string, data: string): Promise<'saved' 
       throw new Error('Ruajtja e skedarit nuk u lejua këtu.');
     }
   }
-  const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+  const url = URL.createObjectURL(new Blob([data], { type }));
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;

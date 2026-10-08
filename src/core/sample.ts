@@ -1,5 +1,6 @@
-import { emptyDoc, newId, OPENING_LAYER, ROOM_LAYER, WALL_LAYER, type Doc, type Opening, type Room, type SymbolEntity, type Vec, type Wall } from './types';
-import { symbolDef } from '../symbols/library';
+import { CABLE_LAYER, emptyDoc, newId, OPENING_LAYER, ROOM_LAYER, WALL_LAYER, type Cable, type Circuit, type Doc, type Opening, type Room, type SymbolEntity, type Vec, type Wall } from './types';
+import { symbolDef, unitMm } from '../symbols/library';
+import { symbolCenter } from '../symbols/place';
 
 function wall(a: Vec, b: Vec, thickness: number) {
   return { id: newId('w'), kind: 'wall' as const, layer: WALL_LAYER, a, b, thickness };
@@ -93,5 +94,43 @@ export function sampleDoc(): Doc {
     sym('kp-kuadri', 125, 4800, 0),
     sym('pj-boiler', 8540, 2000, 180),
   );
+  addCircuits(doc);
   return doc;
+}
+
+/** Katër qarqe me kabllot e tyre, të lidhura nga kuadri pikë pas pike. */
+function addCircuits(doc: Doc): void {
+  const circuits: Circuit[] = [
+    { id: newId('q'), name: 'Q1', label: 'Ndriçim', kind: 'lighting', phases: 1, color: '#D97706' },
+    { id: newId('q'), name: 'Q2', label: 'Priza dhomat', kind: 'sockets', phases: 1, color: '#2563EB' },
+    { id: newId('q'), name: 'Q3', label: 'Priza sallon', kind: 'sockets', phases: 1, color: '#16A34A' },
+    { id: newId('q'), name: 'Q4', label: 'Boiler', kind: 'appliance', phases: 1, color: '#DC2626' },
+  ];
+  doc.circuits = circuits;
+  const syms = doc.entities.filter((e): e is SymbolEntity => e.kind === 'symbol');
+  const unit = unitMm(doc.scale);
+  const center = (e: SymbolEntity) => {
+    const c = symbolCenter(e, unit);
+    return { x: Math.round(c.x), y: Math.round(c.y) };
+  };
+  const panel = syms.find((e) => e.symbol === 'kp-kuadri')!;
+  const at = (symbol: string, x: number, y: number) => syms.find((e) => e.symbol === symbol && e.pos.x === x && e.pos.y === y)!;
+  const groups: [Circuit, SymbolEntity[]][] = [
+    [circuits[0], [at('cl-thjeshte', 4600, 3940), at('nd-tavan', 2500, 2000), at('nd-tavan', 6800, 2000), at('cl-thjeshte', 8200, 3940), at('nd-tavan', 10100, 2000), at('nd-tavan', 13100, 2000), at('nd-tavan', 12100, 6300), at('cl-devijator', 9000, 4060), at('nd-panel', 4800, 6300)]],
+    [circuits[1], [at('pr-schuko', 1500, 125), at('pr-schuko', 3500, 125), at('pr-ip44', 6800, 125)]],
+    [circuits[2], [at('pr-schuko', 125, 6300), at('pr-schuko', 3000, 8475), at('pr-dyfishe', 6000, 8475), at('pr-tv', 7500, 8475), at('pr-schuko', 12000, 8475)]],
+    [circuits[3], [at('pj-boiler', 8540, 2000)]],
+  ];
+  for (const [c, list] of groups) {
+    let from = center(panel);
+    for (const e of list) {
+      e.circuit = c.id;
+      const to = center(e);
+      // vija në kënd të drejtë: fillimisht horizontalisht, pastaj vertikalisht
+      const points = from.x === to.x || from.y === to.y ? [from, to] : [from, { x: to.x, y: from.y }, to];
+      const cable: Cable = { id: newId('k'), kind: 'cable', layer: CABLE_LAYER, points, circuit: c.id };
+      doc.entities.push(cable);
+      from = to;
+    }
+  }
 }
