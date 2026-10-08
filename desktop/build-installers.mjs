@@ -3,7 +3,8 @@
 //   (këtu) node build-installers.mjs           -> të gjithë instaluesit në desktop/release/
 //   node build-installers.mjs --edition fire   -> vetëm një program
 //   node build-installers.mjs --dir            -> pa instalues, vetëm dosja e programit (për provë)
-// Versioni merret nga APP_VERSION, përndryshe nga package.json.
+// Versioni merret nga APP_VERSION, përndryshe nga package.json. Emri i skedarit .exe nuk ka version,
+// që lidhjet e shkarkimit të mbeten të njëjta pas çdo ndërtimi.
 import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,7 +56,7 @@ for (const ed of list) {
       directories: { app: stage, output: join(here, 'release') },
       files: ['**/*'],
       asar: true,
-      win: { icon: iconPath, artifactName: `${slug}-Setup-${version}.exe` },
+      win: { icon: iconPath, artifactName: `${slug}-Setup.exe` },
       nsis: {
         oneClick: false,
         perMachine: false,
