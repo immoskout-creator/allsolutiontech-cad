@@ -3,6 +3,9 @@ import type { ExtraLocale } from '.';
 const locale: ExtraLocale = {
   ui: {
     brandSub: 'Asuinrakennusten sähköasennukset',
+    brandSubCctv: 'Kameravalvonnan suunnittelu',
+    brandSubAp: 'Verkon ja tukiasemien suunnittelu',
+    brandSubFire: 'Paloilmoitinjärjestelmän suunnittelu',
     project: 'Projekti',
     new: 'Uusi',
     open: 'Avaa',
@@ -270,12 +273,11 @@ const locale: ExtraLocale = {
     kind_cctv: 'Kamerat (CCTV)',
     kind_network: 'Verkko / AP',
     kind_fire: 'Paloilmoitinryhmä',
-    groupPower: 'Virransyöttö',
-    groupSystems: 'Järjestelmät',
     devicePower: 'Laitteiden teho',
     longestRun: 'Pisin kaapeli',
     warnRun: 'Kaapeli on yli {v} m, tämän kaapelityypin maksimi.',
     warnDevices: 'Ryhmässä on yli {v} laitetta; jaa se kahteen ryhmään.',
+    cableGeneric: 'Kaapeli {v}',
     rj45Name: 'RJ45-liitin',
     eolName: 'Päätevastus (EOL)',
     layer_kamerat: 'Kamerat',

@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SYMBOLS, symbolDef, CATEGORIES, strokeText } from '../src/symbols/library';
+import { SYMBOLS, symbolDef, CATEGORIES, categoryLibrary, strokeText } from '../src/symbols/library';
+import { EDITIONS } from '../src/edition';
 import { attachToWall, localToWorld, normAngle, screenRotation } from '../src/symbols/place';
 import { setLang, t } from '../src/i18n/strings';
 import { parse, serialize } from '../src/io/files';
-import { emptyDoc, WALL_LAYER, type Wall } from '../src/core/types';
+import { defaultLayers, emptyDoc, WALL_LAYER, type Wall } from '../src/core/types';
 import { sampleDoc } from '../src/core/sample';
 
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
@@ -82,7 +83,10 @@ test('shkronjat me vija japin rrugë të vlefshme', () => {
 });
 
 test('çdo kategori ka simbole dhe çdo simbol ka shtresë ekzistuese', () => {
-  const layers = new Set(emptyDoc().layers.map((l) => l.id));
   for (const c of CATEGORIES.filter((c) => c.id !== 'custom')) assert.ok(SYMBOLS.some((s) => s.category === c.id), c.id);
-  for (const s of SYMBOLS) assert.ok(layers.has(s.layer), s.id);
+  // shtresa e simbolit është te projekti i ri i programit që e ka librarinë
+  for (const s of SYMBOLS) {
+    const ed = Object.values(EDITIONS).find((e) => e.lib === categoryLibrary(s.category))!;
+    assert.ok(defaultLayers(ed.layers).some((l) => l.id === s.layer), s.id);
+  }
 });

@@ -1,5 +1,5 @@
 import { Store } from './core/store';
-import { SCALES, emptyDoc, isCable, isOpening, isRoom, isSymbol, isWall, type Cable, type CircuitKind, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
+import { SCALES, emptyDoc, isCable, isOpening, isRoom, isSymbol, isWall, type Cable, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
 import { DEFAULT_SILL, DOOR_HEIGHTS, DOOR_WIDTHS, SIZE_LIMITS, WINDOW_HEIGHTS, WINDOW_WIDTHS, openingFrame, openingHeight } from './core/openings';
 import { areaText, findRoom } from './core/rooms';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
@@ -13,9 +13,10 @@ import { SymbolEditor } from './ui/symbolEditor';
 import { CircuitPanel, symbolCenters } from './ui/circuits';
 import { ReportsDialog } from './ui/reports';
 import { cableRunLength } from './core/circuits';
-import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang } from './i18n/strings';
+import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang, type StringKey } from './i18n/strings';
 import { syncCableLayers } from './core/systems';
-import { CATEGORIES, LIBRARIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
+import { EDITION, productName } from './edition';
+import { CATEGORIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
 import { normAngle } from './symbols/place';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -60,6 +61,11 @@ function storedLang(): Lang {
   }
   return 'sq';
 }
+
+// emri i programit: elektrik, CCTV, AP ose FIRE
+document.title = productName();
+document.querySelector('.brand-name')!.textContent = productName();
+document.querySelector<HTMLElement>('.brand-sub')!.dataset.i18n = EDITION.subKey;
 
 const langSelect = $<HTMLSelectElement>('langSelect');
 langSelect.innerHTML = LANGS.map((l) => `<option value="${l.id}">${l.label}</option>`).join('');
@@ -178,7 +184,7 @@ const circuitPanel = new CircuitPanel(
     scheduleRender();
   },
   (m) => toast(m),
-  () => LIB_KIND[activeLib],
+  () => EDITION.kinds[0],
 );
 
 const reports = new ReportsDialog(store, (m, error) => toast(m, error));
@@ -296,31 +302,8 @@ const layerColor = (id: string) => store.layer(id)?.color ?? '#9CC5FF';
 /** Ngjyrat e shtresave janë për fletën e bardhë; në panelin e errët i çelim pak. */
 const TILE_COLORS: Record<string, string> = { prizat: '#7FB0FF', ndricimi: '#FDBA74', pajisje: '#C4B5FD', kamerat: '#67E8F9', rrjeti: '#86EFAC', zjarri: '#FCA5A5' };
 
-/** Libraria e hapur në panelin e majtë; mbahet në shfletues për herën tjetër. */
-const LIB_KEY = 'astcad.library';
-let activeLib: LibraryId = (() => {
-  try {
-    const v = localStorage.getItem(LIB_KEY) as LibraryId | null;
-    return v && LIBRARIES.includes(v) ? v : 'civil';
-  } catch {
-    return 'civil';
-  }
-})();
-
-function setLibrary(lib: LibraryId): void {
-  activeLib = lib;
-  try {
-    localStorage.setItem(LIB_KEY, lib);
-  } catch {
-    /* pa ruajtje në shfletues */
-  }
-  renderLibrary();
-}
-
-document.querySelectorAll<HTMLButtonElement>('[data-lib]').forEach((b) => b.addEventListener('click', () => setLibrary(b.dataset.lib as LibraryId)));
-
-/** Lloji i qarkut të ri sipas librarisë së hapur. */
-const LIB_KIND: Record<LibraryId, CircuitKind> = { civil: 'sockets', cctv: 'cctv', network: 'network', fire: 'fire' };
+/** Emrat e librarive në panelin e majtë. */
+const LIB_NAME: Record<LibraryId, StringKey> = { civil: 'libCivil', cctv: 'libCctv', network: 'libAp', fire: 'libFire' };
 
 const searchInput = $<HTMLInputElement>('symbolSearch');
 searchInput.addEventListener('input', renderLibrary);
@@ -330,13 +313,14 @@ function renderLibrary(): void {
   const matches = (d: SymbolDef) =>
     !q || d.code.toLowerCase().includes(q) || [symName(d), ...Object.values(d.names)].some((n) => n.toLowerCase().includes(q));
   const all = allSymbols();
-  document.querySelectorAll<HTMLButtonElement>('[data-lib]').forEach((b) => {
-    const lib = b.dataset.lib as LibraryId;
-    b.setAttribute('aria-pressed', String(lib === activeLib));
-    b.querySelector('.lib-count')!.textContent = String(all.filter((d) => d.category !== 'custom' && categoryLibrary(d.category) === lib).length);
-  });
-  // kërkimi kalon nëpër të gjitha libraritë; simbolet e mia shfaqen gjithmonë
-  const inLib = (cat: CategoryId) => !!q || cat === 'custom' || categoryLibrary(cat) === activeLib;
+  // çdo program ka librarinë e vet; elektriku tregon edhe ato që vijnë më vonë
+  const count = all.filter((d) => d.category !== 'custom' && categoryLibrary(d.category) === EDITION.lib).length;
+  const later = EDITION.id === 'civil' ? (['libIndustrial', 'libAudio'] as const) : [];
+  $('libList').innerHTML =
+    `<li class="lib active"><span>${esc(t(LIB_NAME[EDITION.lib]))}</span><small>${count}</small></li>` +
+    later.map((k) => `<li class="lib"><span>${esc(t(k))}</span><small>${esc(t('later'))}</small></li>`).join('');
+  // simbolet e mia shfaqen në çdo program
+  const inLib = (cat: CategoryId) => cat === 'custom' || categoryLibrary(cat) === EDITION.lib;
   const html = CATEGORIES.filter((cat) => inLib(cat.id)).map((cat) => {
     const defs = all.filter((d) => d.category === cat.id && matches(d));
     if (defs.length === 0) return '';

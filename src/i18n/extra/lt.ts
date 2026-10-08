@@ -3,6 +3,9 @@ import type { ExtraLocale } from '.';
 const locale: ExtraLocale = {
   ui: {
     brandSub: 'Gyvenamųjų pastatų elektros instaliacija',
+    brandSubCctv: 'Vaizdo stebėjimo projektavimas',
+    brandSubAp: 'Tinklo ir prieigos taškų projektavimas',
+    brandSubFire: 'Gaisro signalizacijos projektavimas',
     project: 'Projektas',
     new: 'Naujas',
     open: 'Atidaryti',
@@ -270,12 +273,11 @@ const locale: ExtraLocale = {
     kind_cctv: 'Kameros (CCTV)',
     kind_network: 'Tinklas / AP',
     kind_fire: 'Gaisro zona',
-    groupPower: 'Maitinimas',
-    groupSystems: 'Sistemos',
     devicePower: 'Įrenginių galia',
     longestRun: 'Ilgiausias kabelis',
     warnRun: 'Kabelis ilgesnis nei {v} m – šio kabelio tipo maksimumas.',
     warnDevices: 'Zonoje daugiau nei {v} įrenginių; padalykite ją į dvi zonas.',
+    cableGeneric: 'Kabelis {v}',
     rj45Name: 'RJ45 jungtis',
     eolName: 'Linijos galo rezistorius (EOL)',
     layer_kamerat: 'Kameros',

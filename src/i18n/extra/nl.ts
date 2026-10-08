@@ -3,6 +3,9 @@ import type { ExtraLocale } from '.';
 const locale: ExtraLocale = {
   ui: {
     brandSub: 'Elektrische installaties in woningen',
+    brandSubCctv: 'Ontwerp camerabewaking',
+    brandSubAp: 'Ontwerp netwerk en access points',
+    brandSubFire: 'Ontwerp brandmeldinstallatie',
     project: 'Project',
     new: 'Nieuw',
     open: 'Openen',
@@ -270,12 +273,11 @@ const locale: ExtraLocale = {
     kind_cctv: 'Camera\'s (CCTV)',
     kind_network: 'Netwerk / AP',
     kind_fire: 'Brandmeldzone',
-    groupPower: 'Voeding',
-    groupSystems: 'Systemen',
     devicePower: 'Vermogen apparaten',
     longestRun: 'Langste kabel',
     warnRun: 'Een kabel is langer dan {v} m, het maximum voor dit kabeltype.',
     warnDevices: 'De zone heeft meer dan {v} apparaten; splits deze in twee zones.',
+    cableGeneric: 'Kabel {v}',
     rj45Name: 'RJ45-connector',
     eolName: 'Eindweerstand (EOL)',
     layer_kamerat: 'Camera\'s',

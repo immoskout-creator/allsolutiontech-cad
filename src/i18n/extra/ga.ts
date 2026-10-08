@@ -3,6 +3,9 @@ import type { ExtraLocale } from '.';
 const locale: ExtraLocale = {
   ui: {
     brandSub: 'Suiteálacha leictreacha cónaithe',
+    brandSubCctv: 'Dearadh ceamaraí slándála',
+    brandSubAp: 'Dearadh líonra agus pointí rochtana',
+    brandSubFire: 'Dearadh aláraim dóiteáin',
     project: 'Tionscadal',
     new: 'Nua',
     open: 'Oscail',
@@ -270,12 +273,11 @@ const locale: ExtraLocale = {
     kind_cctv: 'Ceamaraí (CCTV)',
     kind_network: 'Líonra / AP',
     kind_fire: 'Crios dóiteáin',
-    groupPower: 'Cumhacht',
-    groupSystems: 'Córais',
     devicePower: 'Cumhacht gléasanna',
     longestRun: 'An cábla is faide',
     warnRun: 'Tá cábla níos faide ná {v} m, an t-uasmhéid don chineál cábla seo.',
     warnDevices: 'Tá níos mó ná {v} gléas sa chrios; roinn é ina dhá chrios.',
+    cableGeneric: 'Cábla {v}',
     rj45Name: 'Nascóir RJ45',
     eolName: 'Friotóir deireadh líne (EOL)',
     layer_kamerat: 'Ceamaraí',

@@ -1,6 +1,7 @@
 import type { Store } from '../core/store';
 import { newId } from '../core/types';
 import { layerName, t } from '../i18n/strings';
+import { EDITION } from '../edition';
 import { SYMBOLS } from '../symbols/library';
 import {
   CANVAS_BOUNDS,
@@ -19,7 +20,7 @@ type ShapeTool = 'line' | 'rect' | 'circle' | 'arc' | 'text';
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 /** Shtresat ku mund të shkojë një simbol i ri. */
-const SYMBOL_LAYERS = ['prizat', 'ndricimi', 'pajisje', 'kamerat', 'rrjeti', 'zjarri', 'kabllot', 'tekstet'];
+const SYMBOL_LAYERS = [...EDITION.layers, 'kabllot', 'tekstet'];
 const SNAP = 0.5;
 
 /**
@@ -105,7 +106,7 @@ export class SymbolEditor {
     $<HTMLSelectElement>('seMount').value = existing?.mount ?? 'wall';
     const layerSel = $<HTMLSelectElement>('seLayer');
     layerSel.innerHTML = SYMBOL_LAYERS.map((id) => `<option value="${id}">${escapeHtml(layerName(id, id))}</option>`).join('');
-    layerSel.value = existing?.layer ?? 'prizat';
+    layerSel.value = existing?.layer ?? EDITION.layers[0];
     for (const l of ['sq', 'en', 'it', 'de'] as const) $<HTMLInputElement>(`seName_${l}`).value = existing?.names[l] ?? '';
     $<HTMLInputElement>('seHeight').value = existing?.height !== undefined ? String(existing.height) : '';
     $<HTMLInputElement>('sePower').value = existing?.power !== undefined ? String(existing.power) : '';

@@ -1,8 +1,9 @@
-import { DEFAULT_SCALE, defaultLayers, type Circuit, type CircuitKind, type Doc, type Entity, type Layer } from '../core/types';
+import { DEFAULT_SCALE, defaultLayers, knownLayer, type Circuit, type CircuitKind, type Doc, type Entity, type Layer } from '../core/types';
 import { setCustomSymbols, symbolDef } from '../symbols/library';
+import { EDITION } from '../edition';
 import { parseCustomSymbols, toSymbolDef } from '../symbols/custom';
 
-const AUTOSAVE_KEY = 'astcad.autosave.v1';
+const AUTOSAVE_KEY = EDITION.storage;
 
 export function serialize(doc: Doc): string {
   return JSON.stringify(doc, null, 2);
@@ -61,6 +62,12 @@ export function parse(text: string): Doc {
   // Shto shtresat standarde që mungojnë në skedarët më të vjetër.
   const layers: Layer[] = Array.isArray(d.layers) && d.layers.length ? d.layers : [];
   for (const l of defaultLayers()) if (!layers.some((x) => x.id === l.id)) layers.push(l);
+  // shtresat e simboleve që vijnë nga një program tjetër (p.sh. kamerat në planin elektrik)
+  for (const e of kept) {
+    if (layers.some((x) => x.id === e.layer)) continue;
+    const l = knownLayer(e.layer);
+    if (l) layers.push(l);
+  }
   return {
     format: 'astcad',
     version: 1,

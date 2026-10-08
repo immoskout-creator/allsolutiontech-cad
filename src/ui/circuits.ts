@@ -2,13 +2,13 @@ import type { Store } from '../core/store';
 import type { Editor } from '../tools/editor';
 import { isCable, isSymbol, newId, type Circuit, type CircuitKind, type Doc, type Vec } from '../core/types';
 import { BREAKERS, DROP_LIMIT, SECTIONS, calcAll, freeName, newCircuit, type CircuitCalc, type CircuitWarning } from '../core/circuits';
-import { SYSTEM_CABLES, SYSTEM_KINDS, ZONE_MAX_DEVICES, cableTypeOf, circuitPrefix, isSystemKind, syncCableLayers } from '../core/systems';
+import { EDITION } from '../edition';
+import { SYSTEM_CABLES, ZONE_MAX_DEVICES, cableTypeOf, circuitPrefix, isSystemKind, syncCableLayers } from '../core/systems';
 import { getLang, t, type StringKey } from '../i18n/strings';
 import { unitMm } from '../symbols/library';
 import { symbolCenter } from '../symbols/place';
 import { saveData } from '../io/files';
 
-const POWER_KINDS: CircuitKind[] = ['lighting', 'sockets', 'appliance'];
 export const KIND_KEY: Record<CircuitKind, StringKey> = {
   lighting: 'kind_lighting',
   sockets: 'kind_sockets',
@@ -147,10 +147,12 @@ export class CircuitPanel {
   private renderEditor(r: CircuitCalc): void {
     const c = r.circuit;
     const opt = (v: string, label: string, sel: boolean) => `<option value="${v}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
-    const kinds = (list: CircuitKind[]) => list.map((k) => opt(k, t(KIND_KEY[k]), c.kind === k)).join('');
-    const kindSelect = `<label class="field" for="ciKind">${esc(t('circuitKind'))}<select id="ciKind">
-      <optgroup label="${esc(t('groupPower'))}">${kinds(POWER_KINDS)}</optgroup>
-      <optgroup label="${esc(t('groupSystems'))}">${kinds(SYSTEM_KINDS)}</optgroup></select></label>`;
+    // llojet e programit; një qark nga një program tjetër ruan llojin e vet
+    const kinds = [...new Set([...EDITION.kinds, c.kind])];
+    const kindSelect =
+      kinds.length > 1
+        ? `<label class="field" for="ciKind">${esc(t('circuitKind'))}<select id="ciKind">${kinds.map((k) => opt(k, t(KIND_KEY[k]), c.kind === k)).join('')}</select></label>`
+        : '';
     let fields: string;
     let stats: string;
     if (isSystemKind(c.kind)) {

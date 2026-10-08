@@ -1,6 +1,7 @@
 // Të gjitha koordinatat janë në milimetra, me boshtin Y lart (si në CAD).
 
 import type { CustomSymbol } from '../symbols/custom';
+import { EDITION } from '../edition';
 
 export interface Vec {
   x: number;
@@ -129,21 +130,35 @@ export const CABLE_LAYER = 'kabllot';
 export const SCALES = [20, 50, 100, 200] as const;
 export const DEFAULT_SCALE = 50;
 
-export function defaultLayers(): Layer[] {
-  return [
-    { id: WALL_LAYER, name: 'Muret', color: '#2A2F37', visible: true, locked: false },
-    { id: OPENING_LAYER, name: 'Dyer dhe dritare', color: '#2A2F37', visible: true, locked: false },
-    { id: ROOM_LAYER, name: 'Dhomat', color: '#0F766E', visible: true, locked: false },
-    { id: 'ndricimi', name: 'Ndriçimi', color: '#D97706', visible: true, locked: false },
-    { id: 'prizat', name: 'Prizat', color: '#2563EB', visible: true, locked: false },
-    { id: 'pajisje', name: 'Kuadro dhe pajisje', color: '#7C3AED', visible: true, locked: false },
-    { id: 'kabllot', name: 'Kabllot', color: '#6B7380', visible: true, locked: false },
-    { id: 'kamerat', name: 'Kamerat', color: '#0891B2', visible: true, locked: false },
-    { id: 'rrjeti', name: 'Rrjeti / AP', color: '#16A34A', visible: true, locked: false },
-    { id: 'zjarri', name: 'Zjarri', color: '#DC2626', visible: true, locked: false },
-    { id: 'kuotat', name: 'Kuotat', color: '#4B5563', visible: true, locked: false },
-    { id: 'tekstet', name: 'Tekstet', color: '#9AA3AF', visible: true, locked: false },
-  ];
+/** Të gjitha shtresat që njeh programi, në rendin e panelit. */
+const ALL_LAYERS: Layer[] = [
+  { id: WALL_LAYER, name: 'Muret', color: '#2A2F37', visible: true, locked: false },
+  { id: OPENING_LAYER, name: 'Dyer dhe dritare', color: '#2A2F37', visible: true, locked: false },
+  { id: ROOM_LAYER, name: 'Dhomat', color: '#0F766E', visible: true, locked: false },
+  { id: 'ndricimi', name: 'Ndriçimi', color: '#D97706', visible: true, locked: false },
+  { id: 'prizat', name: 'Prizat', color: '#2563EB', visible: true, locked: false },
+  { id: 'pajisje', name: 'Kuadro dhe pajisje', color: '#7C3AED', visible: true, locked: false },
+  { id: 'kamerat', name: 'Kamerat', color: '#0891B2', visible: true, locked: false },
+  { id: 'rrjeti', name: 'Rrjeti / AP', color: '#16A34A', visible: true, locked: false },
+  { id: 'zjarri', name: 'Zjarri', color: '#DC2626', visible: true, locked: false },
+  { id: 'kabllot', name: 'Kabllot', color: '#6B7380', visible: true, locked: false },
+  { id: 'kuotat', name: 'Kuotat', color: '#4B5563', visible: true, locked: false },
+  { id: 'tekstet', name: 'Tekstet', color: '#9AA3AF', visible: true, locked: false },
+];
+
+/** Shtresat e ndërtimit dhe të vizatimit, që i ka çdo program. */
+const BASE_LAYERS = [WALL_LAYER, OPENING_LAYER, ROOM_LAYER, CABLE_LAYER, DIM_LAYER, 'tekstet'];
+
+/** Shtresat e një projekti të ri: ato të ndërtimit plus shtresat e simboleve të programit. */
+export function defaultLayers(symbolLayers: string[] = EDITION.layers): Layer[] {
+  const ids = new Set([...BASE_LAYERS, ...symbolLayers]);
+  return ALL_LAYERS.filter((l) => ids.has(l.id)).map((l) => ({ ...l }));
+}
+
+/** Shtresa standarde me këtë id (për skedarët që vijnë nga një program tjetër). */
+export function knownLayer(id: string): Layer | undefined {
+  const l = ALL_LAYERS.find((x) => x.id === id);
+  return l && { ...l };
 }
 
 export function emptyDoc(name = 'Projekt i ri'): Doc {

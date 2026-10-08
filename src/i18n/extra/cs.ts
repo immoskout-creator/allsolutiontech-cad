@@ -3,6 +3,9 @@ import type { ExtraLocale } from '.';
 const locale: ExtraLocale = {
   ui: {
     brandSub: 'Elektroinstalace v bytové výstavbě',
+    brandSubCctv: 'Návrh kamerových systémů',
+    brandSubAp: 'Návrh sítí a přístupových bodů',
+    brandSubFire: 'Návrh elektrické požární signalizace',
     project: 'Projekt',
     new: 'Nový',
     open: 'Otevřít',
@@ -270,12 +273,11 @@ const locale: ExtraLocale = {
     kind_cctv: 'Kamery (CCTV)',
     kind_network: 'Síť / AP',
     kind_fire: 'Zóna EPS',
-    groupPower: 'Napájení',
-    groupSystems: 'Systémy',
     devicePower: 'Příkon zařízení',
     longestRun: 'Nejdelší kabel',
     warnRun: 'Kabel je delší než {v} m, maximum pro tento typ kabelu.',
     warnDevices: 'Zóna má více než {v} zařízení; rozdělte ji na dvě zóny.',
+    cableGeneric: 'Kabel {v}',
     rj45Name: 'Konektor RJ45',
     eolName: 'Zakončovací odpor (EOL)',
     layer_kamerat: 'Kamery',
