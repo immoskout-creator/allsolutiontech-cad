@@ -46,7 +46,7 @@ if (process.argv.includes('--test')) {
   }
 
   // faqja e administratorit
-  const key = (await access('admin-key.json').then(() => true, () => false)) ? JSON.parse(await readFile('admin-key.json', 'utf8')) : null;
+  const key = !process.env.ADMIN_NO_KEY && (await access('admin-key.json').then(() => true, () => false)) ? JSON.parse(await readFile('admin-key.json', 'utf8')) : null;
   const js = await build({
     entryPoints: ['src/admin/admin.ts'], bundle: true, minify: true, format: 'iife', target: 'es2020', write: false, logLevel: 'warning',
     define: { __ADMIN_KEY__: JSON.stringify(key) },
