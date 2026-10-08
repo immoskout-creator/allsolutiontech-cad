@@ -11,11 +11,11 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 const PROGRAM_NAME: Record<LicenseProgram, string> = {
   all: 'AllSolutionTech CAD All in One',
-  civil: 'AllSolutionTech CAD Elektrika',
-  cctv: 'AllSolutionTech CAD Kamera',
+  civil: 'AllSolutionTech CAD Electrical',
+  cctv: 'AllSolutionTech CAD CCTV',
   network: 'AllSolutionTech CAD AP',
-  fire: 'AllSolutionTech CAD Zjarri',
-  emergency: 'AllSolutionTech CAD Emergjenca',
+  fire: 'AllSolutionTech CAD Fire',
+  emergency: 'AllSolutionTech CAD Emergency',
 };
 const DURATION_NAME: Record<Duration, string> = { '7d': '7 ditë', '1m': '1 muaj', '6m': '6 muaj', '1y': '1 vit', life: 'Përjetë' };
 

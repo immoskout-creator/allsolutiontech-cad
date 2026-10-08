@@ -14,7 +14,7 @@ export type ProgramId = EditionId | 'all';
 
 export interface Edition<I extends ProgramId = ProgramId> {
   id: I;
-  /** Emri pas "AllSolutionTech CAD", i njëjtë në çdo gjuhë (p.sh. "Elektrika", "Kamera"). */
+  /** Emri pas "AllSolutionTech CAD", i njëjtë në çdo gjuhë (p.sh. "Electrical", "CCTV"). */
   badge: string;
   /** Nëntitulli i përkthyer. */
   subKey: StringKey;
@@ -30,11 +30,11 @@ export interface Edition<I extends ProgramId = ProgramId> {
 }
 
 export const EDITIONS: { [K in EditionId]: Edition<K> } = {
-  civil: { id: 'civil', badge: 'Elektrika', subKey: 'brandSub', lib: 'civil', kinds: ['sockets', 'lighting', 'appliance'], layers: ['ndricimi', 'prizat', 'pajisje'], storage: 'astcad.autosave.v1' },
-  cctv: { id: 'cctv', badge: 'Kamera', subKey: 'brandSubCctv', lib: 'cctv', kinds: ['cctv'], layers: ['kamerat'], storage: 'astcad.cctv.autosave.v1' },
+  civil: { id: 'civil', badge: 'Electrical', subKey: 'brandSub', lib: 'civil', kinds: ['sockets', 'lighting', 'appliance'], layers: ['ndricimi', 'prizat', 'pajisje'], storage: 'astcad.autosave.v1' },
+  cctv: { id: 'cctv', badge: 'CCTV', subKey: 'brandSubCctv', lib: 'cctv', kinds: ['cctv'], layers: ['kamerat'], storage: 'astcad.cctv.autosave.v1' },
   network: { id: 'network', badge: 'AP', subKey: 'brandSubAp', lib: 'network', kinds: ['network'], layers: ['rrjeti'], storage: 'astcad.ap.autosave.v1' },
-  fire: { id: 'fire', badge: 'Zjarri', subKey: 'brandSubFire', lib: 'fire', kinds: ['fire'], layers: ['zjarri'], storage: 'astcad.fire.autosave.v1' },
-  emergency: { id: 'emergency', badge: 'Emergjenca', subKey: 'brandSubEm', lib: 'emergency', kinds: ['emergency'], layers: ['emergjenca'], storage: 'astcad.em.autosave.v1' },
+  fire: { id: 'fire', badge: 'Fire', subKey: 'brandSubFire', lib: 'fire', kinds: ['fire'], layers: ['zjarri'], storage: 'astcad.fire.autosave.v1' },
+  emergency: { id: 'emergency', badge: 'Emergency', subKey: 'brandSubEm', lib: 'emergency', kinds: ['emergency'], layers: ['emergjenca'], storage: 'astcad.em.autosave.v1' },
 };
 
 const SINGLE = Object.values(EDITIONS);
@@ -62,5 +62,5 @@ export const editionLibs = (e: Edition = EDITION): LibraryId[] => e.libs ?? [e.l
 /** Plani shembull: programi "të gjitha bashkë" nis me atë elektrik. */
 export const sampleEdition = (e: Edition = EDITION): EditionId => (e.id === 'all' ? 'civil' : e.id);
 
-/** Emri i plotë i programit, p.sh. "AllSolutionTech CAD Kamera". */
+/** Emri i plotë i programit, p.sh. "AllSolutionTech CAD CCTV". */
 export const productName = (e: Edition = EDITION) => `AllSolutionTech CAD ${e.badge}`;

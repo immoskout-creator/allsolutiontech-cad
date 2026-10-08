@@ -13,11 +13,11 @@ const FONTS =
   '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
   '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">';
 const EDITIONS = [
-  { id: 'civil', dir: 'dist', title: 'AllSolutionTech CAD Elektrika' },
-  { id: 'cctv', dir: 'dist/cctv', title: 'AllSolutionTech CAD Kamera' },
+  { id: 'civil', dir: 'dist', title: 'AllSolutionTech CAD Electrical' },
+  { id: 'cctv', dir: 'dist/cctv', title: 'AllSolutionTech CAD CCTV' },
   { id: 'network', dir: 'dist/ap', title: 'AllSolutionTech CAD AP' },
-  { id: 'fire', dir: 'dist/fire', title: 'AllSolutionTech CAD Zjarri' },
-  { id: 'emergency', dir: 'dist/em', title: 'AllSolutionTech CAD Emergjenca' },
+  { id: 'fire', dir: 'dist/fire', title: 'AllSolutionTech CAD Fire' },
+  { id: 'emergency', dir: 'dist/em', title: 'AllSolutionTech CAD Emergency' },
 ];
 EDITIONS.push({ id: 'all', dir: 'dist/all', title: 'AllSolutionTech CAD All in One' });
 

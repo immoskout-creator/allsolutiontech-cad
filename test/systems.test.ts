@@ -101,7 +101,7 @@ test('pesë programe: secili me librarinë, linjën dhe planin shembull të vet'
     const layers = defaultLayers(ed.layers).map((l) => l.id);
     for (const other of Object.values(EDITIONS)) if (other !== ed) for (const l of other.layers) assert.ok(!layers.includes(l), `${ed.id} ${l}`);
   }
-  assert.equal(productName(EDITIONS.cctv), 'AllSolutionTech CAD Kamera');
+  assert.equal(productName(EDITIONS.cctv), 'AllSolutionTech CAD CCTV');
 });
 
 test('një projekt i kamerave hapet edhe te programi elektrik me shtresën e vet', () => {
