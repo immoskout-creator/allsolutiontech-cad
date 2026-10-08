@@ -2,7 +2,7 @@ import { CABLE_LAYER, defaultLayers, emptyDoc, newId, OPENING_LAYER, ROOM_LAYER,
 import { symbolDef, unitMm } from '../symbols/library';
 import { symbolCenter } from '../symbols/place';
 import { cableLayer } from './systems';
-import { EDITION, EDITIONS, type EditionId } from '../edition';
+import { EDITION, EDITIONS, sampleEdition, type EditionId } from '../edition';
 
 function wall(a: Vec, b: Vec, thickness: number) {
   return { id: newId('w'), kind: 'wall' as const, layer: WALL_LAYER, a, b, thickness };
@@ -25,9 +25,9 @@ function sym(symbol: string, x: number, y: number, angle: number): SymbolEntity 
 }
 
 /** Plan shembull që programi të mos hapet bosh herën e parë. */
-export function sampleDoc(edition: EditionId = EDITION.id): Doc {
+export function sampleDoc(edition: EditionId = sampleEdition()): Doc {
   const doc = emptyDoc('Shembull: shtëpi 1 kat');
-  doc.layers = defaultLayers(EDITIONS[edition].layers);
+  doc.layers = defaultLayers(EDITION.id === 'all' ? EDITION.layers : EDITIONS[edition].layers);
   const W = 14600;
   const H = 8600;
   const outer: Vec[] = [

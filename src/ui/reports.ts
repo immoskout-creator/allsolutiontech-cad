@@ -2,7 +2,7 @@ import type { Store } from '../core/store';
 import { breakerSpec, cableSpec, materialList, usedSymbols, type Materials } from '../core/materials';
 import { getLang, t, type StringKey } from '../i18n/strings';
 import { SYSTEM_KINDS, type SystemKind } from '../core/systems';
-import { EDITION, productName } from '../edition';
+import { editionLibs, productName } from '../edition';
 import { allSymbols, CATEGORIES, categoryLibrary, categoryName, symbolName, symbolSvg, type LibraryId, type SymbolDef } from '../symbols/library';
 import { saveData } from '../io/files';
 import { symbolCenters } from './circuits';
@@ -167,8 +167,8 @@ export class ReportsDialog {
     const doc = this.store.doc;
     const title = this.title(kind);
     if (kind === 'catalog') {
-      const all = allSymbols().filter((d) => d.category === 'custom' || categoryLibrary(d.category) === EDITION.lib);
-      const body = CATEGORIES.filter((cat) => cat.id === 'custom' || categoryLibrary(cat.id) === EDITION.lib).map((cat) => {
+      const all = allSymbols().filter((d) => d.category === 'custom' || editionLibs().includes(categoryLibrary(d.category)));
+      const body = CATEGORIES.filter((cat) => cat.id === 'custom' || editionLibs().includes(categoryLibrary(cat.id))).map((cat) => {
         const defs = all.filter((d) => d.category === cat.id);
         if (!defs.length) return '';
         return `<h2>${esc(categoryName(cat))}</h2><table><thead><tr><th class="sym">${esc(t('symbolCol'))}</th><th class="code">${esc(t('code'))}</th><th>${esc(t('description'))}</th></tr></thead>

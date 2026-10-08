@@ -1,0 +1,66 @@
+<main class="wrap">
+  <header>
+    <div class="logo" aria-hidden="true">AST</div>
+    <div>
+      <h1>Kodet e aktivizimit</h1>
+      <p class="sub">AllSolutionTech CAD 2D · vetëm për administratorin, mos e ndaj këtë faqe</p>
+    </div>
+  </header>
+
+  <section class="card" id="keyCard" hidden>
+    <h2>Çelësi i administratorit</h2>
+    <p>Kjo faqe nuk ka çelësin brenda. Zgjidh skedarin <code>admin-key.json</code> që të krijosh kode.</p>
+    <input type="file" id="keyFile" accept=".json,application/json">
+    <p class="msg err" id="keyMsg"></p>
+  </section>
+
+  <section class="card" id="makeCard">
+    <h2>Kod i ri</h2>
+    <div class="grid">
+      <label>Programi
+        <select id="program">
+          <option value="all">ALL-IN-ONE (të gjitha bashkë në një program)</option>
+          <option value="civil">Elektrik (AllSolutionTech CAD 2D)</option>
+          <option value="cctv">CCTV, kamerat</option>
+          <option value="network">AP, rrjeti</option>
+          <option value="fire">FIRE, zjarri</option>
+          <option value="emergency">EMERGENCY, dritat e emergjencës</option>
+        </select>
+        <small>Çdo kod hap vetëm programin që zgjedh këtu.</small>
+      </label>
+      <label>Kohëzgjatja
+        <select id="duration">
+          <option value="7d">7 ditë</option>
+          <option value="1m">1 muaj</option>
+          <option value="6m">6 muaj</option>
+          <option value="1y" selected>1 vit</option>
+          <option value="life">Përjetë</option>
+        </select>
+      </label>
+      <label>Fillon më
+        <input type="date" id="start">
+      </label>
+      <label>Klienti (shënim për ty)
+        <input type="text" id="customer" placeholder="p.sh. Elektro Shpk">
+      </label>
+    </div>
+    <p class="hint" id="expiryHint"></p>
+    <button type="button" class="go" id="make">Krijo kodin</button>
+    <div id="result" hidden>
+      <textarea id="code" readonly rows="4"></textarea>
+      <div class="row"><button type="button" id="copy">Kopjo kodin</button><span class="msg ok" id="copyMsg"></span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Kontrollo një kod</h2>
+    <textarea id="checkInput" rows="3" placeholder="Ngjit kodin këtu"></textarea>
+    <p class="msg" id="checkMsg"></p>
+  </section>
+
+  <section class="card">
+    <div class="row between"><h2>Kodet e krijuara</h2><button type="button" id="csv">Shkarko CSV</button></div>
+    <p class="hint">Ruhen vetëm në këtë shfletues.</p>
+    <div class="table"><table><thead><tr><th>Data</th><th>Klienti</th><th>Programi</th><th>Kohëzgjatja</th><th>Skadon</th><th></th></tr></thead><tbody id="history"></tbody></table></div>
+  </section>
+</main>
