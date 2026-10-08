@@ -3,7 +3,7 @@ import type { LibraryId } from './symbols/library';
 import type { StringKey } from './i18n/strings';
 
 /**
- * Programet e AllSolutionTech CAD 2D: i njëjti motor vizatimi (muret, dyert, dhomat),
+ * Programet e AllSolutionTech CAD: i njëjti motor vizatimi (muret, dyert, dhomat),
  * por secili me emrin, simbolet, linjat dhe ruajtjen e vet.
  * Programi zgjidhet gjatë ndërtimit (build.mjs → __EDITION__); pa të është ai elektrik.
  */
@@ -14,7 +14,7 @@ export type ProgramId = EditionId | 'all';
 
 export interface Edition<I extends ProgramId = ProgramId> {
   id: I;
-  /** Shenja pas emrit "AllSolutionTech CAD 2D", e njëjtë në çdo gjuhë. */
+  /** Emri pas "AllSolutionTech CAD", i njëjtë në çdo gjuhë (p.sh. "Elektrika", "Kamera"). */
   badge: string;
   /** Nëntitulli i përkthyer. */
   subKey: StringKey;
@@ -30,11 +30,11 @@ export interface Edition<I extends ProgramId = ProgramId> {
 }
 
 export const EDITIONS: { [K in EditionId]: Edition<K> } = {
-  civil: { id: 'civil', badge: '', subKey: 'brandSub', lib: 'civil', kinds: ['sockets', 'lighting', 'appliance'], layers: ['ndricimi', 'prizat', 'pajisje'], storage: 'astcad.autosave.v1' },
-  cctv: { id: 'cctv', badge: 'CCTV', subKey: 'brandSubCctv', lib: 'cctv', kinds: ['cctv'], layers: ['kamerat'], storage: 'astcad.cctv.autosave.v1' },
+  civil: { id: 'civil', badge: 'Elektrika', subKey: 'brandSub', lib: 'civil', kinds: ['sockets', 'lighting', 'appliance'], layers: ['ndricimi', 'prizat', 'pajisje'], storage: 'astcad.autosave.v1' },
+  cctv: { id: 'cctv', badge: 'Kamera', subKey: 'brandSubCctv', lib: 'cctv', kinds: ['cctv'], layers: ['kamerat'], storage: 'astcad.cctv.autosave.v1' },
   network: { id: 'network', badge: 'AP', subKey: 'brandSubAp', lib: 'network', kinds: ['network'], layers: ['rrjeti'], storage: 'astcad.ap.autosave.v1' },
-  fire: { id: 'fire', badge: 'FIRE', subKey: 'brandSubFire', lib: 'fire', kinds: ['fire'], layers: ['zjarri'], storage: 'astcad.fire.autosave.v1' },
-  emergency: { id: 'emergency', badge: 'EMERGENCY', subKey: 'brandSubEm', lib: 'emergency', kinds: ['emergency'], layers: ['emergjenca'], storage: 'astcad.em.autosave.v1' },
+  fire: { id: 'fire', badge: 'Zjarri', subKey: 'brandSubFire', lib: 'fire', kinds: ['fire'], layers: ['zjarri'], storage: 'astcad.fire.autosave.v1' },
+  emergency: { id: 'emergency', badge: 'Emergjenca', subKey: 'brandSubEm', lib: 'emergency', kinds: ['emergency'], layers: ['emergjenca'], storage: 'astcad.em.autosave.v1' },
 };
 
 const SINGLE = Object.values(EDITIONS);
@@ -42,7 +42,7 @@ const SINGLE = Object.values(EDITIONS);
 /** Të gjitha programet bashkë: çdo librari, çdo lloj linje dhe çdo shtresë, me ruajtjen e vet. */
 export const ALL_IN_ONE: Edition = {
   id: 'all',
-  badge: 'ALL-IN-ONE',
+  badge: 'All in One',
   subKey: 'brandSub',
   lib: 'civil',
   libs: SINGLE.map((e) => e.lib),
@@ -62,5 +62,5 @@ export const editionLibs = (e: Edition = EDITION): LibraryId[] => e.libs ?? [e.l
 /** Plani shembull: programi "të gjitha bashkë" nis me atë elektrik. */
 export const sampleEdition = (e: Edition = EDITION): EditionId => (e.id === 'all' ? 'civil' : e.id);
 
-/** Emri i plotë i programit, p.sh. "AllSolutionTech CAD 2D CCTV". */
-export const productName = (e: Edition = EDITION) => `AllSolutionTech CAD 2D${e.badge ? ` ${e.badge}` : ''}`;
+/** Emri i plotë i programit, p.sh. "AllSolutionTech CAD Kamera". */
+export const productName = (e: Edition = EDITION) => `AllSolutionTech CAD ${e.badge}`;
