@@ -8,6 +8,7 @@ import { parse, serialize } from '../src/io/files';
 import { CATEGORIES, SYMBOLS, categoryLibrary, symbolDef } from '../src/symbols/library';
 import { EDITION, EDITIONS, productName } from '../src/edition';
 import { sampleDoc } from '../src/core/sample';
+import { WALL_MIN_M, checkFire } from '../src/core/firecheck';
 import { symbolCenters } from '../src/ui/circuits';
 import { defaultLayers, emptyDoc, type Cable, type SymbolEntity } from '../src/core/types';
 
@@ -156,4 +157,37 @@ test('modeli i kamerës del në listën e materialeve, i ndarë sipas modelit', 
   const used = usedSymbols(sampleDoc('cctv'));
   const bullets = used.filter((u) => u.def.id === 'cc-bullet').map((u) => [u.model, u.qty]);
   assert.deepEqual(bullets, [['Bullet 2MP · 2.8 mm', 1], ['Bullet 4MP · 4 mm', 2]]);
+});
+
+test('zjarri: mbulimi i dhomave dhe largësitë sipas rregullave', () => {
+  const doc = sampleDoc('fire');
+  const fire = checkFire(doc);
+  // plani shembull: çdo dhomë e mbuluar, asnjë detektor jashtë rregullave
+  for (const r of fire.rooms) assert.ok(r.covered > 0.999, `${r.name} ${r.covered}`);
+  for (const [, c] of fire.detectors) assert.deepEqual(c.issues, []);
+  // detektori te muri dhe dhoma pa detektor
+  const bath = doc.entities.find((e) => e.kind === 'symbol' && e.symbol === 'zj-nxehtesi' && e.pos.x === 6800) as SymbolEntity;
+  bath.pos = { x: 6800, y: 300 };
+  const near = checkFire(doc).detectors.get(bath.id)!;
+  assert.ok(near.wall! < WALL_MIN_M);
+  assert.deepEqual(near.issues, ['wall']);
+  doc.entities = doc.entities.filter((e) => e !== bath);
+  const banjo = checkFire(doc).rooms.find((r) => r.name === 'Banjo')!;
+  assert.equal(banjo.covered, 0);
+  assert.ok(banjo.gaps.length > 0);
+});
+
+test('zjarri: dy detektorë shumë larg në të njëjtën dhomë', () => {
+  const doc = emptyDoc();
+  const W = 30000;
+  const H = 6000;
+  const pts = [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }];
+  pts.forEach((p, i) => doc.entities.push({ id: `w${i}`, kind: 'wall', layer: 'muret', a: p, b: pts[(i + 1) % 4], thickness: 200 }));
+  doc.entities.push({ id: 'r', kind: 'room', layer: 'dhomat', name: 'Magazinë', pos: { x: 15000, y: 3000 } });
+  const det = (id: string, x: number): SymbolEntity => ({ id, kind: 'symbol', layer: 'zjarri', symbol: 'zj-tym', pos: { x, y: 3000 }, angle: 270 });
+  doc.entities.push(det('a', 4000), det('b', 26000));
+  const fire = checkFire(doc);
+  // 22 m mes tyre > 7.4 · √2 = 10.5 m, dhe mesi i magazinës mbetet pa mbulim
+  assert.deepEqual(fire.detectors.get('a')!.issues, ['spacing']);
+  assert.ok(fire.rooms[0].covered < 1);
 });

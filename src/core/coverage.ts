@@ -107,7 +107,8 @@ export function symbolCoverage(e: SymbolEntity, unit: number): Coverage | null {
   if (!det) return null;
   return {
     apex: symbolCenter(e, unit),
-    dir: 270,
+    // teksti mbi detektor, që të mos mbulojë emrin e dhomës
+    dir: 90,
     fov: 360,
     range: det.radius * 1000,
     label: `${Math.round(det.angle)}° · R ${+det.radius.toFixed(1)} m`,
