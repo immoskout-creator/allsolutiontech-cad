@@ -3,6 +3,9 @@ import type { ExtraLocale } from '.';
 const locale: ExtraLocale = {
   ui: {
     brandSub: 'Elektroinštalacije v stanovanjskih stavbah',
+    brandSubCctv: 'Projektiranje videonadzora',
+    brandSubAp: 'Projektiranje omrežja in dostopnih točk',
+    brandSubFire: 'Projektiranje požarnega javljanja',
     project: 'Projekt',
     new: 'Nov',
     open: 'Odpri',
@@ -270,12 +273,11 @@ const locale: ExtraLocale = {
     kind_cctv: 'Kamere (CCTV)',
     kind_network: 'Omrežje / AP',
     kind_fire: 'Požarna cona',
-    groupPower: 'Napajanje',
-    groupSystems: 'Sistemi',
     devicePower: 'Moč naprav',
     longestRun: 'Najdaljši kabel',
     warnRun: 'Kabel je daljši od {v} m, kar je največ za ta tip kabla.',
     warnDevices: 'Cona ima več kot {v} naprav; razdelite jo na dve coni.',
+    cableGeneric: 'Kabel {v}',
     rj45Name: 'Konektor RJ45',
     eolName: 'Zaključni upor (EOL)',
     layer_kamerat: 'Kamere',

@@ -54,6 +54,9 @@ export function localName(names: Record<CoreLang, string>, id: string, kind: 'sy
 /** Tekstet e ndërfaqes. {n} dhe të ngjashme zëvendësohen nga t(). */
 export const STRINGS = {
   brandSub: { sq: 'Instalime elektrike civile', en: 'Residential electrical installations', it: 'Impianti elettrici civili', de: 'Elektroinstallation Wohnbau' },
+  brandSubCctv: { sq: 'Projektim i kamerave të sigurisë', en: 'Security camera design', it: 'Progettazione videosorveglianza', de: 'Planung Videoüberwachung' },
+  brandSubAp: { sq: 'Projektim i rrjetit dhe access point', en: 'Network and access point design', it: 'Progettazione rete e access point', de: 'Planung Netzwerk und Access Points' },
+  brandSubFire: { sq: 'Projektim i sinjalizimit të zjarrit', en: 'Fire alarm design', it: 'Progettazione rivelazione incendi', de: 'Planung Brandmeldeanlage' },
   project: { sq: 'Projekti', en: 'Project', it: 'Progetto', de: 'Projekt' },
   new: { sq: 'I ri', en: 'New', it: 'Nuovo', de: 'Neu' },
   open: { sq: 'Hap', en: 'Open', it: 'Apri', de: 'Öffnen' },
@@ -233,12 +236,11 @@ export const STRINGS = {
   kind_cctv: { sq: 'Kamera (CCTV)', en: 'Cameras (CCTV)', it: 'Telecamere (TVCC)', de: 'Kameras (Video)' },
   kind_network: { sq: 'Rrjet / AP', en: 'Network / AP', it: 'Rete / AP', de: 'Netzwerk / AP' },
   kind_fire: { sq: 'Zonë zjarri', en: 'Fire zone', it: 'Zona incendio', de: 'Brandmeldelinie' },
-  groupPower: { sq: 'Energji', en: 'Power', it: 'Energia', de: 'Energie' },
-  groupSystems: { sq: 'Sisteme', en: 'Systems', it: 'Sistemi', de: 'Systeme' },
   devicePower: { sq: 'Fuqia e pajisjeve', en: 'Device power', it: 'Potenza dispositivi', de: 'Geräteleistung' },
   longestRun: { sq: 'Kablloja më e gjatë', en: 'Longest cable', it: 'Cavo più lungo', de: 'Längstes Kabel' },
   warnRun: { sq: 'Një kabllo kalon {v} m, gjatësinë maksimale për këtë lloj kablloje.', en: 'A cable is longer than {v} m, the maximum for this cable type.', it: 'Un cavo supera {v} m, la lunghezza massima per questo tipo di cavo.', de: 'Ein Kabel ist länger als {v} m, das Maximum für diesen Kabeltyp.' },
   warnDevices: { sq: 'Zona ka më shumë se {v} pajisje; ndaje në dy zona.', en: 'The zone has more than {v} devices; split it into two zones.', it: 'La zona ha più di {v} dispositivi; dividila in due zone.', de: 'Die Linie hat mehr als {v} Geräte; teilen Sie sie in zwei Linien auf.' },
+  cableGeneric: { sq: 'Kabllo {v}', en: 'Cable {v}', it: 'Cavo {v}', de: 'Kabel {v}' },
   rj45Name: { sq: 'Konektor RJ45', en: 'RJ45 connector', it: 'Connettore RJ45', de: 'RJ45-Stecker' },
   eolName: { sq: 'Rezistencë fundi linje (EOL)', en: 'End-of-line resistor (EOL)', it: 'Resistenza di fine linea (EOL)', de: 'Endwiderstand (EOL)' },
   phases: { sq: 'Furnizimi', en: 'Supply', it: 'Alimentazione', de: 'Versorgung' },

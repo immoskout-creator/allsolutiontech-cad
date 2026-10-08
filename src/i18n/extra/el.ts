@@ -3,6 +3,9 @@ import type { ExtraLocale } from '.';
 const locale: ExtraLocale = {
   ui: {
     brandSub: 'Ηλεκτρικές εγκαταστάσεις κατοικιών',
+    brandSubCctv: 'Μελέτη βιντεοεπιτήρησης',
+    brandSubAp: 'Μελέτη δικτύου και access point',
+    brandSubFire: 'Μελέτη πυρανίχνευσης',
     project: 'Έργο',
     new: 'Νέο',
     open: 'Άνοιγμα',
@@ -270,12 +273,11 @@ const locale: ExtraLocale = {
     kind_cctv: 'Κάμερες (CCTV)',
     kind_network: 'Δίκτυο / AP',
     kind_fire: 'Ζώνη πυρανίχνευσης',
-    groupPower: 'Τροφοδοσία',
-    groupSystems: 'Συστήματα',
     devicePower: 'Ισχύς συσκευών',
     longestRun: 'Μακρύτερο καλώδιο',
     warnRun: 'Ένα καλώδιο ξεπερνά τα {v} m, το μέγιστο για αυτόν τον τύπο καλωδίου.',
     warnDevices: 'Η ζώνη έχει πάνω από {v} συσκευές· χωρίστε τη σε δύο ζώνες.',
+    cableGeneric: 'Καλώδιο {v}',
     rj45Name: 'Βύσμα RJ45',
     eolName: 'Τερματική αντίσταση (EOL)',
     layer_kamerat: 'Κάμερες',

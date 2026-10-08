@@ -3,6 +3,9 @@ import type { ExtraLocale } from '.';
 const locale: ExtraLocale = {
   ui: {
     brandSub: 'Installations électriques résidentielles',
+    brandSubCctv: 'Conception de vidéosurveillance',
+    brandSubAp: 'Conception réseau et points d’accès',
+    brandSubFire: 'Conception de détection incendie',
     project: 'Projet',
     new: 'Nouveau',
     open: 'Ouvrir',
@@ -270,12 +273,11 @@ const locale: ExtraLocale = {
     kind_cctv: 'Caméras (CCTV)',
     kind_network: 'Réseau / AP',
     kind_fire: 'Zone incendie',
-    groupPower: 'Alimentation',
-    groupSystems: 'Systèmes',
     devicePower: 'Puissance des appareils',
     longestRun: 'Câble le plus long',
     warnRun: 'Un câble dépasse {v} m, le maximum pour ce type de câble.',
     warnDevices: 'La zone compte plus de {v} appareils ; divisez-la en deux zones.',
+    cableGeneric: 'Câble {v}',
     rj45Name: 'Connecteur RJ45',
     eolName: 'Résistance de fin de ligne (EOL)',
     layer_kamerat: 'Caméras',

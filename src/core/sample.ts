@@ -1,6 +1,8 @@
-import { CABLE_LAYER, emptyDoc, newId, OPENING_LAYER, ROOM_LAYER, WALL_LAYER, type Cable, type Circuit, type Doc, type Opening, type Room, type SymbolEntity, type Vec, type Wall } from './types';
+import { CABLE_LAYER, defaultLayers, emptyDoc, newId, OPENING_LAYER, ROOM_LAYER, WALL_LAYER, type Cable, type Circuit, type Doc, type Opening, type Room, type SymbolEntity, type Vec, type Wall } from './types';
 import { symbolDef, unitMm } from '../symbols/library';
 import { symbolCenter } from '../symbols/place';
+import { cableLayer } from './systems';
+import { EDITION, EDITIONS, type EditionId } from '../edition';
 
 function wall(a: Vec, b: Vec, thickness: number) {
   return { id: newId('w'), kind: 'wall' as const, layer: WALL_LAYER, a, b, thickness };
@@ -23,8 +25,9 @@ function sym(symbol: string, x: number, y: number, angle: number): SymbolEntity 
 }
 
 /** Plan shembull që programi të mos hapet bosh herën e parë. */
-export function sampleDoc(): Doc {
+export function sampleDoc(edition: EditionId = EDITION.id): Doc {
   const doc = emptyDoc('Shembull: shtëpi 1 kat');
+  doc.layers = defaultLayers(EDITIONS[edition].layers);
   const W = 14600;
   const H = 8600;
   const outer: Vec[] = [
@@ -73,6 +76,14 @@ export function sampleDoc(): Doc {
     room('Sallon + kuzhinë', 3200, 5300),
     room('Hyrje', 12100, 5300),
   );
+  if (edition === 'civil') addElectrical(doc);
+  else if (edition === 'cctv') addCameras(doc);
+  else if (edition === 'network') addNetwork(doc);
+  else addFire(doc);
+  return doc;
+}
+
+function addElectrical(doc: Doc): void {
   doc.entities.push(
     sym('nd-tavan', 2500, 2000, 270),
     sym('nd-tavan', 6800, 2000, 270),
@@ -95,7 +106,76 @@ export function sampleDoc(): Doc {
     sym('pj-boiler', 8540, 2000, 180),
   );
   addCircuits(doc);
-  return doc;
+}
+
+/** Lidh pikat e linjës: "star" = çdo pikë me kabllon e vet nga qendra, "chain" = pikë pas pike. */
+function wire(doc: Doc, c: Circuit, start: SymbolEntity, list: SymbolEntity[], mode: 'star' | 'chain'): void {
+  const unit = unitMm(doc.scale);
+  const center = (e: SymbolEntity) => {
+    const p = symbolCenter(e, unit);
+    return { x: Math.round(p.x), y: Math.round(p.y) };
+  };
+  start.circuit = c.id;
+  let from = center(start);
+  for (const e of list) {
+    e.circuit = c.id;
+    const to = center(e);
+    // vija në kënd të drejtë: fillimisht horizontalisht, pastaj vertikalisht
+    const points = from.x === to.x || from.y === to.y ? [from, to] : [from, { x: to.x, y: from.y }, to];
+    doc.entities.push({ id: newId('k'), kind: 'cable', layer: cableLayer(c.kind), points, circuit: c.id });
+    if (mode === 'chain') from = to;
+  }
+}
+
+/** Kamerat: regjistruesi te muri i sallonit dhe një kabllo UTP për çdo kamerë. */
+function addCameras(doc: Doc): void {
+  const nvr = sym('cc-nvr', 125, 4800, 0);
+  const cams = [
+    sym('cc-dome', 4800, 6300, 270),
+    sym('cc-bullet', 125, 7900, 0),
+    sym('cc-dome', 12100, 6300, 270),
+    sym('cc-bullet', 14475, 7900, 180),
+    sym('cc-bullet', 14475, 700, 180),
+  ];
+  doc.entities.push(nvr, ...cams);
+  const c: Circuit = { id: newId('q'), name: 'CAM1', label: 'Kamerat', kind: 'cctv', phases: 1, color: '#0891B2' };
+  doc.circuits = [c];
+  wire(doc, c, nvr, cams, 'star');
+}
+
+/** Rrjeti: switch-i te muri, access point në tavan dhe priza RJ45. */
+function addNetwork(doc: Doc): void {
+  const sw = sym('rj-switch', 125, 4800, 0);
+  const points = [
+    sym('rj-ap-tavan', 4800, 6300, 270),
+    sym('rj-ap-tavan', 12100, 6300, 270),
+    sym('rj-ap-tavan', 10100, 2000, 270),
+    sym('rj-rj45-dyfishe', 3000, 8475, 270),
+    sym('rj-rj45-dyfishe', 13100, 125, 90),
+  ];
+  doc.entities.push(sw, ...points);
+  const c: Circuit = { id: newId('q'), name: 'NET1', label: 'Rrjeti', kind: 'network', phases: 1, color: '#16A34A' };
+  doc.circuits = [c];
+  wire(doc, c, sw, points, 'star');
+}
+
+/** Zjarri: qendra te hyrja dhe një zonë që kalon pikë pas pike. */
+function addFire(doc: Doc): void {
+  const panel = sym('zj-qendra', 11000, 8475, 270);
+  const zone = [
+    sym('zj-buton', 12500, 8475, 270),
+    sym('zj-tym', 12100, 6300, 270),
+    sym('zj-sirene', 9660, 7000, 0),
+    sym('zj-tym', 4800, 6300, 270),
+    sym('zj-nxehtesi', 2000, 7200, 270),
+    sym('zj-tym', 2500, 2000, 270),
+    sym('zj-tym', 10100, 2000, 270),
+    sym('zj-tym', 13100, 2000, 270),
+  ];
+  doc.entities.push(panel, ...zone);
+  const c: Circuit = { id: newId('q'), name: 'FA1', label: 'Zona 1', kind: 'fire', phases: 1, color: '#DC2626' };
+  doc.circuits = [c];
+  wire(doc, c, panel, zone, 'chain');
 }
 
 /** Katër qarqe me kabllot e tyre, të lidhura nga kuadri pikë pas pike. */

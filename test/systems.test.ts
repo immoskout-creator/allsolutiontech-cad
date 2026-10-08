@@ -4,8 +4,11 @@ import { calcAll, newCircuit } from '../src/core/circuits';
 import { breakerSpec, cableSpec, materialList } from '../src/core/materials';
 import { ZONE_MAX_DEVICES, syncCableLayers } from '../src/core/systems';
 import { parse, serialize } from '../src/io/files';
-import { CATEGORIES, SYMBOLS, categoryLibrary } from '../src/symbols/library';
-import { emptyDoc, type Cable, type SymbolEntity } from '../src/core/types';
+import { CATEGORIES, SYMBOLS, categoryLibrary, symbolDef } from '../src/symbols/library';
+import { EDITION, EDITIONS, productName } from '../src/edition';
+import { sampleDoc } from '../src/core/sample';
+import { symbolCenters } from '../src/ui/circuits';
+import { defaultLayers, emptyDoc, type Cable, type SymbolEntity } from '../src/core/types';
 
 const sym = (symbol: string, circuit: string, x = 0): SymbolEntity => ({ id: `s${Math.random()}`, kind: 'symbol', layer: 'kamerat', symbol, pos: { x, y: 0 }, angle: 90, circuit });
 const cable = (circuit: string, len: number): Cable => ({ id: `k${Math.random()}`, kind: 'cable', layer: 'kabllot', points: [{ x: 0, y: 5000 }, { x: len, y: 5000 }], circuit });
@@ -77,4 +80,30 @@ test('zona e zjarrit me shumë pajisje jep paralajmërim; kablloja ndjek shtres�
   assert.equal(back.circuits?.[0].kind, 'fire');
   assert.equal(back.circuits?.[0].cableType, 'ph120');
   assert.ok(back.layers.some((l) => l.id === 'zjarri'));
+});
+
+test('katër programe: secili me librarinë, linjën dhe planin shembull të vet', () => {
+  assert.deepEqual(Object.keys(EDITIONS), ['civil', 'cctv', 'network', 'fire']);
+  assert.equal(EDITION.id, 'civil');
+  assert.equal(new Set(Object.values(EDITIONS).map((e) => e.storage)).size, 4);
+  for (const ed of Object.values(EDITIONS)) {
+    const doc = sampleDoc(ed.id);
+    const symbols = doc.entities.filter((e) => e.kind === 'symbol') as SymbolEntity[];
+    assert.ok(symbols.length > 0, ed.id);
+    // vetëm simbolet e librarisë së programit
+    for (const s of symbols) assert.equal(categoryLibrary(symbolDef(s.symbol)!.category), ed.lib, `${ed.id} ${s.symbol}`);
+    for (const c of doc.circuits ?? []) assert.ok(ed.kinds.includes(c.kind), `${ed.id} ${c.kind}`);
+    const res = calcAll(doc, symbolCenters(doc));
+    for (const r of res) assert.deepEqual(r.warnings, [], `${ed.id} ${r.circuit.name}`);
+    // projekti i ri ka shtresat e programit, jo të të tjerëve
+    const layers = defaultLayers(ed.layers).map((l) => l.id);
+    for (const other of Object.values(EDITIONS)) if (other !== ed) for (const l of other.layers) assert.ok(!layers.includes(l), `${ed.id} ${l}`);
+  }
+  assert.equal(productName(EDITIONS.cctv), 'AllSolutionTech CAD 2D CCTV');
+});
+
+test('një projekt i kamerave hapet edhe te programi elektrik me shtresën e vet', () => {
+  const back = parse(serialize(sampleDoc('cctv')));
+  assert.ok(back.layers.some((l) => l.id === 'kamerat'));
+  assert.ok(back.layers.some((l) => l.id === 'prizat'));
 });

@@ -3,6 +3,9 @@ import type { ExtraLocale } from '.';
 const locale: ExtraLocale = {
   ui: {
     brandSub: 'Eluruumide elektripaigaldised',
+    brandSubCctv: 'Videovalve projekteerimine',
+    brandSubAp: 'Võrgu ja pääsupunktide projekteerimine',
+    brandSubFire: 'Tulekahjusignalisatsiooni projekteerimine',
     project: 'Projekt',
     new: 'Uus',
     open: 'Ava',
@@ -270,12 +273,11 @@ const locale: ExtraLocale = {
     kind_cctv: 'Kaamerad (CCTV)',
     kind_network: 'Võrk / AP',
     kind_fire: 'Tulekahju tsoon',
-    groupPower: 'Toide',
-    groupSystems: 'Süsteemid',
     devicePower: 'Seadmete võimsus',
     longestRun: 'Pikim kaabel',
     warnRun: 'Kaabel on pikem kui {v} m, selle kaablitüübi maksimum.',
     warnDevices: 'Tsoonis on üle {v} seadme; jagage see kaheks tsooniks.',
+    cableGeneric: 'Kaabel {v}',
     rj45Name: 'RJ45-pistik',
     eolName: 'Lõputakisti (EOL)',
     layer_kamerat: 'Kaamerad',

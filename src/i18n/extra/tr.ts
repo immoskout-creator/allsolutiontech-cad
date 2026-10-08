@@ -3,6 +3,9 @@ import type { ExtraLocale } from '.';
 const locale: ExtraLocale = {
   ui: {
     brandSub: 'Konut elektrik tesisatları',
+    brandSubCctv: 'Güvenlik kamerası projelendirme',
+    brandSubAp: 'Ağ ve erişim noktası projelendirme',
+    brandSubFire: 'Yangın algılama projelendirme',
     project: 'Proje',
     new: 'Yeni',
     open: 'Aç',
@@ -270,12 +273,11 @@ const locale: ExtraLocale = {
     kind_cctv: 'Kameralar (CCTV)',
     kind_network: 'Ağ / AP',
     kind_fire: 'Yangın bölgesi',
-    groupPower: 'Güç',
-    groupSystems: 'Sistemler',
     devicePower: 'Cihaz gücü',
     longestRun: 'En uzun kablo',
     warnRun: 'Bir kablo, bu kablo tipi için azami {v} m\'yi aşıyor.',
     warnDevices: 'Bölgede {v} cihazdan fazla var; iki bölgeye ayırın.',
+    cableGeneric: '{v} kablo',
     rj45Name: 'RJ45 konnektör',
     eolName: 'Hat sonu direnci (EOL)',
     layer_kamerat: 'Kameralar',
