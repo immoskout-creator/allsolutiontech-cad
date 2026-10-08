@@ -1,0 +1,14 @@
+{
+  "name": "allsolutiontech-cad-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AllSolutionTech CAD: programet si instalues për Windows",
+  "type": "module",
+  "scripts": {
+    "installers": "node build-installers.mjs"
+  },
+  "devDependencies": {
+    "electron": "43.7.3",
+    "electron-builder": "26.15.3"
+  }
+}
