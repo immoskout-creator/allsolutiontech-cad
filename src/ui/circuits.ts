@@ -16,6 +16,7 @@ export const KIND_KEY: Record<CircuitKind, StringKey> = {
   cctv: 'kind_cctv',
   network: 'kind_network',
   fire: 'kind_fire',
+  emergency: 'kind_emergency',
 };
 
 const esc = (s: string) =>

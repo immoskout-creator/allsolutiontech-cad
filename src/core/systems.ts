@@ -1,12 +1,12 @@
 import { CABLE_LAYER, isCable, type Circuit, type CircuitKind, type Doc } from './types';
 
 /**
- * Sistemet e tensionit të ulët: kamerat (CCTV), rrjeti / AP dhe zjarri.
+ * Sistemet e tensionit të ulët: kamerat (CCTV), rrjeti / AP, zjarri dhe dritat e emergjencës.
  * Linjat e tyre përdorin të njëjtat "qarqe" si energjia, por pa siguresë dhe seksion:
  * kablloja zgjidhet nga lista e sistemit dhe kontrollohet gjatësia e çdo kablloje.
  */
-export type SystemKind = 'cctv' | 'network' | 'fire';
-export const SYSTEM_KINDS: SystemKind[] = ['cctv', 'network', 'fire'];
+export type SystemKind = 'cctv' | 'network' | 'fire' | 'emergency';
+export const SYSTEM_KINDS: SystemKind[] = ['cctv', 'network', 'fire', 'emergency'];
 
 export const isSystemKind = (k: CircuitKind): k is SystemKind => (SYSTEM_KINDS as string[]).includes(k);
 
@@ -32,18 +32,24 @@ export const SYSTEM_CABLES: Record<SystemKind, CableType[]> = {
     { id: 'ph120', spec: 'FE180 PH120 2×1.5 mm²' },
     { id: 'jy', spec: 'J-Y(St)Y 2×2×0.8 mm' },
   ],
+  // ndriçuesit me bateri të vetën marrin 230 V nga qarku i ndriçimit; ata me bateri qendrore kabllo rezistente ndaj zjarrit
+  emergency: [
+    { id: 'nym', spec: 'NYM-J 3×1.5 mm²' },
+    { id: 'ph30-3', spec: 'FE180 PH30 3×1.5 mm²' },
+    { id: 'ph120-3', spec: 'FE180 PH120 3×1.5 mm²' },
+  ],
 };
 
 /** Numri maksimal i pajisjeve në një zonë zjarri. */
 export const ZONE_MAX_DEVICES = 32;
 
-/** Parashtesa e emrit të linjës: Q1 për energjinë, CAM1, NET1, FA1 për sistemet. */
+/** Parashtesa e emrit të linjës: Q1 për energjinë, CAM1, NET1, FA1, EM1 për sistemet. */
 export function circuitPrefix(kind: CircuitKind): string {
-  return kind === 'cctv' ? 'CAM' : kind === 'network' ? 'NET' : kind === 'fire' ? 'FA' : 'Q';
+  return kind === 'cctv' ? 'CAM' : kind === 'network' ? 'NET' : kind === 'fire' ? 'FA' : kind === 'emergency' ? 'EM' : 'Q';
 }
 
 /** Shtresa e simboleve dhe kabllove të çdo sistemi. */
-export const SYSTEM_LAYER: Record<SystemKind, string> = { cctv: 'kamerat', network: 'rrjeti', fire: 'zjarri' };
+export const SYSTEM_LAYER: Record<SystemKind, string> = { cctv: 'kamerat', network: 'rrjeti', fire: 'zjarri', emergency: 'emergjenca' };
 
 export function cableTypeOf(c: Circuit): CableType {
   const list = isSystemKind(c.kind) ? SYSTEM_CABLES[c.kind] : [];

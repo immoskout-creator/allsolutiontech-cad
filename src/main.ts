@@ -16,6 +16,7 @@ import { cableRunLength } from './core/circuits';
 import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang, type StringKey } from './i18n/strings';
 import { syncCableLayers } from './core/systems';
 import { WALL_MIN_M, checkFireCached } from './core/firecheck';
+import { EM_HEIGHT_CM, LUMEN_LIMITS, LUX_OPEN, UNIFORMITY_MAX, checkEmergencyCached, emModel, emModelsFor, luminaireCalc, signCalc } from './core/emergency';
 import { DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraModel, cameraSettings, detectorCalc, modelsFor } from './core/coverage';
 import { EDITION, productName } from './edition';
 import { CATEGORIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
@@ -302,10 +303,10 @@ const esc = (s: string) =>
 
 const layerColor = (id: string) => store.layer(id)?.color ?? '#9CC5FF';
 /** Ngjyrat e shtresave janë për fletën e bardhë; në panelin e errët i çelim pak. */
-const TILE_COLORS: Record<string, string> = { prizat: '#7FB0FF', ndricimi: '#FDBA74', pajisje: '#C4B5FD', kamerat: '#67E8F9', rrjeti: '#86EFAC', zjarri: '#FCA5A5' };
+const TILE_COLORS: Record<string, string> = { prizat: '#7FB0FF', ndricimi: '#FDBA74', pajisje: '#C4B5FD', kamerat: '#67E8F9', rrjeti: '#86EFAC', zjarri: '#FCA5A5', emergjenca: '#6EE7B7' };
 
 /** Emrat e librarive në panelin e majtë. */
-const LIB_NAME: Record<LibraryId, StringKey> = { civil: 'libCivil', cctv: 'libCctv', network: 'libAp', fire: 'libFire' };
+const LIB_NAME: Record<LibraryId, StringKey> = { civil: 'libCivil', cctv: 'libCctv', network: 'libAp', fire: 'libFire', emergency: 'libEm' };
 
 const searchInput = $<HTMLInputElement>('symbolSearch');
 searchInput.addEventListener('input', renderLibrary);
@@ -587,6 +588,37 @@ function cameraFields(s: SymbolEntity): string {
     <datalist id="lensList">${LENSES.map(([l, v]) => `<option value="${v}" label="${l}"></option>`).join('')}</datalist>`;
 }
 
+/** Ndriçuesi i emergjencës: fluksi dhe rrezet 0.5 / 1 lux; tabela EXIT: distanca e shikimit. */
+function emergencyFields(s: SymbolEntity): string {
+  const lum = luminaireCalc(s);
+  const sign = signCalc(s);
+  if (!lum && !sign) return '';
+  const fmt = (v: number, digits: number) => v.toLocaleString(getLang(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  const models = emModelsFor(s.symbol);
+  const current = emModel(s);
+  const modelSelect = models.length
+    ? `<label class="field" for="propEmModel">${esc(t('emModel'))}<select id="propEmModel">
+        ${lum ? `<option value=""${current ? '' : ' selected'}>${esc(t('camCustom'))}</option>` : ''}
+        ${models.map((m) => `<option value="${m.id}"${m.id === (current?.id ?? (sign ? models.find((x) => x.sign === sign.size)?.id : '')) ? ' selected' : ''}>${esc(m.name)}</option>`).join('')}</select></label>`
+    : '';
+  if (lum) {
+    return `${modelSelect}<div class="prop-grid">${numField('propLumens', t('emLumens'), Math.round(lum.lumens), '10')}</div>
+      <div class="stats">
+        <div class="stat"><span>${esc(t('emBelow'))}</span><b>${fmt(lum.below, 1)} lx</b></div>
+        <div class="stat"><span>${esc(t('emOpen'))}</span><b>${fmt(lum.rOpen, 1)} m</b></div>
+        <div class="stat wide"><span>${esc(t('emRoute'))}</span><b>${fmt(lum.rRoute, 1)} m</b></div>
+      </div>
+      <p class="muted small">${esc(t('emNote'))}</p>`;
+  }
+  const c = checkEmergencyCached(store.doc).signs.get(s.id);
+  return `${modelSelect}<div class="stats">
+      <div class="stat"><span>${esc(t('signSize'))}</span><b>${sign!.size} mm</b></div>
+      <div class="stat"><span>${esc(t('signDistance'))}</span><b>${fmt(sign!.distance, 0)} m</b></div>
+      ${c?.farthest != null ? `<div class="stat wide"><span>${esc(t('signFarthest'))}</span><b>${fmt(c.farthest, 1)} m</b></div>` : ''}
+    </div>
+    ${c?.tooFar ? `<p class="warn-text">${esc(t('warnSignFar', { v: fmt(sign!.distance, 0) }))}</p>` : ''}`;
+}
+
 const numField = (id: string, label: string, value: number | string, step = '1') =>
   `<label class="field" for="${id}">${esc(label)}<input id="${id}" class="num" type="number" step="${step}" value="${value}"></label>`;
 
@@ -628,12 +660,13 @@ function renderProps(): void {
       <div class="prop-head" style="--tile-color:${TILE_COLORS[def.layer] ?? '#9CC5FF'}">${symbolSvg(def)}
         <div><b>${esc(symName(def))}</b><span>${def.code} · ${esc(layerName(s.layer, s.layer))}</span></div></div>
       <div class="prop-grid">
-        ${def.mount === 'wall' || def.detector || def.cover ? numField('propHeight', t('heightCm'), s.height ?? (def.mount === 'wall' ? '' : DETECTOR_HEIGHT_CM)) : `<div class="field">${esc(t('heightCm'))}<span class="static">${esc(t('ceiling'))}</span></div>`}
+        ${def.mount === 'wall' || def.detector || def.cover || def.emergency ? numField('propHeight', t('heightCm'), s.height ?? (def.mount === 'wall' ? '' : def.emergency ? EM_HEIGHT_CM : DETECTOR_HEIGHT_CM)) : `<div class="field">${esc(t('heightCm'))}<span class="static">${esc(t('ceiling'))}</span></div>`}
         ${numField('propPower', t('powerW'), s.power ?? '')}
         ${numField('propAngle', t('rotation'), normAngle(s.angle - 270), '90')}
       </div>
       ${cameraFields(s)}
       ${detectorFields(s)}
+      ${emergencyFields(s)}
       ${circuitField('propCircuit', s.circuit ?? '')}
       ${def.category === 'custom' ? `<button class="btn" id="propEditSymbol" type="button">${esc(t('editSymbol'))}</button>` : ''}
       <button class="btn danger" id="propDelete" type="button">${esc(t('deleteSymbol'))}</button>`;
@@ -664,6 +697,16 @@ function renderProps(): void {
     onNum('propDetAngle', (x, v) => (v === undefined ? delete x.fov : (x.fov = Math.min(DETECTOR_ANGLE_LIMITS[1], Math.max(DETECTOR_ANGLE_LIMITS[0], Math.round(v))))));
     onNum('propRange', (x, v) => (v === undefined ? delete x.range : (x.range = Math.min(RANGE_LIMITS[1], Math.max(RANGE_LIMITS[0], Math.round(v * 10) / 10)))));
     onNum('propPan', (x, v) => (v === undefined || v === 0 ? delete x.pan : (x.pan = Math.min(180, Math.max(-180, Math.round(v))))));
+    // emergjenca: modeli vendos fluksin e tij (ose madhësinë e tabelës)
+    $('propEmModel')?.addEventListener('change', (ev) => {
+      const m = emModelsFor(s.symbol).find((x) => x.id === (ev.target as HTMLSelectElement).value);
+      update<SymbolEntity>(s.id, (x) => {
+        if (!m) return void delete x.model;
+        x.model = m.id;
+        if (m.lumens) x.lumens = m.lumens;
+      });
+    });
+    onNum('propLumens', (x, v) => (delete x.model, v === undefined ? delete x.lumens : (x.lumens = Math.min(LUMEN_LIMITS[1], Math.max(LUMEN_LIMITS[0], Math.round(v))))));
     onCircuit('propCircuit', [s.id]);
     $('propDelete').addEventListener('click', () => editor.deleteSelection());
     return;
@@ -838,6 +881,20 @@ function renderOpeningProps(el: HTMLElement, o: Opening): void {
   $('propDelete').addEventListener('click', () => editor.deleteSelection());
 }
 
+/** Te programi i emergjencës: ndriçimi minimal dhe maksimal i dhomës, me paralajmërimet e EN 1838. */
+function roomLightFields(r: Room): string {
+  if (EDITION.id !== 'emergency') return '';
+  const l = checkEmergencyCached(store.doc).rooms.find((x) => x.id === r.id);
+  if (!l?.required) return '';
+  const fmt = (v: number) => v.toLocaleString(getLang(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return `<div class="stats">
+      <div class="stat"><span>${esc(t('roomLuxMin'))}</span><b>${fmt(l.min)} lx</b></div>
+      <div class="stat"><span>${esc(t('roomLuxMax'))}</span><b>${fmt(l.max)} lx</b></div>
+    </div>
+    ${l.min < LUX_OPEN ? `<p class="warn-text">${esc(t('warnRoomDark', { v: fmt(LUX_OPEN) }))}</p>` : ''}
+    ${l.uneven ? `<p class="warn-text">${esc(t('warnUneven', { v: UNIFORMITY_MAX }))}</p>` : ''}`;
+}
+
 function renderRoomProps(el: HTMLElement, r: Room): void {
   const shape = findRoom(store.doc.entities.filter(isWall), r.pos);
   el.innerHTML = `
@@ -850,6 +907,7 @@ function renderRoomProps(el: HTMLElement, r: Room): void {
       <div class="stat"><span>${esc(t('perimeter'))}</span><b>${shape ? formatMeters(shape.perimeter) : '—'}</b></div>
     </div>
     ${shape ? '' : `<p class="muted small">${esc(t('roomOpen'))}</p>`}
+    ${roomLightFields(r)}
     <button class="btn danger" id="propDelete" type="button">${esc(t('delete'))}</button>`;
   const input = $<HTMLInputElement>('propRoomName');
   input.addEventListener('change', () => {
@@ -868,7 +926,10 @@ function renderRoomSummary(): void {
   // te programi i zjarrit tregohet sa mbulohet çdo dhomë nga detektorët
   const fire = EDITION.id === 'fire' ? checkFireCached(store.doc) : null;
   const cover = new Map(fire?.rooms.map((r) => [r.id, r.covered]) ?? []);
-  const key = JSON.stringify([getLang(), walls, rooms.map((x) => x.r), [...cover]]);
+  // te programi i emergjencës: ndriçimi minimal i çdo dhome që duhet ndriçuar
+  const light = EDITION.id === 'emergency' ? checkEmergencyCached(store.doc) : null;
+  const lux = new Map(light?.rooms.filter((r) => r.required).map((r) => [r.id, r]) ?? []);
+  const key = JSON.stringify([getLang(), walls, rooms.map((x) => x.r), [...cover], [...lux.values()].map((l) => [l.id, l.min.toFixed(2), l.uneven])]);
   if (key === roomsKey) return;
   roomsKey = key;
   if (rooms.length === 0) {
@@ -880,12 +941,14 @@ function renderRoomSummary(): void {
     .map(({ r, shape }) => {
       const c = cover.get(r.id);
       const pct = c === undefined ? '' : `<td class="qty${c < 0.999 ? ' warn-cell' : ''}">${Math.floor(c * 100)}%</td>`;
-      return `<tr data-room="${r.id}"><td>${esc(r.name)}</td><td class="qty">${shape ? areaText(shape.area) : '—'}</td>${fire ? pct || '<td class="qty">—</td>' : ''}</tr>`;
+      const l = lux.get(r.id);
+      const lx = l ? `<td class="qty${l.min < LUX_OPEN || l.uneven ? ' warn-cell' : ''}">${l.min.toLocaleString(getLang(), { maximumFractionDigits: 1 })}</td>` : '<td class="qty">—</td>';
+      return `<tr data-room="${r.id}"><td>${esc(r.name)}</td><td class="qty">${shape ? areaText(shape.area) : '—'}</td>${fire ? pct || '<td class="qty">—</td>' : ''}${light ? lx : ''}</tr>`;
     })
     .join('');
-  const coverHead = fire ? `<th class="qty">${esc(t('coverage'))}</th>` : '';
+  const coverHead = fire ? `<th class="qty">${esc(t('coverage'))}</th>` : light ? `<th class="qty">${esc(t('minLux'))}</th>` : '';
   $('roomSummary').innerHTML = `<table class="summary rooms"><thead><tr><th>${esc(t('room'))}</th><th class="qty">m²</th>${coverHead}</tr></thead>
-    <tbody>${rows}</tbody><tfoot><tr><td>${esc(t('totalArea'))}</td><td class="qty">${areaText(total)}</td>${fire ? '<td></td>' : ''}</tr></tfoot></table>`;
+    <tbody>${rows}</tbody><tfoot><tr><td>${esc(t('totalArea'))}</td><td class="qty">${areaText(total)}</td>${fire || light ? '<td></td>' : ''}</tr></tfoot></table>`;
 }
 $('roomSummary').addEventListener('click', (e) => {
   const row = (e.target as HTMLElement).closest<HTMLElement>('[data-room]');

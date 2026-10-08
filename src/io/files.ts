@@ -80,7 +80,7 @@ export function parse(text: string): Doc {
   };
 }
 
-const CIRCUIT_KINDS: CircuitKind[] = ['lighting', 'sockets', 'appliance', 'cctv', 'network', 'fire'];
+const CIRCUIT_KINDS: CircuitKind[] = ['lighting', 'sockets', 'appliance', 'cctv', 'network', 'fire', 'emergency'];
 
 function parseCircuits(raw: unknown): Circuit[] {
   if (!Array.isArray(raw)) return [];

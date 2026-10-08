@@ -1,6 +1,6 @@
 // Ndërton programin si një faqe HTML të vetme (pa skedarë të jashtëm përveç fonteve).
-//   node build.mjs         -> katër programet, secili me index.html (hapet direkt në shfletues) dhe artifact.html:
-//                             dist/ (elektrik), dist/cctv/, dist/ap/, dist/fire/
+//   node build.mjs         -> pesë programet, secili me index.html (hapet direkt në shfletues) dhe artifact.html:
+//                             dist/ (elektrik), dist/cctv/, dist/ap/, dist/fire/, dist/em/
 //   node build.mjs --test  -> përpilon testet në dist-test/
 import { build } from 'esbuild';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
@@ -14,6 +14,7 @@ const EDITIONS = [
   { id: 'cctv', dir: 'dist/cctv', title: 'AllSolutionTech CAD 2D CCTV' },
   { id: 'network', dir: 'dist/ap', title: 'AllSolutionTech CAD 2D AP' },
   { id: 'fire', dir: 'dist/fire', title: 'AllSolutionTech CAD 2D FIRE' },
+  { id: 'emergency', dir: 'dist/em', title: 'AllSolutionTech CAD 2D EMERGENCY' },
 ];
 
 if (process.argv.includes('--test')) {

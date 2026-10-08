@@ -30,19 +30,22 @@ Butoni **Raportet** lart hap tre raporte, secili gati për printim (A4), për ru
 - **Simbolet e përdorura**: legjenda e planit, me simbolin, kodin AST, emrin dhe sasinë.
 - **Libraria e plotë**: katalogu i të gjitha simboleve sipas kategorive, përfshirë simbolet e tua.
 
-## Katër programe: elektrik, CCTV, AP dhe FIRE
-Nga i njëjti kod ndërtohen katër programe të veçanta, secili me emrin, linkun, simbolet dhe projektet e veta (ruajtja automatike nuk përzihet). Planimetria (muret, dyert, dritaret, dhomat, kuotat) është e njëjtë te të katërt.
+## Pesë programe: elektrik, CCTV, AP, FIRE dhe EMERGENCY
+Nga i njëjti kod ndërtohen pesë programe të veçanta, secili me emrin, linkun, simbolet dhe projektet e veta (ruajtja automatike nuk përzihet). Planimetria (muret, dyert, dritaret, dhomat, kuotat) është e njëjtë te të gjithë.
 - **AllSolutionTech CAD 2D**: instalimet elektrike civile (`dist/`).
 - **AllSolutionTech CAD 2D CCTV**: kamerat e sigurisë, 8 simbole AST-CC, shtresa Kamerat (`dist/cctv/`).
 - **AllSolutionTech CAD 2D AP**: rrjeti dhe access point, 7 simbole AST-RJ, shtresa Rrjeti / AP (`dist/ap/`).
 - **AllSolutionTech CAD 2D FIRE**: sinjalizimi i zjarrit, 10 simbole AST-ZJ, shtresa Zjarri (`dist/fire/`).
+- **AllSolutionTech CAD 2D EMERGENCY**: ndriçimi i emergjencës, 7 simbole AST-EM, shtresa Emergjenca (`dist/em/`).
 
 Te programi CCTV, çdo kamerë ka **modelin** (bullet, dome, PTZ, fisheye me objektivin dhe distancën IR), **lartësinë e montimit**, **këndin e shikimit** (me objektivat 2.8 / 4 / 6 / 8 / 12 mm si sugjerim), **distancën** dhe **drejtimin**; plani tregon zonën e mbulimit në shkallë, me këndin dhe distancën të shkruara.
 
 Te programi FIRE, detektorët e tymit, të nxehtësisë dhe multisensor kanë **lartësinë e montimit** dhe **këndin e sensorit**: rrezja në dysheme është lartësia × tan(këndi/2), jo më shumë se 7.5 m për tymin dhe 5.3 m për nxehtësinë; mbi 10.5 m (tym) ose 9 m (nxehtësi) del paralajmërim. Plani vizaton rrethin e mbulimit me këndin dhe rrezen, të prerë te muret e dhomës.
 - Rregullat e vendosjes (EN 54-14 / BS 5839-1): çdo pikë e dhomës duhet të jetë brenda rrezes së një detektori të asaj dhome (pjesët pa mbulim dalin të kuqe në plan dhe tabela e dhomave tregon mbulimin në %); detektori jo më afër se 0.5 m nga muri; dy detektorë fqinjë në të njëjtën dhomë jo më larg se rrezja × √2 (10.6 m tym, 7.5 m nxehtësi). Detektori që shkel një rregull merr unazë të kuqe dhe paralajmërim te vetitë.
 
-Te programet e sistemeve, **Qark i ri** krijon linjë (CAM1, NET1, FA1) pa siguresë: zgjidhet kablloja (U/UTP Cat6, F/UTP Cat6 PE, Cat5e, RG59, Cat6A, fibër OM3, kabllo zjarri PH30/PH120, J-Y(St)Y) dhe kontrollohen gjatësia e çdo kablloje (90 m për UTP) dhe numri i pajisjeve në zonën e zjarrit (32). Lista e materialeve jep pajisjet, metrat e kabllove, konektorët RJ45 (2 për çdo kabllo UTP) dhe rezistencat e fundit të zonës. Programi zgjidhet në `src/edition.ts`; `build.mjs` i ndërton të katërt.
+Te programi EMERGENCY (EN 1838), ndriçuesit kanë **modelin** (100–2000 lm), **fluksin në emergjencë** dhe **lartësinë**. Ndriçimi llogaritet si burim Lambertian (I₀ = Φ/π, E = I₀·h²/(h²+d²)²): plani vizaton rrethin 0.5 lux (zonë e hapur) dhe rrethin me pika 1 lux (rrugë evakuimi), të prera te muret e dhomës. Çdo dhomë me ndriçues ose mbi 60 m² kontrollohet: pjesët nën 0.5 lux dalin të kuqe, tabela e dhomave tregon ndriçimin minimal dhe del paralajmërim kur njëtrajtshmëria max/min kalon 40:1. Tabelat EXIT shihen deri në 200 × lartësinë e piktogramit (100 / 150 / 200 / 250 mm); tabela që nuk arrin pikën më të largët të dhomës merr unazë të kuqe.
+
+Te programet e sistemeve, **Qark i ri** krijon linjë (CAM1, NET1, FA1, EM1) pa siguresë: zgjidhet kablloja (U/UTP Cat6, F/UTP Cat6 PE, Cat5e, RG59, Cat6A, fibër OM3, kabllo zjarri PH30/PH120, J-Y(St)Y, NYM-J dhe FE180 3×1.5 për emergjencën) dhe kontrollohen gjatësia e çdo kablloje (90 m për UTP) dhe numri i pajisjeve në zonën e zjarrit (32). Lista e materialeve jep pajisjet, metrat e kabllove, konektorët RJ45 (2 për çdo kabllo UTP) dhe rezistencat e fundit të zonës. Programi zgjidhet në `src/edition.ts`; `build.mjs` i ndërton të pesët.
 
 ## Simbolet e mia
 Butoni **Simbol i ri** te libraria hap redaktorin: vizaton me vija, drejtkëndësha, rrathë (bosh ose të mbushur), harqe dhe tekst, mbi një rrjetë ku shihet edhe muri. I jep kodin (p.sh. AST-U-01), emrin, shtresën, vendosjen (në mur ose e lirë), lartësinë dhe fuqinë.

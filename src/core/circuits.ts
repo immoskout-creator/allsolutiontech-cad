@@ -21,7 +21,7 @@ const IZ: Record<1 | 3, number[]> = {
   3: [15, 20, 27, 34, 46, 62, 80],
 };
 /** Kufiri i rënies së tensionit, %. */
-export const DROP_LIMIT: Record<CircuitKind, number> = { lighting: 3, sockets: 5, appliance: 5, cctv: 0, network: 0, fire: 0 };
+export const DROP_LIMIT: Record<CircuitKind, number> = { lighting: 3, sockets: 5, appliance: 5, cctv: 0, network: 0, fire: 0, emergency: 0 };
 /** Minimumi i zakonshëm sipas llojit. */
 const MIN_BREAKER: Record<string, number> = { lighting: 10, sockets: 16, appliance: 10 };
 const MIN_SECTION: Record<string, number> = { lighting: 1.5, sockets: 2.5, appliance: 1.5 };

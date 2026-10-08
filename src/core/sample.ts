@@ -79,6 +79,7 @@ export function sampleDoc(edition: EditionId = EDITION.id): Doc {
   if (edition === 'civil') addElectrical(doc);
   else if (edition === 'cctv') addCameras(doc);
   else if (edition === 'network') addNetwork(doc);
+  else if (edition === 'emergency') addEmergency(doc);
   else addFire(doc);
   return doc;
 }
@@ -215,4 +216,19 @@ function addCircuits(doc: Doc): void {
       from = to;
     }
   }
+}
+
+/** Emergjenca: tabela EXIT mbi derën e hyrjes, ndriçues në tavan dhe një linjë pikë pas pike. */
+function addEmergency(doc: Doc): void {
+  const exit = { ...sym('em-exit-mur', 13300, 8475, 270), model: 'em-exit-mur-150' };
+  const lums = [
+    { ...sym('em-tavan', 12100, 6300, 270), model: 'em-tavan-200', lumens: 200 },
+    { ...sym('em-exit-tavan', 8900, 7200, 270), model: 'em-exit-tavan-200' },
+    { ...sym('em-tavan', 7200, 6300, 270), model: 'em-tavan-200', lumens: 200 },
+    { ...sym('em-tavan', 2400, 6300, 270), model: 'em-tavan-200', lumens: 200 },
+  ];
+  doc.entities.push(exit, ...lums);
+  const c: Circuit = { id: newId('q'), name: 'EM1', label: 'Emergjenca', kind: 'emergency', phases: 1, color: '#059669' };
+  doc.circuits = [c];
+  wire(doc, c, exit, lums, 'chain');
 }
