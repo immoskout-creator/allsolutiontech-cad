@@ -7,7 +7,7 @@ import type { StringKey } from './i18n/strings';
  * por secili me emrin, simbolet, linjat dhe ruajtjen e vet.
  * Programi zgjidhet gjatë ndërtimit (build.mjs → __EDITION__); pa të është ai elektrik.
  */
-export type EditionId = 'civil' | 'cctv' | 'network' | 'fire';
+export type EditionId = 'civil' | 'cctv' | 'network' | 'fire' | 'emergency';
 
 /** Programi i ndërtuar: një nga të veçantët ose 'all', të gjitha bashkë në një. */
 export type ProgramId = EditionId | 'all';
@@ -34,6 +34,7 @@ export const EDITIONS: { [K in EditionId]: Edition<K> } = {
   cctv: { id: 'cctv', badge: 'CCTV', subKey: 'brandSubCctv', lib: 'cctv', kinds: ['cctv'], layers: ['kamerat'], storage: 'astcad.cctv.autosave.v1' },
   network: { id: 'network', badge: 'AP', subKey: 'brandSubAp', lib: 'network', kinds: ['network'], layers: ['rrjeti'], storage: 'astcad.ap.autosave.v1' },
   fire: { id: 'fire', badge: 'FIRE', subKey: 'brandSubFire', lib: 'fire', kinds: ['fire'], layers: ['zjarri'], storage: 'astcad.fire.autosave.v1' },
+  emergency: { id: 'emergency', badge: 'EMERGENCY', subKey: 'brandSubEm', lib: 'emergency', kinds: ['emergency'], layers: ['emergjenca'], storage: 'astcad.em.autosave.v1' },
 };
 
 const SINGLE = Object.values(EDITIONS);

@@ -42,13 +42,17 @@ export interface SymbolDef {
   cover?: { fov: number; range: number };
   /** Detektor zjarri: këndi i sensorit (gradë), rrezja maksimale (m) dhe lartësia maksimale e montimit (m). */
   detector?: { angle: number; maxRadius: number; maxHeight: number };
+  /** Ndriçues emergjence: fluksi standard në emergjencë, lm. */
+  emergency?: { lumens: number };
+  /** Tabelë sinjalizimi (EXIT): lartësia e piktogramit, mm. */
+  sign?: { size: number };
 }
 
-export type CategoryId = 'custom' | 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'sensore' | 'komunikim' | 'cctv' | 'rrjet' | 'zjarr';
+export type CategoryId = 'custom' | 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'sensore' | 'komunikim' | 'cctv' | 'rrjet' | 'zjarr' | 'emergjence';
 
 /** Libraritë që zgjidhen veç e veç në panelin e majtë. */
-export type LibraryId = 'civil' | 'cctv' | 'network' | 'fire';
-export const LIBRARIES: LibraryId[] = ['civil', 'cctv', 'network', 'fire'];
+export type LibraryId = 'civil' | 'cctv' | 'network' | 'fire' | 'emergency';
+export const LIBRARIES: LibraryId[] = ['civil', 'cctv', 'network', 'fire', 'emergency'];
 
 export const CATEGORIES: { id: CategoryId; lib?: LibraryId; names: Names }[] = [
   { id: 'custom', names: { sq: 'Simbolet e mia', en: 'My symbols', it: 'I miei simboli', de: 'Meine Symbole' } },
@@ -61,6 +65,7 @@ export const CATEGORIES: { id: CategoryId; lib?: LibraryId; names: Names }[] = [
   { id: 'cctv', lib: 'cctv', names: { sq: 'Kamera dhe regjistrim', en: 'Cameras and recording', it: 'Telecamere e registrazione', de: 'Kameras und Aufzeichnung' } },
   { id: 'rrjet', lib: 'network', names: { sq: 'Access point dhe rrjet', en: 'Access points and network', it: 'Access point e rete', de: 'Access Points und Netzwerk' } },
   { id: 'zjarr', lib: 'fire', names: { sq: 'Sinjalizim zjarri', en: 'Fire alarm', it: 'Rivelazione incendi', de: 'Brandmeldeanlage' } },
+  { id: 'emergjence', lib: 'emergency', names: { sq: 'Ndriçim emergjence', en: 'Emergency lighting', it: 'Illuminazione di emergenza', de: 'Notbeleuchtung' } },
 ];
 
 /** Libraria e kategorisë: kategoritë pa `lib` janë të instalimit civil. */
@@ -708,6 +713,43 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'zj-beam', code: 'AST-ZJ-10', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 300,
     names: { sq: 'Detektor linear me rreze', en: 'Beam smoke detector', it: 'Rivelatore lineare a barriera', de: 'Linienförmiger Rauchmelder' },
     parts: [{ d: 'M0 0 V3' }, { d: rect(-7, 3, 7, 11) }, { d: 'M0 11 V13.5 M0 16 V18.5 M0 21 V23.5' }],
+  },
+
+  // ---- Ndriçim emergjence (EN 1838) ----
+  {
+    id: 'em-tavan', code: 'AST-EM-01', category: 'emergjence', layer: 'emergjenca', mount: 'center', emergency: { lumens: 200 },
+    names: { sq: 'Ndriçues emergjence tavani', en: 'Ceiling emergency luminaire', it: 'Lampada di emergenza a soffitto', de: 'Notleuchte Decke' },
+    parts: [{ d: circle(0, 0, 10) }, { d: 'M-7 -7 L7 7 M-7 7 L7 -7' }, { d: circle(0, 0, 3), fill: true }],
+  },
+  {
+    id: 'em-mur', code: 'AST-EM-02', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 250, emergency: { lumens: 200 },
+    names: { sq: 'Ndriçues emergjence muri', en: 'Wall emergency luminaire', it: 'Lampada di emergenza a parete', de: 'Notleuchte Wand' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-11, 3, 11, 15) }, { d: 'M-11 3 L11 15 M-11 15 L11 3' }, { d: circle(0, 9, 2.5), fill: true }],
+  },
+  {
+    id: 'em-ip65', code: 'AST-EM-03', category: 'emergjence', layer: 'emergjenca', mount: 'center', emergency: { lumens: 300 },
+    names: { sq: 'Ndriçues emergjence IP65', en: 'Emergency bulkhead IP65', it: 'Plafoniera di emergenza IP65', de: 'Notleuchte IP65' },
+    parts: [{ d: rect(-13, -7, 13, 7) }, { d: 'M-13 -7 L13 7 M-13 7 L13 -7' }, { d: circle(0, 0, 3), fill: true }],
+  },
+  {
+    id: 'em-spot', code: 'AST-EM-04', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 300, emergency: { lumens: 1000 },
+    names: { sq: 'Projektor emergjence me dy drita', en: 'Twin-spot emergency floodlight', it: 'Proiettore di emergenza a due fari', de: 'Not-Doppelscheinwerfer' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 9) }, { d: circle(-6, 14, 4.5) }, { d: circle(6, 14, 4.5) }],
+  },
+  {
+    id: 'em-exit-mur', code: 'AST-EM-05', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 230, sign: { size: 150 },
+    names: { sq: 'Tabelë EXIT muri', en: 'Wall exit sign', it: 'Segnaletica di uscita a parete', de: 'Rettungszeichenleuchte Wand' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-14, 3, 14, 15) }, { d: strokeText('EXIT', 0, 9, 5.5) }],
+  },
+  {
+    id: 'em-exit-tavan', code: 'AST-EM-06', category: 'emergjence', layer: 'emergjenca', mount: 'center', sign: { size: 200 },
+    names: { sq: 'Tabelë EXIT tavani me dy faqe', en: 'Double-sided ceiling exit sign', it: 'Segnaletica di uscita bifacciale a soffitto', de: 'Rettungszeichenleuchte Decke, beidseitig' },
+    parts: [{ d: rect(-15, -6, 15, 6) }, { d: strokeText('EXIT', 0, 0, 5.5) }, { d: 'M-15 -9 H15 M-15 9 H15' }],
+  },
+  {
+    id: 'em-bateri', code: 'AST-EM-07', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 150, power: 100,
+    names: { sq: 'Bateri qendrore emergjence', en: 'Central battery system', it: 'Soccorritore centralizzato', de: 'Zentralbatterieanlage' },
+    parts: [{ d: rect(-13, 0, 13, 18) }, { d: strokeText('CB', 0, 9, 7) }],
   },
 ];
 

@@ -1,6 +1,6 @@
 // Ndërton programin si një faqe HTML të vetme (pa skedarë të jashtëm përveç fonteve).
-//   node build.mjs         -> katër programet, secili me index.html (hapet direkt në shfletues) dhe artifact.html:
-//                             dist/ (elektrik), dist/cctv/, dist/ap/, dist/fire/
+//   node build.mjs         -> pesë programet dhe ALL-IN-ONE, secili me index.html (hapet direkt në shfletues) dhe artifact.html:
+//                             dist/ (elektrik), dist/cctv/, dist/ap/, dist/fire/, dist/em/
 //                             dist/all/ (të gjitha programet bashkë, ALL-IN-ONE)
 //                          -> faqja e administratorit për kodet e aktivizimit: admin-dist/index.html
 //                             (me çelësin brenda kur admin-key.json është këtu; jashtë dist/ që të mos publikohet me programet)
@@ -17,6 +17,7 @@ const EDITIONS = [
   { id: 'cctv', dir: 'dist/cctv', title: 'AllSolutionTech CAD 2D CCTV' },
   { id: 'network', dir: 'dist/ap', title: 'AllSolutionTech CAD 2D AP' },
   { id: 'fire', dir: 'dist/fire', title: 'AllSolutionTech CAD 2D FIRE' },
+  { id: 'emergency', dir: 'dist/em', title: 'AllSolutionTech CAD 2D EMERGENCY' },
 ];
 EDITIONS.push({ id: 'all', dir: 'dist/all', title: 'AllSolutionTech CAD 2D ALL-IN-ONE' });
 
