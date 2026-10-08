@@ -1,5 +1,5 @@
 import { Store } from './core/store';
-import { SCALES, emptyDoc, isCable, isOpening, isRoom, isSymbol, isWall, type Cable, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
+import { SCALES, emptyDoc, isCable, isOpening, isRoom, isSymbol, isWall, type Cable, type CircuitKind, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
 import { DEFAULT_SILL, DOOR_HEIGHTS, DOOR_WIDTHS, SIZE_LIMITS, WINDOW_HEIGHTS, WINDOW_WIDTHS, openingFrame, openingHeight } from './core/openings';
 import { areaText, findRoom } from './core/rooms';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
@@ -14,7 +14,8 @@ import { CircuitPanel, symbolCenters } from './ui/circuits';
 import { ReportsDialog } from './ui/reports';
 import { cableRunLength } from './core/circuits';
 import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang } from './i18n/strings';
-import { CATEGORIES, allSymbols, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type SymbolDef } from './symbols/library';
+import { syncCableLayers } from './core/systems';
+import { CATEGORIES, LIBRARIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
 import { normAngle } from './symbols/place';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -177,6 +178,7 @@ const circuitPanel = new CircuitPanel(
     scheduleRender();
   },
   (m) => toast(m),
+  () => LIB_KIND[activeLib],
 );
 
 const reports = new ReportsDialog(store, (m, error) => toast(m, error));
@@ -292,7 +294,33 @@ const esc = (s: string) =>
 
 const layerColor = (id: string) => store.layer(id)?.color ?? '#9CC5FF';
 /** Ngjyrat e shtresave janë për fletën e bardhë; në panelin e errët i çelim pak. */
-const TILE_COLORS: Record<string, string> = { prizat: '#7FB0FF', ndricimi: '#FDBA74', pajisje: '#C4B5FD' };
+const TILE_COLORS: Record<string, string> = { prizat: '#7FB0FF', ndricimi: '#FDBA74', pajisje: '#C4B5FD', kamerat: '#67E8F9', rrjeti: '#86EFAC', zjarri: '#FCA5A5' };
+
+/** Libraria e hapur në panelin e majtë; mbahet në shfletues për herën tjetër. */
+const LIB_KEY = 'astcad.library';
+let activeLib: LibraryId = (() => {
+  try {
+    const v = localStorage.getItem(LIB_KEY) as LibraryId | null;
+    return v && LIBRARIES.includes(v) ? v : 'civil';
+  } catch {
+    return 'civil';
+  }
+})();
+
+function setLibrary(lib: LibraryId): void {
+  activeLib = lib;
+  try {
+    localStorage.setItem(LIB_KEY, lib);
+  } catch {
+    /* pa ruajtje në shfletues */
+  }
+  renderLibrary();
+}
+
+document.querySelectorAll<HTMLButtonElement>('[data-lib]').forEach((b) => b.addEventListener('click', () => setLibrary(b.dataset.lib as LibraryId)));
+
+/** Lloji i qarkut të ri sipas librarisë së hapur. */
+const LIB_KIND: Record<LibraryId, CircuitKind> = { civil: 'sockets', cctv: 'cctv', network: 'network', fire: 'fire' };
 
 const searchInput = $<HTMLInputElement>('symbolSearch');
 searchInput.addEventListener('input', renderLibrary);
@@ -302,7 +330,14 @@ function renderLibrary(): void {
   const matches = (d: SymbolDef) =>
     !q || d.code.toLowerCase().includes(q) || [symName(d), ...Object.values(d.names)].some((n) => n.toLowerCase().includes(q));
   const all = allSymbols();
-  const html = CATEGORIES.map((cat) => {
+  document.querySelectorAll<HTMLButtonElement>('[data-lib]').forEach((b) => {
+    const lib = b.dataset.lib as LibraryId;
+    b.setAttribute('aria-pressed', String(lib === activeLib));
+    b.querySelector('.lib-count')!.textContent = String(all.filter((d) => d.category !== 'custom' && categoryLibrary(d.category) === lib).length);
+  });
+  // kërkimi kalon nëpër të gjitha libraritë; simbolet e mia shfaqen gjithmonë
+  const inLib = (cat: CategoryId) => !!q || cat === 'custom' || categoryLibrary(cat) === activeLib;
+  const html = CATEGORIES.filter((cat) => inLib(cat.id)).map((cat) => {
     const defs = all.filter((d) => d.category === cat.id && matches(d));
     if (defs.length === 0) return '';
     const tiles = defs
@@ -675,13 +710,14 @@ function onCircuit(id: string, ids: string[]): void {
   $(id)?.addEventListener('change', (e) => {
     const v = (e.target as HTMLSelectElement).value;
     if (!v) return;
-    store.commit((d) =>
+    store.commit((d) => {
       d.entities.forEach((x) => {
         if (!set.has(x.id) || !(isSymbol(x) || isCable(x))) return;
         if (v === '__none') delete x.circuit;
         else x.circuit = v;
-      }),
-    );
+      });
+      syncCableLayers(d);
+    });
   });
 }
 

@@ -1,7 +1,8 @@
 import type { Store } from '../core/store';
 import { breakerSpec, cableSpec, materialList, usedSymbols, type Materials } from '../core/materials';
-import { getLang, t } from '../i18n/strings';
-import { allSymbols, CATEGORIES, categoryName, symbolName, symbolSvg, type SymbolDef } from '../symbols/library';
+import { getLang, t, type StringKey } from '../i18n/strings';
+import { SYSTEM_KINDS, type SystemKind } from '../core/systems';
+import { allSymbols, CATEGORIES, categoryLibrary, categoryName, symbolName, symbolSvg, type LibraryId, type SymbolDef } from '../symbols/library';
 import { saveData } from '../io/files';
 import { symbolCenters } from './circuits';
 
@@ -66,19 +67,46 @@ const symbolRow = (d: SymbolDef, qty?: number) =>
     qty === undefined ? '' : `<td class="qty">${num(qty)}</td><td class="unit">${esc(t('unitPcs'))}</td>`
   }</tr>`;
 
-/** Rreshtat e listës së materialeve: grupi, kodi, përshkrimi, sasia, njësia. */
-function materialRows(m: Materials): { group: string; code: string; name: string; qty: number; unit: string; def?: SymbolDef }[] {
-  return [
-    ...m.symbols.map((s) => ({ group: t('groupDevices'), code: s.def.code, name: symbolName(s.def), qty: s.qty, unit: t('unitPcs'), def: s.def })),
-    ...m.cables.map((c) => ({
-      group: t('groupCables'),
-      code: cableSpec(c) || '—',
-      name: c.section === null ? t('cableNoCircuit') : t('cableName', { v: cableSpec(c) }),
-      qty: c.qty,
-      unit: 'm',
-    })),
+const SYSTEM_TITLE: Record<SystemKind, StringKey> = { cctv: 'libCctv', network: 'libAp', fire: 'libFire' };
+const LIB_SYSTEM: Partial<Record<LibraryId, SystemKind>> = { cctv: 'cctv', network: 'network', fire: 'fire' };
+
+/**
+ * Rreshtat e listës së materialeve: grupi, kodi, përshkrimi, sasia, njësia.
+ * Instalimi elektrik del i pari; çdo sistem (kamera, rrjet, zjarr) ka grupin e vet.
+ */
+interface MaterialRow {
+  group: string;
+  code: string;
+  name: string;
+  qty: number;
+  unit: string;
+  def?: SymbolDef;
+}
+
+function materialRows(m: Materials): MaterialRow[] {
+  const systemOf = (d: SymbolDef) => LIB_SYSTEM[categoryLibrary(d.category)];
+  const civil = m.symbols.filter((s) => !systemOf(s.def));
+  const rows: MaterialRow[] = [
+    ...civil.map((s) => ({ group: t('groupDevices'), code: s.def.code, name: symbolName(s.def), qty: s.qty, unit: t('unitPcs'), def: s.def })),
+    ...m.cables
+      .filter((c) => !c.system)
+      .map((c) => ({
+        group: t('groupCables'),
+        code: cableSpec(c) || '—',
+        name: c.section === null ? t('cableNoCircuit') : t('cableName', { v: cableSpec(c) }),
+        qty: c.qty,
+        unit: 'm',
+      })),
     ...m.breakers.map((b) => ({ group: t('groupBreakers'), code: breakerSpec(b), name: t('breakerName', { v: breakerSpec(b) }), qty: b.qty, unit: t('unitPcs') })),
   ];
+  for (const sys of SYSTEM_KINDS) {
+    const group = t(SYSTEM_TITLE[sys]);
+    for (const s of m.symbols) if (systemOf(s.def) === sys) rows.push({ group, code: s.def.code, name: symbolName(s.def), qty: s.qty, unit: t('unitPcs'), def: s.def });
+    for (const c of m.cables) if (c.system === sys) rows.push({ group, code: cableSpec(c), name: t('cableName', { v: cableSpec(c) }), qty: c.qty, unit: 'm' });
+    for (const x of m.extras)
+      if (x.system === sys) rows.push({ group, code: x.id === 'rj45' ? 'RJ45' : 'EOL', name: t(x.id === 'rj45' ? 'rj45Name' : 'eolName'), qty: x.qty, unit: t('unitPcs') });
+  }
+  return rows;
 }
 
 export class ReportsDialog {

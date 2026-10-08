@@ -230,6 +230,17 @@ export const STRINGS = {
   kind_lighting: { sq: 'Ndriçim', en: 'Lighting', it: 'Illuminazione', de: 'Beleuchtung' },
   kind_sockets: { sq: 'Priza', en: 'Sockets', it: 'Prese', de: 'Steckdosen' },
   kind_appliance: { sq: 'Pajisje', en: 'Appliance', it: 'Utenza', de: 'Gerät' },
+  kind_cctv: { sq: 'Kamera (CCTV)', en: 'Cameras (CCTV)', it: 'Telecamere (TVCC)', de: 'Kameras (Video)' },
+  kind_network: { sq: 'Rrjet / AP', en: 'Network / AP', it: 'Rete / AP', de: 'Netzwerk / AP' },
+  kind_fire: { sq: 'Zonë zjarri', en: 'Fire zone', it: 'Zona incendio', de: 'Brandmeldelinie' },
+  groupPower: { sq: 'Energji', en: 'Power', it: 'Energia', de: 'Energie' },
+  groupSystems: { sq: 'Sisteme', en: 'Systems', it: 'Sistemi', de: 'Systeme' },
+  devicePower: { sq: 'Fuqia e pajisjeve', en: 'Device power', it: 'Potenza dispositivi', de: 'Geräteleistung' },
+  longestRun: { sq: 'Kablloja më e gjatë', en: 'Longest cable', it: 'Cavo più lungo', de: 'Längstes Kabel' },
+  warnRun: { sq: 'Një kabllo kalon {v} m, gjatësinë maksimale për këtë lloj kablloje.', en: 'A cable is longer than {v} m, the maximum for this cable type.', it: 'Un cavo supera {v} m, la lunghezza massima per questo tipo di cavo.', de: 'Ein Kabel ist länger als {v} m, das Maximum für diesen Kabeltyp.' },
+  warnDevices: { sq: 'Zona ka më shumë se {v} pajisje; ndaje në dy zona.', en: 'The zone has more than {v} devices; split it into two zones.', it: 'La zona ha più di {v} dispositivi; dividila in due zone.', de: 'Die Linie hat mehr als {v} Geräte; teilen Sie sie in zwei Linien auf.' },
+  rj45Name: { sq: 'Konektor RJ45', en: 'RJ45 connector', it: 'Connettore RJ45', de: 'RJ45-Stecker' },
+  eolName: { sq: 'Rezistencë fundi linje (EOL)', en: 'End-of-line resistor (EOL)', it: 'Resistenza di fine linea (EOL)', de: 'Endwiderstand (EOL)' },
   phases: { sq: 'Furnizimi', en: 'Supply', it: 'Alimentazione', de: 'Versorgung' },
   phase1: { sq: 'Njëfazor 230 V', en: 'Single-phase 230 V', it: 'Monofase 230 V', de: 'Einphasig 230 V' },
   phase3: { sq: 'Trefazor 400 V', en: 'Three-phase 400 V', it: 'Trifase 400 V', de: 'Dreiphasig 400 V' },
@@ -320,6 +331,9 @@ export const STRINGS = {
   layer_kabllot: { sq: 'Kabllot', en: 'Cables', it: 'Cavi', de: 'Kabel' },
   layer_kuotat: { sq: 'Kuotat', en: 'Dimensions', it: 'Quote', de: 'Bemaßung' },
   layer_tekstet: { sq: 'Tekstet', en: 'Texts', it: 'Testi', de: 'Texte' },
+  layer_kamerat: { sq: 'Kamerat', en: 'Cameras', it: 'Telecamere', de: 'Kameras' },
+  layer_rrjeti: { sq: 'Rrjeti / AP', en: 'Network / AP', it: 'Rete / AP', de: 'Netzwerk / AP' },
+  layer_zjarri: { sq: 'Zjarri', en: 'Fire alarm', it: 'Rivelazione incendi', de: 'Brandmeldung' },
 } satisfies Dict;
 
 export type StringKey = keyof typeof STRINGS;

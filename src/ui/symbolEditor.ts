@@ -19,7 +19,7 @@ type ShapeTool = 'line' | 'rect' | 'circle' | 'arc' | 'text';
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 /** Shtresat ku mund të shkojë një simbol i ri. */
-const SYMBOL_LAYERS = ['prizat', 'ndricimi', 'pajisje', 'kabllot', 'tekstet'];
+const SYMBOL_LAYERS = ['prizat', 'ndricimi', 'pajisje', 'kamerat', 'rrjeti', 'zjarri', 'kabllot', 'tekstet'];
 const SNAP = 0.5;
 
 /**
