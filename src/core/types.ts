@@ -32,6 +32,35 @@ export interface SymbolEntity {
   height?: number;
   /** Fuqia, W. */
   power?: number;
+  /** Id e qarkut ku është lidhur. */
+  circuit?: string;
+}
+
+/** Kabllo e vizatuar si vijë e thyer; gjatësia i shtohet qarkut të saj. */
+export interface Cable {
+  id: string;
+  kind: 'cable';
+  layer: string;
+  points: Vec[];
+  circuit?: string;
+}
+
+export type CircuitKind = 'lighting' | 'sockets' | 'appliance';
+
+/** Qark elektrik i kuadrit: pikat dhe kabllot i referohen me id. */
+export interface Circuit {
+  id: string;
+  /** Emri i shkurtër në kuadër, p.sh. "Q1". */
+  name: string;
+  /** Përshkrimi, p.sh. "Ndriçim sallon". */
+  label: string;
+  kind: CircuitKind;
+  phases: 1 | 3;
+  color: string;
+  /** Siguresa e zgjedhur me dorë, A; pa të zgjidhet vetë. */
+  breaker?: number;
+  /** Seksioni minimal i zgjedhur me dorë, mm². */
+  section?: number;
 }
 
 /** Derë ose dritare e vendosur në një mur; ndjek murin kur ai lëviz. */
@@ -65,7 +94,7 @@ export interface Room {
   pos: Vec;
 }
 
-export type Entity = Wall | SymbolEntity | Opening | Room;
+export type Entity = Wall | SymbolEntity | Opening | Room | Cable;
 
 export interface Layer {
   id: string;
@@ -85,12 +114,15 @@ export interface Doc {
   entities: Entity[];
   /** Simbolet e vizatuara nga përdoruesi, që udhëtojnë bashkë me projektin. */
   symbols?: CustomSymbol[];
+  /** Qarqet e kuadrit. */
+  circuits?: Circuit[];
 }
 
 export const WALL_LAYER = 'muret';
 export const DIM_LAYER = 'kuotat';
 export const OPENING_LAYER = 'hapjet';
 export const ROOM_LAYER = 'dhomat';
+export const CABLE_LAYER = 'kabllot';
 export const SCALES = [20, 50, 100, 200] as const;
 export const DEFAULT_SCALE = 50;
 
@@ -116,6 +148,7 @@ export const isWall = (e: Entity): e is Wall => e.kind === 'wall';
 export const isSymbol = (e: Entity): e is SymbolEntity => e.kind === 'symbol';
 export const isOpening = (e: Entity): e is Opening => e.kind === 'opening';
 export const isRoom = (e: Entity): e is Room => e.kind === 'room';
+export const isCable = (e: Entity): e is Cable => e.kind === 'cable';
 
 let counter = 0;
 export function newId(prefix = 'e'): string {

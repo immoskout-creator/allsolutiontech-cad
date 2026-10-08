@@ -19,6 +19,11 @@ Program 2D për projektimin e instalimeve elektrike në shtëpi. Vetëm 2D.
 - Vegla **Dhomë** (`M`): kliko brenda një dhome të mbyllur me mure. Programi e gjen konturën vetë dhe llogarit sipërfaqen neto (pa trashësinë e mureve) dhe perimetrin. Kur muret ndryshojnë, m² përditësohen vetë.
 - Paneli "Dhomat" liston çdo dhomë me m² dhe totalin.
 
+## Qarqet dhe kabllot
+Paneli **Qarqet** krijon qarqet e kuadrit (Q1, Q2…), me lloj (ndriçim, priza, pajisje), furnizim njëfazor ose trefazor dhe ngjyrë. Qarku aktiv merr simbolet e reja dhe kabllot e vizatuara me veglën **Kabllo** (K); simbolet ekzistuese lidhen nga vetitë, edhe disa njëherësh.
+- Për çdo qark llogariten fuqia, rryma Ib, siguresa, kablloja (3×1.5, 3×2.5 … ose 5× për trefazorin), gjatësia me zbritjet në mur dhe rënia e tensionit (IEC 60364, bakër PVC në tub, metoda B2; 3% ndriçim, 5% të tjerat). Kablloja trashet vetë kur rënia del mbi kufi.
+- **Tabela** jep listën e plotë të qarqeve dhe e eksporton në CSV për Excel.
+
 ## Simbolet e mia
 Butoni **Simbol i ri** te libraria hap redaktorin: vizaton me vija, drejtkëndësha, rrathë (bosh ose të mbushur), harqe dhe tekst, mbi një rrjetë ku shihet edhe muri. I jep kodin (p.sh. AST-U-01), emrin, shtresën, vendosjen (në mur ose e lirë), lartësinë dhe fuqinë.
 - Simbolet ruhen brenda projektit dhe dalin te "Simbolet e mia"; lapsi mbi pllakë i ndryshon.
