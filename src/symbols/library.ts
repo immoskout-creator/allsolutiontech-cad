@@ -52,7 +52,7 @@ export interface SymbolDef {
   sign?: { size: number };
 }
 
-export type CategoryId = 'custom' | 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'sensore' | 'komunikim' | 'industri' | 'cctv' | 'rrjet' | 'zjarr' | 'emergjence';
+export type CategoryId = 'custom' | 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'mbrojtje' | 'komandim' | 'matje' | 'sinjalizim' | 'sensore' | 'komunikim' | 'industri' | 'cctv' | 'rrjet' | 'zjarr' | 'emergjence';
 
 /** Libraritë që zgjidhen veç e veç në panelin e majtë. */
 export type LibraryId = 'civil' | 'cctv' | 'network' | 'fire' | 'emergency';
@@ -64,6 +64,10 @@ export const CATEGORIES: { id: CategoryId; lib?: LibraryId; names: Names }[] = [
   { id: 'celesa', names: { sq: 'Çelësa', en: 'Switches', it: 'Interruttori', de: 'Schalter' } },
   { id: 'ndricim', names: { sq: 'Ndriçim', en: 'Lighting', it: 'Illuminazione', de: 'Beleuchtung' } },
   { id: 'pajisje', names: { sq: 'Kuadro dhe pajisje', en: 'Panels and appliances', it: 'Quadri e apparecchi', de: 'Verteiler und Geräte' } },
+  { id: 'mbrojtje', names: { sq: 'Aparate mbrojtëse', en: 'Protective devices', it: 'Dispositivi di protezione', de: 'Schutzgeräte' } },
+  { id: 'komandim', names: { sq: 'Rele dhe kontaktorë', en: 'Relays and contactors', it: 'Relè e contattori', de: 'Relais und Schütze' } },
+  { id: 'matje', names: { sq: 'Matës dhe instrumente', en: 'Meters and instruments', it: 'Contatori e strumenti', de: 'Zähler und Messgeräte' } },
+  { id: 'sinjalizim', names: { sq: 'Sinjalizim dhe alarm', en: 'Signalling and alarms', it: 'Segnalazione e allarmi', de: 'Meldung und Alarm' } },
   { id: 'sensore', names: { sq: 'Sensorë dhe automatizim', en: 'Sensors and automation', it: 'Sensori e automazione', de: 'Sensoren und Automation' } },
   { id: 'komunikim', names: { sq: 'TV dhe komunikim', en: 'TV and communication', it: 'TV e comunicazione', de: 'TV und Kommunikation' } },
   { id: 'industri', names: { sq: 'Industriale', en: 'Industrial', it: 'Industriale', de: 'Industrie' } },
@@ -72,6 +76,11 @@ export const CATEGORIES: { id: CategoryId; lib?: LibraryId; names: Names }[] = [
   { id: 'zjarr', lib: 'fire', names: { sq: 'Sinjalizim zjarri', en: 'Fire alarm', it: 'Rivelazione incendi', de: 'Brandmeldeanlage' } },
   { id: 'emergjence', lib: 'emergency', names: { sq: 'Ndriçim emergjence', en: 'Emergency lighting', it: 'Illuminazione di emergenza', de: 'Notbeleuchtung' } },
 ];
+
+/** Tensioni i pajisjes elektrike: trefazoret janë 400 V, të tjerat 230 V. */
+export type Volt = 230 | 400;
+export const VOLTS: Volt[] = [230, 400];
+export const symbolVolt = (d: SymbolDef): Volt => (d.phases === 3 ? 400 : 230);
 
 /** Libraria e kategorisë: kategoritë pa `lib` janë të instalimit civil. */
 export const categoryLibrary = (id: CategoryId): LibraryId => CATEGORIES.find((c) => c.id === id)?.lib ?? 'civil';
@@ -193,7 +202,7 @@ export const SYMBOLS: SymbolDef[] = [
     parts: [{ d: 'M0 0 V8' }, { d: `${SOCKET_ARC} Z`, fill: true }, EARTH],
   },
   {
-    id: 'pr-trefazore', code: 'AST-PR-05', category: 'priza', layer: 'prizat', mount: 'wall', height: 110,
+    id: 'pr-trefazore', code: 'AST-PR-05', category: 'priza', layer: 'prizat', mount: 'wall', height: 110, phases: 3,
     names: { sq: 'Prizë trefazore 400V', en: 'Three-phase socket 400V', it: 'Presa trifase 400V', de: 'Drehstromsteckdose 400V' },
     parts: [{ d: 'M-5 0 V9.5 M0 0 V8 M5 0 V9.5' }, { d: SOCKET_ARC }, { d: 'M-8 4 H8' }],
   },
@@ -231,7 +240,7 @@ export const SYMBOLS: SymbolDef[] = [
   },
   {
     id: 'cl-buton', code: 'AST-CL-05', category: 'celesa', layer: 'ndricimi', mount: 'wall', height: 110,
-    names: { sq: 'Buton (zile, shkallë)', en: 'Push button', it: 'Pulsante', de: 'Taster' },
+    names: { sq: 'Çelës pulsant (zile, shkallë, teleruptor)', en: 'Push-button switch', it: 'Pulsante', de: 'Taster' },
     parts: [{ d: 'M0 0 V5' }, { d: circle(0, 11, 6) }, { d: circle(0, 11, 2.2), fill: true }],
   },
   {
@@ -386,7 +395,7 @@ export const SYMBOLS: SymbolDef[] = [
   },
   {
     id: 'cl-buton-drite', code: 'AST-CL-14', category: 'celesa', layer: 'ndricimi', mount: 'wall', height: 110,
-    names: { sq: 'Buton me dritë', en: 'Illuminated push button', it: 'Pulsante luminoso', de: 'Leuchttaster' },
+    names: { sq: 'Çelës pulsant me dritë', en: 'Illuminated push-button switch', it: 'Pulsante luminoso', de: 'Leuchttaster' },
     parts: [{ d: 'M0 0 V5' }, { d: circle(0, 11, 6) }, CROSS(0, 11, 4.2)],
   },
 
@@ -752,7 +761,7 @@ export const SYMBOLS: SymbolDef[] = [
     parts: [{ d: 'M0 0 V3' }, { d: rect(-9, 3, 9, 19) }, { d: circle(0, 11, 5) }, { d: 'M-3.5 14.5 L3.5 7.5' }],
   },
   {
-    id: 'in-kuadri3f', code: 'AST-IN-07', category: 'industri', layer: 'pajisje', mount: 'wall', height: 160,
+    id: 'in-kuadri3f', code: 'AST-IN-07', category: 'industri', layer: 'pajisje', mount: 'wall', height: 160, phases: 3,
     names: { sq: 'Kuadër trefazor 400 V', en: 'Three-phase distribution board 400 V', it: 'Quadro trifase 400 V', de: 'Drehstromverteiler 400 V' },
     parts: [{ d: rect(-18, 0, 18, 16) }, { d: 'M-18 16 L18 0 L18 16 Z', fill: true }, { d: strokeText('3~', -9, 5, 5) }],
   },
@@ -765,6 +774,244 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'in-linear', code: 'AST-IN-09', category: 'industri', layer: 'ndricimi', mount: 'center', power: 50,
     names: { sq: 'Ndriçues linear industrial IP65', en: 'Industrial linear luminaire IP65', it: 'Plafoniera lineare industriale IP65', de: 'Feuchtraum-Wannenleuchte IP65' },
     parts: [{ d: rect(-18, -5, 18, 5) }, { d: 'M-18 0 H18' }, { d: 'M-12 -5 V5 M12 -5 V5' }],
+  },
+
+  // ---- Çelësa pulsantë dhe me çelës ----
+  {
+    id: 'cl-pulsant-dyfishe', code: 'AST-CL-15', category: 'celesa', layer: 'ndricimi', mount: 'wall', height: 110,
+    names: { sq: 'Çelës pulsant i dyfishtë', en: 'Double push-button switch', it: 'Pulsante doppio', de: 'Doppeltaster' },
+    parts: [{ d: 'M0 0 V4 M-6 6 V4 H6 V6' }, { d: `${circle(-6, 11, 5)} ${circle(6, 11, 5)}` }, { d: `${circle(-6, 11, 1.8)} ${circle(6, 11, 1.8)}`, fill: true }],
+  },
+  {
+    id: 'cl-pulsant-ip44', code: 'AST-CL-16', category: 'celesa', layer: 'ndricimi', mount: 'wall', height: 110,
+    names: { sq: 'Çelës pulsant IP44 (banjo, jashtë)', en: 'Push-button switch IP44 (wet areas)', it: 'Pulsante IP44', de: 'Feuchtraumtaster IP44' },
+    parts: [{ d: 'M0 0 V5' }, { d: circle(0, 11, 6) }, { d: circle(0, 11, 2.2), fill: true }, { d: strokeText('IP', -12, 20, 5) }],
+  },
+  {
+    id: 'cl-celes-kyc', code: 'AST-CL-17', category: 'celesa', layer: 'ndricimi', mount: 'wall', height: 110,
+    names: { sq: 'Çelës me kyç', en: 'Key-operated switch', it: 'Interruttore a chiave', de: 'Schlüsselschalter' },
+    parts: [SWITCH_DOT, SWITCH_BLADE, { d: `${circle(-10, 17, 2.5)} M-7.5 17 H-3 M-4.5 17 V19` }],
+  },
+
+  // ---- Pajisje (230 V / 400 V) ----
+  {
+    id: 'pj-ups', code: 'AST-PJ-20', category: 'pajisje', layer: 'pajisje', mount: 'wall', height: 30, power: 1000,
+    names: { sq: 'UPS (furnizim i pandërprerë)', en: 'UPS (uninterruptible power supply)', it: 'Gruppo di continuità (UPS)', de: 'USV (unterbrechungsfreie Stromversorgung)' },
+    parts: APPLIANCE([{ d: strokeText('UPS', 0, 13, 5.5) }]),
+  },
+  {
+    id: 'pj-ev22', code: 'AST-PJ-21', category: 'pajisje', layer: 'pajisje', mount: 'wall', height: 120, power: 22000, phases: 3,
+    names: { sq: 'Karikues makine elektrike 22 kW 400 V', en: 'EV charger 22 kW 400 V', it: 'Wallbox ricarica auto 22 kW 400 V', de: 'Wallbox 22 kW 400 V' },
+    parts: [...APPLIANCE([{ d: 'M1.5 5.5 L-4 14 H0.5 L-1.5 20.5 L4.5 11 H0 Z', fill: true }]), { d: strokeText('3~', 16, 21, 4) }],
+  },
+  {
+    id: 'pj-pompe-nxehtesie', code: 'AST-PJ-22', category: 'pajisje', layer: 'pajisje', mount: 'wall', height: 30, power: 8000, phases: 3,
+    names: { sq: 'Pompë nxehtësie 400 V', en: 'Heat pump 400 V', it: 'Pompa di calore 400 V', de: 'Wärmepumpe 400 V' },
+    parts: [...APPLIANCE([{ d: circle(0, 13, 7) }, { d: 'M0 13 Q4 9 0 6.5 M0 13 Q-4 17 0 19.5 M0 13 Q4 17 6.5 13 M0 13 Q-4 9 -6.5 13' }]), { d: strokeText('3~', 16, 21, 4) }],
+  },
+  {
+    id: 'pj-sobe3', code: 'AST-PJ-23', category: 'pajisje', layer: 'pajisje', mount: 'center', power: 7500, phases: 3,
+    names: { sq: 'Sobë elektrike trefazore 400 V', en: 'Three-phase electric cooker 400 V', it: 'Piano cottura trifase 400 V', de: 'Elektroherd Drehstrom 400 V' },
+    parts: [
+      { d: 'M-12 -12 H12 V12 H-12 Z' },
+      { d: `${circle(-5.5, -5.5, 3.5)} ${circle(5.5, -5.5, 3.5)} ${circle(-5.5, 5.5, 3.5)} ${circle(5.5, 5.5, 3.5)}` },
+      { d: strokeText('3~', 16, -9, 4) },
+    ],
+  },
+
+  // ---- Aparate mbrojtëse (IEC 60617) ----
+  {
+    id: 'mb-automat', code: 'AST-MB-01', category: 'mbrojtje', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Automat (MCB) 1P+N 230 V', en: 'Circuit breaker (MCB) 1P+N 230 V', it: 'Interruttore magnetotermico 1P+N 230 V', de: 'Leitungsschutzschalter 1P+N 230 V' },
+    parts: [{ d: 'M0 -13 V-5 M0 6 L-6 -4 M0 6 V13' }, CROSS(0, -5, 2)],
+  },
+  {
+    id: 'mb-automat3', code: 'AST-MB-02', category: 'mbrojtje', layer: 'pajisje', mount: 'center', phases: 3,
+    names: { sq: 'Automat (MCB) 3P+N 400 V', en: 'Circuit breaker (MCB) 3P+N 400 V', it: 'Interruttore magnetotermico 3P+N 400 V', de: 'Leitungsschutzschalter 3P+N 400 V' },
+    parts: [{ d: 'M0 -13 V-5 M0 6 L-6 -4 M0 6 V13 M-3 11 L3 8.5' }, CROSS(0, -5, 2), { d: strokeText('3~', 9, 8, 4.5) }],
+  },
+  {
+    id: 'mb-rcd', code: 'AST-MB-03', category: 'mbrojtje', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Diferencial (RCD) 2P 30 mA 230 V', en: 'Residual current device (RCD) 2P 30 mA 230 V', it: 'Interruttore differenziale 2P 30 mA 230 V', de: 'FI-Schutzschalter 2P 30 mA 230 V' },
+    parts: [{ d: 'M0 -13 V-5 M-2 -5 H2 M0 6 L-6 -4 M0 6 V13' }, { d: `${circle(0, 9.5, 2.8)} M-2.8 9.5 H-9 V0 L-4.5 0` }],
+  },
+  {
+    id: 'mb-rcd4', code: 'AST-MB-04', category: 'mbrojtje', layer: 'pajisje', mount: 'center', phases: 3,
+    names: { sq: 'Diferencial (RCD) 4P 400 V', en: 'Residual current device (RCD) 4P 400 V', it: 'Interruttore differenziale 4P 400 V', de: 'FI-Schutzschalter 4P 400 V' },
+    parts: [{ d: 'M0 -13 V-5 M-2 -5 H2 M0 6 L-6 -4 M0 6 V13' }, { d: `${circle(0, 9.5, 2.8)} M-2.8 9.5 H-9 V0 L-4.5 0` }, { d: strokeText('3~', 9, -8, 4.5) }],
+  },
+  {
+    id: 'mb-rcbo', code: 'AST-MB-05', category: 'mbrojtje', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Automat diferencial (RCBO) 1P+N', en: 'RCBO 1P+N', it: 'Magnetotermico differenziale 1P+N', de: 'FI/LS-Schalter 1P+N' },
+    parts: [{ d: 'M0 -13 V-5 M0 6 L-6 -4 M0 6 V13' }, CROSS(0, -5, 2), { d: `${circle(0, 9.5, 2.8)} M-2.8 9.5 H-9 V0 L-4.5 0` }],
+  },
+  {
+    id: 'mb-siguresa', code: 'AST-MB-06', category: 'mbrojtje', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Siguresë', en: 'Fuse', it: 'Fusibile', de: 'Sicherung' },
+    parts: [{ d: rect(-3.5, -9, 3.5, 9) }, { d: 'M0 -13 V13' }],
+  },
+  {
+    id: 'mb-siguresa3', code: 'AST-MB-07', category: 'mbrojtje', layer: 'pajisje', mount: 'center', phases: 3,
+    names: { sq: 'Siguresa trefazore (NH) 400 V', en: 'Three-phase fuses (NH) 400 V', it: 'Fusibili trifase (NH) 400 V', de: 'NH-Sicherungen dreipolig 400 V' },
+    parts: [{ d: `${rect(-11, -8, -5, 8)} ${rect(-3, -8, 3, 8)} ${rect(5, -8, 11, 8)}` }, { d: 'M-8 -12 V12 M0 -12 V12 M8 -12 V12' }],
+  },
+  {
+    id: 'mb-spd', code: 'AST-MB-08', category: 'mbrojtje', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Mbrojtëse nga mbitensioni (SPD)', en: 'Surge protective device (SPD)', it: 'Scaricatore di sovratensione (SPD)', de: 'Überspannungsschutz (SPD)' },
+    parts: [{ d: rect(-5, -8, 5, 7) }, { d: 'M0 -13 V-8 M0 7 V10 M-6 10 H6 M-3.5 12 H3.5 M-1.2 14 H1.2' }, { d: 'M-7 4 H-3.5 L3.5 -5' }],
+  },
+  {
+    id: 'mb-sezionator', code: 'AST-MB-09', category: 'mbrojtje', layer: 'pajisje', mount: 'center', phases: 3,
+    names: { sq: 'Sezionator kryesor 4P 400 V', en: 'Main switch-disconnector 4P 400 V', it: 'Sezionatore generale 4P 400 V', de: 'Hauptschalter 4P 400 V' },
+    parts: [{ d: 'M0 -13 V-5 M-3 -5 H3 M0 6 L-6 -4 M0 6 V13' }, { d: strokeText('3~', 9, 8, 4.5) }],
+  },
+
+  // ---- Rele dhe kontaktorë (IEC 60617) ----
+  {
+    id: 'kd-teleruptor', code: 'AST-KD-01', category: 'komandim', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Rele impulsi (teleruptor)', en: 'Impulse relay', it: 'Relè passo-passo (teleruttore)', de: 'Stromstoßschalter' },
+    parts: [{ d: rect(-9, -6, 9, 6) }, { d: 'M0 -12 V-6 M0 6 V12' }, { d: 'M-6 3 H-2 V-3 H2 V3 H6' }],
+  },
+  {
+    id: 'kd-kontaktor', code: 'AST-KD-02', category: 'komandim', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Kontaktor 230 V', en: 'Contactor 230 V', it: 'Contattore 230 V', de: 'Schütz 230 V' },
+    parts: [{ d: rect(-9, -6, 9, 6) }, { d: 'M0 -12 V-6 M0 6 V12' }, { d: strokeText('KM', 0, 0, 5) }],
+  },
+  {
+    id: 'kd-kontaktor3', code: 'AST-KD-03', category: 'komandim', layer: 'pajisje', mount: 'center', phases: 3,
+    names: { sq: 'Kontaktor trefazor 400 V', en: 'Three-phase contactor 400 V', it: 'Contattore trifase 400 V', de: 'Leistungsschütz 400 V' },
+    parts: [{ d: rect(-9, -6, 9, 6) }, { d: 'M0 -12 V-6 M0 6 V12' }, { d: strokeText('KM', 0, 0, 5) }, { d: strokeText('3~', 13, -10, 4) }],
+  },
+  {
+    id: 'kd-rele', code: 'AST-KD-04', category: 'komandim', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Rele ndihmës', en: 'Auxiliary relay', it: 'Relè ausiliario', de: 'Hilfsrelais' },
+    parts: [{ d: rect(-9, -6, 9, 6) }, { d: 'M0 -12 V-6 M0 6 V12' }, { d: strokeText('K', 0, 0, 5) }],
+  },
+  {
+    id: 'kd-kohe', code: 'AST-KD-05', category: 'komandim', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Rele kohe', en: 'Timer relay', it: 'Relè temporizzato', de: 'Zeitrelais' },
+    parts: [{ d: rect(-9, -6, 9, 6) }, { d: 'M0 -12 V-6 M0 6 V12' }, { d: strokeText('KT', 0, 0, 5) }],
+  },
+  {
+    id: 'kd-termik', code: 'AST-KD-06', category: 'komandim', layer: 'pajisje', mount: 'center', phases: 3,
+    names: { sq: 'Rele termik 400 V', en: 'Thermal overload relay 400 V', it: 'Relè termico 400 V', de: 'Motorschutzrelais 400 V' },
+    parts: [{ d: rect(-9, -6, 9, 6) }, { d: 'M0 -12 V-6 M0 6 V12' }, { d: 'M-6 1.5 H-2.5 V-2.5 H2.5 V1.5 H6' }, { d: strokeText('3~', 13, -10, 4) }],
+  },
+  {
+    id: 'kd-salvamotor', code: 'AST-KD-07', category: 'komandim', layer: 'pajisje', mount: 'center', phases: 3,
+    names: { sq: 'Salvamotor (mbrojtje motori) 400 V', en: 'Motor protection breaker 400 V', it: 'Salvamotore 400 V', de: 'Motorschutzschalter 400 V' },
+    parts: [{ d: rect(-10, -10, 10, 10) }, { d: strokeText('QM', 0, -3, 5) }, { d: strokeText('3~', 0, 4.5, 4) }],
+  },
+  {
+    id: 'kd-yll-trekendesh', code: 'AST-KD-08', category: 'komandim', layer: 'pajisje', mount: 'center', phases: 3,
+    names: { sq: 'Ndezës yll-trekëndësh 400 V', en: 'Star-delta starter 400 V', it: 'Avviatore stella-triangolo 400 V', de: 'Stern-Dreieck-Anlauf 400 V' },
+    parts: [{ d: rect(-11, -9, 11, 9) }, { d: strokeText('Y', -4.5, 0, 7) }, { d: 'M1.5 3.5 L5 -3.5 L8.5 3.5 Z' }],
+  },
+  {
+    id: 'kd-stop', code: 'AST-KD-09', category: 'komandim', layer: 'pajisje', mount: 'wall', height: 120,
+    names: { sq: 'Buton ndalimi emergjent', en: 'Emergency stop button', it: 'Pulsante di arresto di emergenza', de: 'Not-Halt-Taster' },
+    parts: [{ d: 'M0 0 V4' }, { d: rect(-9, 4, 9, 22) }, { d: 'M-7 16 A7 7 0 0 1 7 16 Z', fill: true }, { d: 'M0 16 V20' }],
+  },
+  {
+    id: 'kd-programues', code: 'AST-KD-10', category: 'komandim', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Programues ore (orar)', en: 'Time switch', it: 'Interruttore orario', de: 'Zeitschaltuhr' },
+    parts: [{ d: rect(-10, -10, 10, 10) }, { d: circle(0, 0, 6.5) }, { d: 'M0 0 V-4.5 M0 0 L3.5 2' }],
+  },
+  {
+    id: 'kd-ats', code: 'AST-KD-11', category: 'komandim', layer: 'pajisje', mount: 'wall', height: 160, phases: 3,
+    names: { sq: 'Ndërrues automatik rrjet-gjenerator (ATS) 400 V', en: 'Automatic transfer switch (ATS) 400 V', it: 'Commutatore automatico rete-gruppo (ATS) 400 V', de: 'Netzumschalter (ATS) 400 V' },
+    parts: [{ d: rect(-13, 0, 13, 16) }, { d: strokeText('ATS', 0, 6, 5.5) }, { d: strokeText('3~', 0, 12.5, 4) }],
+  },
+
+  // ---- Matës dhe instrumente ----
+  {
+    id: 'mt-matesi3', code: 'AST-MT-01', category: 'matje', layer: 'pajisje', mount: 'wall', height: 160, phases: 3,
+    names: { sq: 'Matës energjie trefazor 400 V', en: 'Three-phase electricity meter 400 V', it: 'Contatore trifase 400 V', de: 'Drehstromzähler 400 V' },
+    parts: [{ d: rect(-12, 0, 12, 18) }, { d: strokeText('WH', 0, 6.5, 5) }, { d: strokeText('3~', 0, 13.5, 4) }],
+  },
+  {
+    id: 'mt-ampermeter', code: 'AST-MT-02', category: 'matje', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Ampermetër', en: 'Ammeter', it: 'Amperometro', de: 'Amperemeter' },
+    parts: [{ d: circle(0, 0, 9) }, { d: strokeText('A', 0, 0, 8) }],
+  },
+  {
+    id: 'mt-voltmeter', code: 'AST-MT-03', category: 'matje', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Voltmetër', en: 'Voltmeter', it: 'Voltmetro', de: 'Voltmeter' },
+    parts: [{ d: circle(0, 0, 9) }, { d: strokeText('V', 0, 0, 8) }],
+  },
+  {
+    id: 'mt-analizator', code: 'AST-MT-04', category: 'matje', layer: 'pajisje', mount: 'center', phases: 3,
+    names: { sq: 'Analizator rrjeti 400 V', en: 'Power analyser 400 V', it: 'Analizzatore di rete 400 V', de: 'Netzanalysator 400 V' },
+    parts: [{ d: rect(-12, -9, 12, 9) }, { d: strokeText('PM', 0, -2.5, 5) }, { d: strokeText('3~', 0, 4.5, 4) }],
+  },
+  {
+    id: 'mt-ct', code: 'AST-MT-05', category: 'matje', layer: 'pajisje', mount: 'center',
+    names: { sq: 'Transformator rryme (CT)', en: 'Current transformer (CT)', it: 'Trasformatore amperometrico (TA)', de: 'Stromwandler' },
+    parts: [{ d: 'M0 -13 V13' }, { d: circle(0, 0, 5) }, { d: 'M5 -2 H10 M5 2 H10' }],
+  },
+
+  // ---- Sinjalizim dhe alarm ----
+  {
+    id: 'sg-llambe', code: 'AST-SG-01', category: 'sinjalizim', layer: 'pajisje', mount: 'center', power: 1,
+    names: { sq: 'Llambë sinjalizimi', en: 'Indicator lamp', it: 'Lampada di segnalazione', de: 'Meldeleuchte' },
+    parts: [{ d: circle(0, 0, 6) }, CROSS(0, 0, 4.2), { d: 'M-11 0 H-6 M6 0 H11' }],
+  },
+  {
+    id: 'sg-bilbil', code: 'AST-SG-02', category: 'sinjalizim', layer: 'pajisje', mount: 'center', power: 2,
+    names: { sq: 'Bilbil (buzzer)', en: 'Buzzer', it: 'Ronzatore (buzzer)', de: 'Summer' },
+    parts: [{ d: 'M-8 -4 A8 8 0 0 0 8 -4 Z' }, { d: 'M-4 -4 V-10 M4 -4 V-10' }],
+  },
+  {
+    id: 'sg-bori', code: 'AST-SG-03', category: 'sinjalizim', layer: 'pajisje', mount: 'wall', height: 250, power: 10,
+    names: { sq: 'Bori (sirenë)', en: 'Horn', it: 'Avvisatore acustico (tromba)', de: 'Hupe' },
+    parts: [{ d: 'M0 0 V4' }, { d: 'M-4 4 H4 V9 L10 20 H-10 L-4 9 Z' }],
+  },
+  {
+    id: 'sg-sos', code: 'AST-SG-04', category: 'sinjalizim', layer: 'pajisje', mount: 'wall', height: 100,
+    names: { sq: 'Thirrje ndihme SOS (tualet për persona me aftësi të kufizuara)', en: 'SOS call point (accessible toilet)', it: 'Chiamata di soccorso SOS (bagno disabili)', de: 'Notruf SOS (barrierefreies WC)' },
+    parts: [{ d: 'M0 0 V4' }, { d: rect(-12, 4, 12, 18) }, { d: strokeText('SOS', 0, 11, 5.5) }],
+  },
+  {
+    id: 'sg-fener', code: 'AST-SG-05', category: 'sinjalizim', layer: 'pajisje', mount: 'center', power: 5,
+    names: { sq: 'Fener paralajmërues (rrotullues)', en: 'Warning beacon', it: 'Lampeggiante rotante', de: 'Rundumleuchte' },
+    parts: [{ d: circle(0, 0, 5.5), fill: true }, { d: 'M0 -8 V-12 M0 8 V12 M-8 0 H-12 M8 0 H12 M-5.7 -5.7 L-8.5 -8.5 M5.7 -5.7 L8.5 -8.5 M-5.7 5.7 L-8.5 8.5 M5.7 5.7 L8.5 8.5' }],
+  },
+
+  // ---- Industriale (plotësim, 400 V) ----
+  {
+    id: 'in-cee125', code: 'AST-IN-10', category: 'industri', layer: 'prizat', mount: 'wall', height: 110, power: 32000, phases: 3,
+    names: { sq: 'Prizë CEE 125 A 400 V (5P)', en: 'CEE socket 125 A 400 V (5P)', it: 'Presa CEE 125 A 400 V (5P)', de: 'CEE-Steckdose 125 A 400 V (5P)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-10, 3, 10, 21) }, { d: strokeText('125', 0, 8, 4.5) }, { d: strokeText('3~', 0, 16, 5) }],
+  },
+  {
+    id: 'in-ashensor', code: 'AST-IN-11', category: 'industri', layer: 'pajisje', mount: 'center', power: 7500, phases: 3,
+    names: { sq: 'Ashensor 400 V', en: 'Lift 400 V', it: 'Ascensore 400 V', de: 'Aufzug 400 V' },
+    parts: [{ d: rect(-12, -12, 12, 12) }, { d: 'M-12 -12 L12 12 M12 -12 L-12 12' }, { d: 'M-4 -6 L0 -9.5 L4 -6 M-4 6 L0 9.5 L4 6' }],
+  },
+  {
+    id: 'in-kompresor', code: 'AST-IN-12', category: 'industri', layer: 'pajisje', mount: 'center', power: 4000, phases: 3,
+    names: { sq: 'Kompresor 400 V', en: 'Compressor 400 V', it: 'Compressore 400 V', de: 'Kompressor 400 V' },
+    parts: [{ d: circle(0, 0, 10) }, { d: 'M-8.7 -5 L8 -2.5 M-8.7 5 L8 2.5' }, { d: strokeText('3~', 14, -11, 4) }],
+  },
+  {
+    id: 'in-ventilator', code: 'AST-IN-13', category: 'industri', layer: 'pajisje', mount: 'center', power: 3000, phases: 3,
+    names: { sq: 'Ventilator industrial 400 V', en: 'Industrial fan 400 V', it: 'Ventilatore industriale 400 V', de: 'Industrieventilator 400 V' },
+    parts: [{ d: circle(0, 0, 10) }, { d: 'M0 0 Q4 -5 0 -7.5 M0 0 Q-4 5 0 7.5 M0 0 Q5 4 7.5 0 M0 0 Q-5 -4 -7.5 0' }, { d: strokeText('3~', 14, -11, 4) }],
+  },
+  {
+    id: 'in-gjenerator', code: 'AST-IN-14', category: 'industri', layer: 'pajisje', mount: 'center', phases: 3,
+    names: { sq: 'Gjenerator 400 V', en: 'Generator 400 V', it: 'Gruppo elettrogeno 400 V', de: 'Stromaggregat 400 V' },
+    parts: [{ d: circle(0, 0, 11) }, { d: strokeText('G', 0, -3, 6) }, { d: strokeText('3~', 0, 5, 4.5) }],
+  },
+  {
+    id: 'in-transformator', code: 'AST-IN-15', category: 'industri', layer: 'pajisje', mount: 'center', phases: 3,
+    names: { sq: 'Transformator 400/230 V', en: 'Transformer 400/230 V', it: 'Trasformatore 400/230 V', de: 'Transformator 400/230 V' },
+    parts: [{ d: `${circle(0, -4.5, 7)} ${circle(0, 4.5, 7)}` }, { d: 'M0 -11.5 V-14 M0 11.5 V14' }],
+  },
+  {
+    id: 'in-kondensator', code: 'AST-IN-16', category: 'industri', layer: 'pajisje', mount: 'wall', height: 160, phases: 3,
+    names: { sq: 'Bateri kondensatorësh (rifazim) 400 V', en: 'Power factor correction capacitors 400 V', it: 'Batteria di rifasamento 400 V', de: 'Blindstromkompensation 400 V' },
+    parts: [{ d: rect(-12, 0, 12, 18) }, { d: 'M-4 3 V8 M-9 8 H1 M-9 10.5 H1 M-4 10.5 V15' }, { d: strokeText('3~', 6.5, 9, 4) }],
   },
 
   // ---- Ndriçim emergjence (EN 1838) ----

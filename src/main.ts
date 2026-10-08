@@ -22,7 +22,7 @@ import { DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, ca
 import { EDITION, editionLibs, productName } from './edition';
 import { startLicenseGate } from './license/gate';
 import { lic } from './license/strings';
-import { CATEGORIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
+import { CATEGORIES, VOLTS, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, symbolVolt, type CategoryId, type LibraryId, type SymbolDef, type Volt } from './symbols/library';
 import { normAngle } from './symbols/place';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -330,6 +330,31 @@ $('libList').addEventListener('click', (e) => {
   renderLibrary();
 });
 
+/** Elektrika ndahet në 230 V dhe 400 V: secila ndizet/fiket veç, të paktën njëra mbetet e ndezur. */
+const VOLT_KEY = 'astcad.volts';
+let volts = new Set<Volt>(VOLTS);
+try {
+  const saved = (JSON.parse(localStorage.getItem(VOLT_KEY) ?? 'null') as Volt[] | null)?.filter((v) => VOLTS.includes(v));
+  if (saved?.length) volts = new Set(saved);
+} catch {
+  // pa ruajtje në shfletues: të dyja të ndezura
+}
+$('voltBar').addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-volt]');
+  if (!btn) return;
+  const v = Number(btn.dataset.volt) as Volt;
+  if (!volts.has(v)) volts.add(v);
+  else if (volts.size > 1) volts.delete(v);
+  // fikja e të vetmes së ndezur kalon te tjetra
+  else volts = new Set(VOLTS.filter((x) => x !== v));
+  try {
+    localStorage.setItem(VOLT_KEY, JSON.stringify([...volts]));
+  } catch {
+    // s'ka gjë, zgjedhja vlen deri në mbyllje
+  }
+  renderLibrary();
+});
+
 function renderLibrary(): void {
   const q = searchInput.value.trim().toLowerCase();
   const matches = (d: SymbolDef) =>
@@ -348,9 +373,14 @@ function renderLibrary(): void {
     later.map((k) => `<li class="lib"><span>${esc(t(k))}</span><small>${esc(t('later'))}</small></li>`).join('');
   // simbolet e mia shfaqen në çdo program
   const shown = libFilter ? [libFilter] : libs;
-  const inLib = (cat: CategoryId) => cat === 'custom' || shown.includes(categoryLibrary(cat));
-  const html = CATEGORIES.filter((cat) => inLib(cat.id)).map((cat) => {
-    const defs = all.filter((d) => d.category === cat.id && matches(d));
+  const civil = shown.includes('civil');
+  const bar = $('voltBar');
+  bar.hidden = !civil;
+  bar.innerHTML = VOLTS.map(
+    (v) => `<button class="chip" type="button" data-volt="${v}" aria-pressed="${volts.has(v)}" title="${esc(t(v === 230 ? 'phase1' : 'phase3'))}">${v} V</button>`,
+  ).join('');
+  const section = (cat: (typeof CATEGORIES)[number], volt?: Volt) => {
+    const defs = all.filter((d) => d.category === cat.id && matches(d) && (volt === undefined || symbolVolt(d) === volt));
     if (defs.length === 0) return '';
     const tiles = defs
       .map((d) => {
@@ -363,7 +393,20 @@ function renderLibrary(): void {
       })
       .join('');
     return `<section><h3 class="sym-cat">${esc(categoryName(cat))}</h3><div class="tiles">${tiles}</div></section>`;
-  }).join('');
+  };
+  const isCivil = (cat: CategoryId) => cat !== 'custom' && categoryLibrary(cat) === 'civil';
+  // elektrika: së pari grupi 230 V, pastaj 400 V, secili me kategoritë e veta
+  const civilHtml = civil
+    ? VOLTS.filter((v) => volts.has(v))
+        .map((v) => {
+          const body = CATEGORIES.filter((cat) => isCivil(cat.id)).map((cat) => section(cat, v)).join('');
+          return body && `<div class="volt-group"><h3 class="volt-head">${esc(t(v === 230 ? 'phase1' : 'phase3'))}</h3>${body}</div>`;
+        })
+        .join('')
+    : '';
+  const mine = CATEGORIES.filter((cat) => cat.id === 'custom').map((cat) => section(cat)).join('');
+  const others = CATEGORIES.filter((cat) => cat.id !== 'custom' && !isCivil(cat.id) && shown.includes(categoryLibrary(cat.id)));
+  const html = mine + civilHtml + others.map((cat) => section(cat)).join('');
   $('symbolGroups').innerHTML = html || `<p class="muted small">${esc(t('noResults'))}</p>`;
 }
 
