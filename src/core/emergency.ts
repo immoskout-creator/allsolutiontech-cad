@@ -41,9 +41,9 @@ const signs = (symbol: string, sizes: number[]): EmergencyModel[] =>
   sizes.map((mm) => ({ id: `${symbol}-${mm}`, name: `EXIT ${mm} mm · ${(mm * SIGN_FACTOR) / 1000} m`, symbol, sign: mm }));
 
 export const EM_MODELS: EmergencyModel[] = [
-  ...lamps('em-tavan', [[100, '1 h'], [200, '1 h'], [300, '3 h'], [450, '3 h']]),
+  ...lamps('em-tavan', [[100, '1 h'], [200, '1 h'], [300, '3 h'], [450, '3 h'], [800, '3 h'], [1500, '3 h']]),
   ...lamps('em-mur', [[100, '1 h'], [200, '1 h'], [300, '3 h']]),
-  ...lamps('em-ip65', [[200, '1 h'], [300, '3 h'], [600, '3 h']]),
+  ...lamps('em-ip65', [[200, '1 h'], [300, '3 h'], [600, '3 h'], [1200, '3 h']]),
   { id: 'em-spot-1000', name: 'Twin spot 2×500 lm · 3 h', symbol: 'em-spot', lumens: 1000 },
   { id: 'em-spot-2000', name: 'Twin spot 2×1000 lm · 3 h', symbol: 'em-spot', lumens: 2000 },
   ...signs('em-exit-mur', [100, 150, 200]),

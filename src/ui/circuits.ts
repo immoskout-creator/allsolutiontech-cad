@@ -1,7 +1,7 @@
 import type { Store } from '../core/store';
 import type { Editor } from '../tools/editor';
 import { isCable, isSymbol, newId, type Circuit, type CircuitKind, type Doc, type Vec } from '../core/types';
-import { BREAKERS, DROP_LIMIT, SECTIONS, calcAll, freeName, newCircuit, type CircuitCalc, type CircuitWarning } from '../core/circuits';
+import { BALANCE_LIMIT, BREAKERS, DROP_LIMIT, SECTIONS, calcAll, freeName, newCircuit, phaseBalance, type CircuitCalc, type CircuitWarning } from '../core/circuits';
 import { EDITION } from '../edition';
 import { SYSTEM_CABLES, ZONE_MAX_DEVICES, cableTypeOf, circuitPrefix, isSystemKind, syncCableLayers } from '../core/systems';
 import { getLang, t, type StringKey } from '../i18n/strings';
@@ -142,6 +142,7 @@ export class CircuitPanel {
     if (w === 'drop') return t('warnDrop', { v: DROP_LIMIT[r.circuit.kind] });
     if (w === 'run') return t('warnRun', { v: cableTypeOf(r.circuit).maxRun ?? 0 });
     if (w === 'devices') return t('warnDevices', { v: ZONE_MAX_DEVICES });
+    if (w === 'phase') return t('warnPhase');
     return t('warnOverload');
   }
 
@@ -156,6 +157,7 @@ export class CircuitPanel {
         : '';
     let fields: string;
     let stats: string;
+    const line = phaseBalance(circuitResults(this.store.doc)).lines.get(c.id);
     if (isSystemKind(c.kind)) {
       const type = cableTypeOf(c);
       const cableOpts = SYSTEM_CABLES[c.kind].map((x) => opt(x.id, x.spec, x.id === type.id)).join('');
@@ -170,6 +172,7 @@ export class CircuitPanel {
       const sectionOpts = [opt('', t('auto'), c.section === undefined), ...SECTIONS.map((s) => opt(String(s), `${num(s, s % 1 ? 1 : 0)} mm²`, c.section === s))].join('');
       fields = `${kindSelect}
         <label class="field" for="ciPhases">${esc(t('phases'))}<select id="ciPhases">${opt('1', t('phase1'), c.phases === 1)}${opt('3', t('phase3'), c.phases === 3)}</select></label>
+        ${c.phases === 1 ? `<label class="field" for="ciLine">${esc(t('phaseLine'))}<select id="ciLine">${opt('', t('autoLine', { v: line ? `L${line}` : '—' }), c.line === undefined)}${[1, 2, 3].map((n) => opt(String(n), `L${n}`, c.line === n)).join('')}</select></label>` : ''}
         <label class="field" for="ciBreaker">${esc(t('breaker'))}<select id="ciBreaker">${breakerOpts}</select></label>
         <label class="field" for="ciSection">${esc(t('minSection'))}<select id="ciSection">${sectionOpts}</select></label>`;
       stats = `
@@ -206,7 +209,8 @@ export class CircuitPanel {
     on('ciLabel', (v) => this.updateCircuit(c.id, (x) => void (x.label = v.trim())));
     on('ciColor', (v) => this.updateCircuit(c.id, (x) => void (x.color = v)));
     on('ciKind', (v) => this.changeKind(c.id, v as CircuitKind));
-    on('ciPhases', (v) => this.updateCircuit(c.id, (x) => void (x.phases = v === '3' ? 3 : 1)));
+    on('ciPhases', (v) => this.updateCircuit(c.id, (x) => (v === '3' ? ((x.phases = 3), delete x.line) : (x.phases = 1))));
+    on('ciLine', (v) => this.updateCircuit(c.id, (x) => (v ? (x.line = Number(v) as 1 | 2 | 3) : delete x.line)));
     on('ciBreaker', (v) => this.updateCircuit(c.id, (x) => (v ? (x.breaker = Number(v)) : delete x.breaker)));
     on('ciSection', (v) => this.updateCircuit(c.id, (x) => (v ? (x.section = Number(v)) : delete x.section)));
     on('ciCable', (v) => this.updateCircuit(c.id, (x) => void (x.cableType = v)));
@@ -237,11 +241,12 @@ export class CircuitPanel {
   }
 
   private rows(res: CircuitCalc[]): string[][] {
+    const lines = phaseBalance(res).lines;
     return res.map((r) => [
       r.circuit.name,
       r.circuit.label,
       t(KIND_KEY[r.circuit.kind]),
-      r.system ? '—' : r.circuit.phases === 3 ? '3~ 400 V' : '1~ 230 V',
+      r.system ? '—' : r.circuit.phases === 3 ? '3~ 400 V' : `1~ 230 V · L${lines.get(r.circuit.id) ?? 1}`,
       String(r.points),
       num(r.power / 1000, 2),
       r.system ? '—' : num(r.ib, 1),
@@ -270,8 +275,20 @@ export class CircuitPanel {
                 .join('')}</tr>`,
           )
           .join('')}</tbody>
-        <tfoot><tr><td colspan="5">${esc(t('totalArea'))}</td><td class="qty">${num(total / 1000, 2)}</td><td colspan="5"></td></tr></tfoot></table>`
+        <tfoot><tr><td colspan="5">${esc(t('totalArea'))}</td><td class="qty">${num(total / 1000, 2)}</td><td colspan="5"></td></tr>
+        ${this.balanceRow(res)}</tfoot></table>`
       : `<p class="muted small">${esc(t('noCircuits'))}</p>`;
+  }
+
+  /** Ngarkesa e secilës fazë dhe disbalanca mes tyre. */
+  private balanceRow(res: CircuitCalc[]): string {
+    const b = phaseBalance(res);
+    if (!b.loads.some((l) => l > 0)) return '';
+    const over = b.imbalance > BALANCE_LIMIT;
+    const loads = b.loads.map((l, i) => `L${i + 1} ${num(l / 1000, 2)} kW`).join(' · ');
+    return `<tr${over ? ' class="has-warn"' : ''}><td colspan="5">${esc(t('phaseBalance'))}</td><td colspan="6">${esc(loads)} · ${esc(t('imbalance', { v: num(b.imbalance, 0) }))}${
+      over ? ` ${WARN}${esc(t('warnBalance', { v: BALANCE_LIMIT }))}` : ''
+    }</td></tr>`;
   }
 
   private async exportCsv(): Promise<void> {

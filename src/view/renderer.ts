@@ -170,7 +170,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   if (ov.cablePreview && ov.cablePreview.length >= 2) drawCable(ctx, vp, ov.cablePreview, COLORS.selected, cableW, true);
 
   // pjesët e dhomave që nuk i mbulon asnjë detektor zjarri
-  if (visible.some((e) => isSymbol(e) && symbolDef(e.symbol)?.detector)) {
+  if (visible.some((e) => isSymbol(e) && (symbolDef(e.symbol)?.detector || symbolDef(e.symbol)?.beam))) {
     const fire = checkFireCached(st.doc);
     const cell = GRID_MM * vp.scale;
     ctx.save();
@@ -199,7 +199,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     const cov = symbolCoverage(e, unit);
     if (!cov) continue;
     // detektori mbulon vetëm dhomën e vet: rrethi pritet te muret e saj
-    const clip = symbolDef(e.symbol)?.detector || symbolDef(e.symbol)?.emergency ? roomPolyAt(st.doc, walls, cov.apex) : null;
+    const clip = symbolDef(e.symbol)?.detector || symbolDef(e.symbol)?.beam || symbolDef(e.symbol)?.emergency ? roomPolyAt(st.doc, walls, cov.apex) : null;
     drawCoverage(ctx, vp, cov, st.selection.has(e.id) ? COLORS.selected : (colorOf.get(e.layer) ?? COLORS.wall), st.selection.has(e.id), paperPx, clip);
   }
 

@@ -100,6 +100,7 @@ function parseCircuits(raw: unknown): Circuit[] {
     if (isNum(c.breaker) && c.breaker > 0) q.breaker = c.breaker;
     if (isNum(c.section) && c.section > 0) q.section = c.section;
     if (typeof c.cableType === 'string' && c.cableType) q.cableType = c.cableType;
+    if (q.phases === 1 && (c.line === 1 || c.line === 2 || c.line === 3)) q.line = c.line;
     out.push(q);
   }
   return out;

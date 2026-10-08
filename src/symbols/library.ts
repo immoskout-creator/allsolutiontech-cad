@@ -38,17 +38,21 @@ export interface SymbolDef {
   height?: number;
   /** Fuqia standarde, W. */
   power?: number;
+  /** Pajisje trefazore 400 V: qarku i saj duhet të jetë trefazor. */
+  phases?: 3;
   /** Kamera: këndi i shikimit (gradë) dhe distanca (m) standarde. */
   cover?: { fov: number; range: number };
   /** Detektor zjarri: këndi i sensorit (gradë), rrezja maksimale (m) dhe lartësia maksimale e montimit (m). */
   detector?: { angle: number; maxRadius: number; maxHeight: number };
+  /** Detektor linear me rreze: gjatësia standarde (m), gjerësia e mbulimit në secilën anë (m), lartësia maksimale (m). */
+  beam?: { range: number; half: number; maxHeight: number };
   /** Ndriçues emergjence: fluksi standard në emergjencë, lm. */
   emergency?: { lumens: number };
   /** Tabelë sinjalizimi (EXIT): lartësia e piktogramit, mm. */
   sign?: { size: number };
 }
 
-export type CategoryId = 'custom' | 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'sensore' | 'komunikim' | 'cctv' | 'rrjet' | 'zjarr' | 'emergjence';
+export type CategoryId = 'custom' | 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'sensore' | 'komunikim' | 'industri' | 'cctv' | 'rrjet' | 'zjarr' | 'emergjence';
 
 /** Libraritë që zgjidhen veç e veç në panelin e majtë. */
 export type LibraryId = 'civil' | 'cctv' | 'network' | 'fire' | 'emergency';
@@ -62,6 +66,7 @@ export const CATEGORIES: { id: CategoryId; lib?: LibraryId; names: Names }[] = [
   { id: 'pajisje', names: { sq: 'Kuadro dhe pajisje', en: 'Panels and appliances', it: 'Quadri e apparecchi', de: 'Verteiler und Geräte' } },
   { id: 'sensore', names: { sq: 'Sensorë dhe automatizim', en: 'Sensors and automation', it: 'Sensori e automazione', de: 'Sensoren und Automation' } },
   { id: 'komunikim', names: { sq: 'TV dhe komunikim', en: 'TV and communication', it: 'TV e comunicazione', de: 'TV und Kommunikation' } },
+  { id: 'industri', names: { sq: 'Industriale', en: 'Industrial', it: 'Industriale', de: 'Industrie' } },
   { id: 'cctv', lib: 'cctv', names: { sq: 'Kamera dhe regjistrim', en: 'Cameras and recording', it: 'Telecamere e registrazione', de: 'Kameras und Aufzeichnung' } },
   { id: 'rrjet', lib: 'network', names: { sq: 'Access point dhe rrjet', en: 'Access points and network', it: 'Access point e rete', de: 'Access Points und Netzwerk' } },
   { id: 'zjarr', lib: 'fire', names: { sq: 'Sinjalizim zjarri', en: 'Fire alarm', it: 'Rivelazione incendi', de: 'Brandmeldeanlage' } },
@@ -710,9 +715,56 @@ export const SYMBOLS: SymbolDef[] = [
     parts: [{ d: 'M0 0 V3' }, { d: rect(-8, 3, 8, 15) }, { d: strokeText('M', 0, 9, 6) }, { d: 'M-8 18 H8' }],
   },
   {
-    id: 'zj-beam', code: 'AST-ZJ-10', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 300,
+    id: 'zj-beam', code: 'AST-ZJ-10', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 600, beam: { range: 50, half: 7.5, maxHeight: 25 },
     names: { sq: 'Detektor linear me rreze', en: 'Beam smoke detector', it: 'Rivelatore lineare a barriera', de: 'Linienförmiger Rauchmelder' },
     parts: [{ d: 'M0 0 V3' }, { d: rect(-7, 3, 7, 11) }, { d: 'M0 11 V13.5 M0 16 V18.5 M0 21 V23.5' }],
+  },
+
+  // ---- Industriale (400 V) ----
+  {
+    id: 'in-cee16', code: 'AST-IN-01', category: 'industri', layer: 'prizat', mount: 'wall', height: 110, power: 4000, phases: 3,
+    names: { sq: 'Prizë CEE 16 A 400 V (5P)', en: 'CEE socket 16 A 400 V (5P)', it: 'Presa CEE 16 A 400 V (5P)', de: 'CEE-Steckdose 16 A 400 V (5P)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-10, 3, 10, 21) }, { d: strokeText('16', 0, 8, 5) }, { d: strokeText('3~', 0, 16, 5) }],
+  },
+  {
+    id: 'in-cee32', code: 'AST-IN-02', category: 'industri', layer: 'prizat', mount: 'wall', height: 110, power: 8000, phases: 3,
+    names: { sq: 'Prizë CEE 32 A 400 V (5P)', en: 'CEE socket 32 A 400 V (5P)', it: 'Presa CEE 32 A 400 V (5P)', de: 'CEE-Steckdose 32 A 400 V (5P)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-10, 3, 10, 21) }, { d: strokeText('32', 0, 8, 5) }, { d: strokeText('3~', 0, 16, 5) }],
+  },
+  {
+    id: 'in-cee63', code: 'AST-IN-03', category: 'industri', layer: 'prizat', mount: 'wall', height: 110, power: 16000, phases: 3,
+    names: { sq: 'Prizë CEE 63 A 400 V (5P)', en: 'CEE socket 63 A 400 V (5P)', it: 'Presa CEE 63 A 400 V (5P)', de: 'CEE-Steckdose 63 A 400 V (5P)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-10, 3, 10, 21) }, { d: strokeText('63', 0, 8, 5) }, { d: strokeText('3~', 0, 16, 5) }],
+  },
+  {
+    id: 'in-cee230', code: 'AST-IN-04', category: 'industri', layer: 'prizat', mount: 'wall', height: 110, power: 2000,
+    names: { sq: 'Prizë CEE 16 A 230 V (3P)', en: 'CEE socket 16 A 230 V (3P)', it: 'Presa CEE 16 A 230 V (3P)', de: 'CEE-Steckdose 16 A 230 V (3P)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-10, 3, 10, 21) }, { d: strokeText('16', 0, 8, 5) }, { d: strokeText('1~', 0, 16, 5) }],
+  },
+  {
+    id: 'in-motor', code: 'AST-IN-05', category: 'industri', layer: 'pajisje', mount: 'center', power: 5500, phases: 3,
+    names: { sq: 'Motor trefazor', en: 'Three-phase motor', it: 'Motore trifase', de: 'Drehstrommotor' },
+    parts: [{ d: circle(0, 0, 11) }, { d: strokeText('M', 0, -3, 6) }, { d: strokeText('3~', 0, 5, 4.5) }],
+  },
+  {
+    id: 'in-izolator', code: 'AST-IN-06', category: 'industri', layer: 'pajisje', mount: 'wall', height: 150, phases: 3,
+    names: { sq: 'Çelës sigurie rrotullues 3P', en: 'Rotary safety isolator 3P', it: 'Sezionatore rotativo 3P', de: 'Reparaturschalter 3P' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-9, 3, 9, 19) }, { d: circle(0, 11, 5) }, { d: 'M-3.5 14.5 L3.5 7.5' }],
+  },
+  {
+    id: 'in-kuadri3f', code: 'AST-IN-07', category: 'industri', layer: 'pajisje', mount: 'wall', height: 160,
+    names: { sq: 'Kuadër trefazor 400 V', en: 'Three-phase distribution board 400 V', it: 'Quadro trifase 400 V', de: 'Drehstromverteiler 400 V' },
+    parts: [{ d: rect(-18, 0, 18, 16) }, { d: 'M-18 16 L18 0 L18 16 Z', fill: true }, { d: strokeText('3~', -9, 5, 5) }],
+  },
+  {
+    id: 'in-highbay', code: 'AST-IN-08', category: 'industri', layer: 'ndricimi', mount: 'center', power: 150,
+    names: { sq: 'Ndriçues high-bay LED', en: 'LED high-bay luminaire', it: 'Proiettore high-bay LED', de: 'LED-Hallenleuchte' },
+    parts: [{ d: circle(0, 0, 12) }, { d: circle(0, 0, 6) }, { d: 'M-12 0 H-6 M6 0 H12 M0 -12 V-6 M0 6 V12' }],
+  },
+  {
+    id: 'in-linear', code: 'AST-IN-09', category: 'industri', layer: 'ndricimi', mount: 'center', power: 50,
+    names: { sq: 'Ndriçues linear industrial IP65', en: 'Industrial linear luminaire IP65', it: 'Plafoniera lineare industriale IP65', de: 'Feuchtraum-Wannenleuchte IP65' },
+    parts: [{ d: rect(-18, -5, 18, 5) }, { d: 'M-18 0 H18' }, { d: 'M-12 -5 V5 M12 -5 V5' }],
   },
 
   // ---- Ndriçim emergjence (EN 1838) ----

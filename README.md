@@ -24,6 +24,9 @@ Paneli **Qarqet** krijon qarqet e kuadrit (Q1, Q2…), me lloj (ndriçim, priza,
 - Për çdo qark llogariten fuqia, rryma Ib, siguresa, kablloja (3×1.5, 3×2.5 … ose 5× për trefazorin), gjatësia me zbritjet në mur dhe rënia e tensionit (IEC 60364, bakër PVC në tub, metoda B2; 3% ndriçim, 5% të tjerat). Kablloja trashet vetë kur rënia del mbi kufi.
 - **Tabela** jep listën e plotë të qarqeve dhe e eksporton në CSV për Excel.
 
+- Instalimet industriale: qarqet trefazore 400 V (rryma me √3, rënia trefazore, kabllo 5×S), siguresa deri 125 A dhe seksione deri 95 mm². Çdo qark njëfazor merr fazën L1/L2/L3 (vetë, te faza më e lehtë, ose me dorë); tabela e qarqeve tregon ngarkesën e çdo faze dhe paralajmëron kur disbalanca kalon 15%. Pajisja trefazore në qark njëfazor paralajmërohet.
+- Simbolet industriale AST-IN: priza CEE 16/32/63 A 400 V dhe 16 A 230 V, motor trefazor, çelës sigurie 3P, kuadër trefazor, ndriçues high-bay dhe linear IP65.
+
 ## Raportet
 Butoni **Raportet** lart hap tre raporte, secili gati për printim (A4), për ruajtje si HTML dhe, kur ka kuptim, për eksport CSV:
 - **Lista e materialeve**: pajisjet me sasitë, metrat e kabllove sipas llojit (me zbritjet në mur dhe 10% rezervë) dhe siguresat e kuadrit sipas lakores dhe rrymës.
@@ -38,10 +41,11 @@ Nga i njëjti kod ndërtohen pesë programe të veçanta, secili me emrin, linku
 - **AllSolutionTech CAD 2D FIRE**: sinjalizimi i zjarrit, 10 simbole AST-ZJ, shtresa Zjarri (`dist/fire/`).
 - **AllSolutionTech CAD 2D EMERGENCY**: ndriçimi i emergjencës, 7 simbole AST-EM, shtresa Emergjenca (`dist/em/`).
 
-Te programi CCTV, çdo kamerë ka **modelin** (bullet, dome, PTZ, fisheye me objektivin dhe distancën IR), **lartësinë e montimit**, **këndin e shikimit** (me objektivat 2.8 / 4 / 6 / 8 / 12 mm si sugjerim), **distancën** dhe **drejtimin**; plani tregon zonën e mbulimit në shkallë, me këndin dhe distancën të shkruara.
+Te programi CCTV, çdo kamerë ka **modelin** (bullet, dome, PTZ, fisheye me objektivin dhe distancën IR), **lartësinë e montimit**, **këndin e shikimit** (me objektivat 2.8 / 4 / 6 / 8 / 12 mm si sugjerim), **distancën**, **drejtimin** dhe **pjerrësinë poshtë**; nga lartësia dhe pjerrësia del zona e verbër poshtë kamerës dhe deri ku arrin pamja në dysheme (sa më lart, aq më larg). Plani tregon zonën e mbulimit në shkallë, me këndin dhe distancën të shkruara.
 
 Te programi FIRE, detektorët e tymit, të nxehtësisë dhe multisensor kanë **lartësinë e montimit** dhe **këndin e sensorit**: rrezja në dysheme është lartësia × tan(këndi/2), jo më shumë se 7.5 m për tymin dhe 5.3 m për nxehtësinë; mbi 10.5 m (tym) ose 9 m (nxehtësi) del paralajmërim. Plani vizaton rrethin e mbulimit me këndin dhe rrezen, të prerë te muret e dhomës.
 - Rregullat e vendosjes (EN 54-14 / BS 5839-1): çdo pikë e dhomës duhet të jetë brenda rrezes së një detektori të asaj dhome (pjesët pa mbulim dalin të kuqe në plan dhe tabela e dhomave tregon mbulimin në %); detektori jo më afër se 0.5 m nga muri; dy detektorë fqinjë në të njëjtën dhomë jo më larg se rrezja × √2 (10.6 m tym, 7.5 m nxehtësi). Detektori që shkel një rregull merr unazë të kuqe dhe paralajmërim te vetitë.
+- Detektori linear me rreze (EN 54-12) për salla të larta mbulon një shirit 15 m të gjerë përgjatë rrezes (gjatësia 5–100 m deri te reflektori, lartësia deri 25 m).
 
 Te programi EMERGENCY (EN 1838), ndriçuesit kanë **modelin** (100–2000 lm), **fluksin në emergjencë** dhe **lartësinë**. Ndriçimi llogaritet si burim Lambertian (I₀ = Φ/π, E = I₀·h²/(h²+d²)²): plani vizaton rrethin 0.5 lux (zonë e hapur) dhe rrethin me pika 1 lux (rrugë evakuimi), të prera te muret e dhomës. Çdo dhomë me ndriçues ose mbi 60 m² kontrollohet: pjesët nën 0.5 lux dalin të kuqe, tabela e dhomave tregon ndriçimin minimal dhe del paralajmërim kur njëtrajtshmëria max/min kalon 40:1. Tabelat EXIT shihen deri në 200 × lartësinë e piktogramit (100 / 150 / 200 / 250 mm); tabela që nuk arrin pikën më të largët të dhomës merr unazë të kuqe.
 
