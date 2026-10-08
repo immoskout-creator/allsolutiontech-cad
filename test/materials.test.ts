@@ -42,7 +42,7 @@ test('siguresat numërohen sipas lakores, rrymës dhe fazave', () => {
 
 test('kabllot pa qark dalin veç, plani bosh nuk ka materiale', () => {
   const doc = emptyDoc();
-  assert.deepEqual(materialList(doc, new Map()), { symbols: [], cables: [], breakers: [] });
+  assert.deepEqual(materialList(doc, new Map()), { symbols: [], cables: [], breakers: [], extras: [] });
   doc.entities.push({ id: 'k', kind: 'cable', layer: 'kabllot', points: [{ x: 0, y: 0 }, { x: 4000, y: 0 }] });
   const m = materialList(doc, new Map());
   assert.equal(m.cables.length, 1);

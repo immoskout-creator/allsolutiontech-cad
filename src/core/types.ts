@@ -45,7 +45,8 @@ export interface Cable {
   circuit?: string;
 }
 
-export type CircuitKind = 'lighting' | 'sockets' | 'appliance';
+/** Qarqet e energjisë dhe linjat e sistemeve (kamera, rrjet, zjarr). */
+export type CircuitKind = 'lighting' | 'sockets' | 'appliance' | 'cctv' | 'network' | 'fire';
 
 /** Qark elektrik i kuadrit: pikat dhe kabllot i referohen me id. */
 export interface Circuit {
@@ -61,6 +62,8 @@ export interface Circuit {
   breaker?: number;
   /** Seksioni minimal i zgjedhur me dorë, mm². */
   section?: number;
+  /** Kablloja e linjës së sistemit (shih core/systems.ts). */
+  cableType?: string;
 }
 
 /** Derë ose dritare e vendosur në një mur; ndjek murin kur ai lëviz. */
@@ -135,6 +138,9 @@ export function defaultLayers(): Layer[] {
     { id: 'prizat', name: 'Prizat', color: '#2563EB', visible: true, locked: false },
     { id: 'pajisje', name: 'Kuadro dhe pajisje', color: '#7C3AED', visible: true, locked: false },
     { id: 'kabllot', name: 'Kabllot', color: '#6B7380', visible: true, locked: false },
+    { id: 'kamerat', name: 'Kamerat', color: '#0891B2', visible: true, locked: false },
+    { id: 'rrjeti', name: 'Rrjeti / AP', color: '#16A34A', visible: true, locked: false },
+    { id: 'zjarri', name: 'Zjarri', color: '#DC2626', visible: true, locked: false },
     { id: 'kuotat', name: 'Kuotat', color: '#4B5563', visible: true, locked: false },
     { id: 'tekstet', name: 'Tekstet', color: '#9AA3AF', visible: true, locked: false },
   ];

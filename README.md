@@ -30,6 +30,12 @@ Butoni **Raportet** lart hap tre raporte, secili gati për printim (A4), për ru
 - **Simbolet e përdorura**: legjenda e planit, me simbolin, kodin AST, emrin dhe sasinë.
 - **Libraria e plotë**: katalogu i të gjitha simboleve sipas kategorive, përfshirë simbolet e tua.
 
+## Kamera, AP dhe zjarr
+Në panelin e majtë zgjidhet libraria: **Elektrike civile**, **Kamera CCTV**, **Access Point / Rrjet** ose **Mbrojtja nga zjarri**. Kërkimi gjen simbolet në të gjitha libraritë. Çdo sistem ka simbolet me kodin e vet (AST-CC, AST-RJ, AST-ZJ) dhe shtresën e vet (Kamerat, Rrjeti / AP, Zjarri).
+- **Qark i ri** krijon linjë të sistemit të librarisë së hapur: CAM1, NET1 ose FA1. Lloji ndryshohet edhe te redaktori i qarkut.
+- Linjat e sistemeve nuk kanë siguresë: zgjidhet kablloja (U/UTP Cat6, F/UTP Cat6 PE, Cat5e, RG59, Cat6A, fibër OM3, kabllo zjarri PH30/PH120, J-Y(St)Y) dhe kontrollohet gjatësia e çdo kablloje (90 m për UTP) dhe numri i pajisjeve në zonën e zjarrit (32). Kabllot e tyre shkojnë vetë në shtresën e sistemit.
+- Lista e materialeve ka grup më vete për çdo sistem: pajisjet, metrat e kabllove, konektorët RJ45 (2 për çdo kabllo UTP) dhe rezistencat e fundit të zonës së zjarrit.
+
 ## Simbolet e mia
 Butoni **Simbol i ri** te libraria hap redaktorin: vizaton me vija, drejtkëndësha, rrathë (bosh ose të mbushur), harqe dhe tekst, mbi një rrjetë ku shihet edhe muri. I jep kodin (p.sh. AST-U-01), emrin, shtresën, vendosjen (në mur ose e lirë), lartësinë dhe fuqinë.
 - Simbolet ruhen brenda projektit dhe dalin te "Simbolet e mia"; lapsi mbi pllakë i ndryshon.

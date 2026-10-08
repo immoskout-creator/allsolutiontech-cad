@@ -1,4 +1,5 @@
 import type { Store } from '../core/store';
+import { cableLayer } from '../core/systems';
 import {
   CABLE_LAYER,
   isCable,
@@ -433,7 +434,10 @@ export class Editor {
     if (pts.length >= 2) {
       const cable: Cable = { id: newId('k'), kind: 'cable', layer: CABLE_LAYER, points: pts };
       const circuit = this.activeCircuit ?? this.circuitAt(pts[0]) ?? this.circuitAt(pts[pts.length - 1]);
-      if (circuit) cable.circuit = circuit;
+      if (circuit) {
+        cable.circuit = circuit;
+        cable.layer = cableLayer(this.store.doc.circuits?.find((c) => c.id === circuit)?.kind);
+      }
       this.store.commit((doc) => {
         doc.entities.push(cable);
       });

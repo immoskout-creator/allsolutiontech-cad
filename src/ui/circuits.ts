@@ -1,14 +1,22 @@
 import type { Store } from '../core/store';
 import type { Editor } from '../tools/editor';
 import { isCable, isSymbol, newId, type Circuit, type CircuitKind, type Doc, type Vec } from '../core/types';
-import { BREAKERS, DROP_LIMIT, SECTIONS, calcAll, newCircuit, type CircuitCalc } from '../core/circuits';
+import { BREAKERS, DROP_LIMIT, SECTIONS, calcAll, freeName, newCircuit, type CircuitCalc, type CircuitWarning } from '../core/circuits';
+import { SYSTEM_CABLES, SYSTEM_KINDS, ZONE_MAX_DEVICES, cableTypeOf, circuitPrefix, isSystemKind, syncCableLayers } from '../core/systems';
 import { getLang, t, type StringKey } from '../i18n/strings';
 import { unitMm } from '../symbols/library';
 import { symbolCenter } from '../symbols/place';
 import { saveData } from '../io/files';
 
-const KINDS: CircuitKind[] = ['lighting', 'sockets', 'appliance'];
-const KIND_KEY: Record<CircuitKind, StringKey> = { lighting: 'kind_lighting', sockets: 'kind_sockets', appliance: 'kind_appliance' };
+const POWER_KINDS: CircuitKind[] = ['lighting', 'sockets', 'appliance'];
+export const KIND_KEY: Record<CircuitKind, StringKey> = {
+  lighting: 'kind_lighting',
+  sockets: 'kind_sockets',
+  appliance: 'kind_appliance',
+  cctv: 'kind_cctv',
+  network: 'kind_network',
+  fire: 'kind_fire',
+};
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -41,6 +49,8 @@ export class CircuitPanel {
     private editor: Editor,
     private onActive: () => void,
     private toast: (msg: string) => void,
+    /** Lloji i qarkut të ri: sipas librarisë së hapur (kamera, rrjet, zjarr) ose priza. */
+    private newKind: () => CircuitKind = () => 'sockets',
   ) {
     document.getElementById('btnNewCircuit')!.addEventListener('click', () => this.create());
     document.getElementById('btnCircuitTable')!.addEventListener('click', () => this.openTable());
@@ -74,7 +84,8 @@ export class CircuitPanel {
   }
 
   private create(): void {
-    const c = newCircuit(this.circuits(), 'sockets', t('kind_sockets'), newId('q'));
+    const kind = this.newKind();
+    const c = newCircuit(this.circuits(), kind, t(KIND_KEY[kind]), newId('q'));
     this.store.commit((d) => {
       d.circuits = [...(d.circuits ?? []), c];
     });
@@ -85,6 +96,7 @@ export class CircuitPanel {
     this.store.commit((d) => {
       const c = d.circuits?.find((x) => x.id === id);
       if (c) fn(c);
+      syncCableLayers(d);
     });
   }
 
@@ -93,6 +105,7 @@ export class CircuitPanel {
       d.circuits = (d.circuits ?? []).filter((c) => c.id !== id);
       if (d.circuits.length === 0) delete d.circuits;
       for (const e of d.entities) if ((isSymbol(e) || isCable(e)) && e.circuit === id) delete e.circuit;
+      syncCableLayers(d);
     });
     this.setActive(null);
   }
@@ -114,7 +127,7 @@ export class CircuitPanel {
           const active = c.id === this.editor.activeCircuit;
           return `<button class="circuit-row" type="button" data-circuit="${c.id}" aria-pressed="${active}" style="--c:${esc(c.color)}">
             <span class="dot"></span><b>${esc(c.name)}</b><span class="lbl">${esc(c.label)}</span>
-            <span class="spec">${r.warnings.length ? WARN : ''}${r.breaker} A · ${esc(r.cable)}</span></button>`;
+            <span class="spec">${r.warnings.length ? WARN : ''}${r.system ? '' : `${r.breaker} A · `}${esc(r.cable)}</span></button>`;
         })
         .join('');
       this.list.innerHTML = `<div class="circuit-list">${rows}</div>`;
@@ -124,14 +137,48 @@ export class CircuitPanel {
     if (this.isOpen) this.renderTable(res);
   }
 
+  private warnText(w: CircuitWarning, r: CircuitCalc): string {
+    if (w === 'drop') return t('warnDrop', { v: DROP_LIMIT[r.circuit.kind] });
+    if (w === 'run') return t('warnRun', { v: cableTypeOf(r.circuit).maxRun ?? 0 });
+    if (w === 'devices') return t('warnDevices', { v: ZONE_MAX_DEVICES });
+    return t('warnOverload');
+  }
+
   private renderEditor(r: CircuitCalc): void {
     const c = r.circuit;
     const opt = (v: string, label: string, sel: boolean) => `<option value="${v}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
-    const breakerOpts = [opt('', t('auto'), c.breaker === undefined), ...BREAKERS.map((b) => opt(String(b), `${b} A`, c.breaker === b))].join('');
-    const sectionOpts = [opt('', t('auto'), c.section === undefined), ...SECTIONS.map((s) => opt(String(s), `${num(s, s % 1 ? 1 : 0)} mm²`, c.section === s))].join('');
-    const warn = r.warnings
-      .map((w) => `<p class="warn-text">${WARN}${esc(w === 'drop' ? t('warnDrop', { v: DROP_LIMIT[c.kind] }) : t('warnOverload'))}</p>`)
-      .join('');
+    const kinds = (list: CircuitKind[]) => list.map((k) => opt(k, t(KIND_KEY[k]), c.kind === k)).join('');
+    const kindSelect = `<label class="field" for="ciKind">${esc(t('circuitKind'))}<select id="ciKind">
+      <optgroup label="${esc(t('groupPower'))}">${kinds(POWER_KINDS)}</optgroup>
+      <optgroup label="${esc(t('groupSystems'))}">${kinds(SYSTEM_KINDS)}</optgroup></select></label>`;
+    let fields: string;
+    let stats: string;
+    if (isSystemKind(c.kind)) {
+      const type = cableTypeOf(c);
+      const cableOpts = SYSTEM_CABLES[c.kind].map((x) => opt(x.id, x.spec, x.id === type.id)).join('');
+      fields = `${kindSelect}<label class="field" for="ciCable">${esc(t('cableType'))}<select id="ciCable">${cableOpts}</select></label>`;
+      stats = `
+        <div class="stat"><span>${esc(t('points'))}</span><b>${r.points}</b></div>
+        <div class="stat"><span>${esc(t('devicePower'))}</span><b>${num(r.power, 0)} W</b></div>
+        <div class="stat"><span>${esc(t('cableLength'))}</span><b>${r.length ? `${num(r.length, 1)} m` : '—'}</b></div>
+        <div class="stat"><span>${esc(t('longestRun'))}</span><b>${r.longest ? `${num(r.longest, 1)} m` : '—'}</b></div>`;
+    } else {
+      const breakerOpts = [opt('', t('auto'), c.breaker === undefined), ...BREAKERS.map((b) => opt(String(b), `${b} A`, c.breaker === b))].join('');
+      const sectionOpts = [opt('', t('auto'), c.section === undefined), ...SECTIONS.map((s) => opt(String(s), `${num(s, s % 1 ? 1 : 0)} mm²`, c.section === s))].join('');
+      fields = `${kindSelect}
+        <label class="field" for="ciPhases">${esc(t('phases'))}<select id="ciPhases">${opt('1', t('phase1'), c.phases === 1)}${opt('3', t('phase3'), c.phases === 3)}</select></label>
+        <label class="field" for="ciBreaker">${esc(t('breaker'))}<select id="ciBreaker">${breakerOpts}</select></label>
+        <label class="field" for="ciSection">${esc(t('minSection'))}<select id="ciSection">${sectionOpts}</select></label>`;
+      stats = `
+        <div class="stat"><span>${esc(t('points'))}</span><b>${r.points}</b></div>
+        <div class="stat"><span>${esc(t('powerTotal'))}</span><b>${num(r.power / 1000, 2)} kW</b></div>
+        <div class="stat"><span>Ib</span><b>${num(r.ib, 1)} A</b></div>
+        <div class="stat"><span>${esc(t('breaker'))}</span><b>${r.breaker} A</b></div>
+        <div class="stat"><span>${esc(t('cableType'))}</span><b>${esc(r.cable)}</b></div>
+        <div class="stat"><span>${esc(t('cableLength'))}</span><b>${r.length ? `${num(r.length, 1)} m` : '—'}</b></div>
+        <div class="stat wide"><span>${esc(t('voltageDrop'))}</span><b>${r.drop === null ? '—' : `${num(r.drop, 2)} %`}</b></div>`;
+    }
+    const warn = r.warnings.map((w) => `<p class="warn-text">${WARN}${esc(this.warnText(w, r))}</p>`).join('');
     const box = document.createElement('div');
     box.className = 'circuit-edit';
     box.innerHTML = `
@@ -141,21 +188,8 @@ export class CircuitPanel {
         <label class="field" for="ciColor">${esc(t('color'))}<input id="ciColor" type="color" value="${esc(c.color)}"></label>
       </div>
       <label class="field" for="ciLabel">${esc(t('circuitLabel'))}<input id="ciLabel" type="text" maxlength="40" value="${esc(c.label)}"></label>
-      <div class="prop-grid">
-        <label class="field" for="ciKind">${esc(t('circuitKind'))}<select id="ciKind">${KINDS.map((k) => opt(k, t(KIND_KEY[k]), c.kind === k)).join('')}</select></label>
-        <label class="field" for="ciPhases">${esc(t('phases'))}<select id="ciPhases">${opt('1', t('phase1'), c.phases === 1)}${opt('3', t('phase3'), c.phases === 3)}</select></label>
-        <label class="field" for="ciBreaker">${esc(t('breaker'))}<select id="ciBreaker">${breakerOpts}</select></label>
-        <label class="field" for="ciSection">${esc(t('minSection'))}<select id="ciSection">${sectionOpts}</select></label>
-      </div>
-      <div class="stats">
-        <div class="stat"><span>${esc(t('points'))}</span><b>${r.points}</b></div>
-        <div class="stat"><span>${esc(t('powerTotal'))}</span><b>${num(r.power / 1000, 2)} kW</b></div>
-        <div class="stat"><span>Ib</span><b>${num(r.ib, 1)} A</b></div>
-        <div class="stat"><span>${esc(t('breaker'))}</span><b>${r.breaker} A</b></div>
-        <div class="stat"><span>${esc(t('cableType'))}</span><b>${esc(r.cable)}</b></div>
-        <div class="stat"><span>${esc(t('cableLength'))}</span><b>${r.length ? `${num(r.length, 1)} m` : '—'}</b></div>
-        <div class="stat wide"><span>${esc(t('voltageDrop'))}</span><b>${r.drop === null ? '—' : `${num(r.drop, 2)} %`}</b></div>
-      </div>
+      <div class="prop-grid">${fields}</div>
+      <div class="stats">${stats}</div>
       ${warn}
       <div class="btn-row">
         <button class="btn" id="ciSelect" type="button">${esc(t('selectCircuit'))}</button>
@@ -164,19 +198,32 @@ export class CircuitPanel {
       <button class="btn danger" id="ciDelete" type="button">${esc(t('deleteCircuit'))}</button>`;
     this.list.appendChild(box);
     const val = (id: string) => (document.getElementById(id) as HTMLInputElement).value;
-    const on = (id: string, fn: (v: string) => void) => document.getElementById(id)!.addEventListener('change', () => fn(val(id)));
+    const on = (id: string, fn: (v: string) => void) => document.getElementById(id)?.addEventListener('change', () => fn(val(id)));
     on('ciName', (v) => v.trim() && this.updateCircuit(c.id, (x) => void (x.name = v.trim())));
     on('ciLabel', (v) => this.updateCircuit(c.id, (x) => void (x.label = v.trim())));
     on('ciColor', (v) => this.updateCircuit(c.id, (x) => void (x.color = v)));
-    on('ciKind', (v) => this.updateCircuit(c.id, (x) => void (x.kind = v as CircuitKind)));
+    on('ciKind', (v) => this.changeKind(c.id, v as CircuitKind));
     on('ciPhases', (v) => this.updateCircuit(c.id, (x) => void (x.phases = v === '3' ? 3 : 1)));
     on('ciBreaker', (v) => this.updateCircuit(c.id, (x) => (v ? (x.breaker = Number(v)) : delete x.breaker)));
     on('ciSection', (v) => this.updateCircuit(c.id, (x) => (v ? (x.section = Number(v)) : delete x.section)));
+    on('ciCable', (v) => this.updateCircuit(c.id, (x) => void (x.cableType = v)));
     document.getElementById('ciSelect')!.addEventListener('click', () => {
       this.store.setSelection(this.store.doc.entities.filter((e) => (isSymbol(e) || isCable(e)) && e.circuit === c.id).map((e) => e.id));
     });
     document.getElementById('ciClose')!.addEventListener('click', () => this.setActive(null));
     document.getElementById('ciDelete')!.addEventListener('click', () => this.remove(c.id));
+  }
+
+  /** Ndryshon llojin; emri automatik (Q1, CAM1...) dhe përshkrimi standard ndjekin llojin e ri. */
+  private changeKind(id: string, kind: CircuitKind): void {
+    this.updateCircuit(id, (x) => {
+      const others = this.circuits().filter((o) => o.id !== id);
+      if (circuitPrefix(x.kind) !== circuitPrefix(kind) && new RegExp(`^${circuitPrefix(x.kind)}\\d+$`).test(x.name)) x.name = freeName(others, kind);
+      if (!x.label || x.label === t(KIND_KEY[x.kind])) x.label = t(KIND_KEY[kind]);
+      x.kind = kind;
+      if (!isSystemKind(kind)) delete x.cableType;
+      else if (!SYSTEM_CABLES[kind].some((c) => c.id === x.cableType)) delete x.cableType;
+    });
   }
 
   // ---- tabela ----
@@ -191,11 +238,11 @@ export class CircuitPanel {
       r.circuit.name,
       r.circuit.label,
       t(KIND_KEY[r.circuit.kind]),
-      r.circuit.phases === 3 ? '3~ 400 V' : '1~ 230 V',
+      r.system ? '—' : r.circuit.phases === 3 ? '3~ 400 V' : '1~ 230 V',
       String(r.points),
       num(r.power / 1000, 2),
-      num(r.ib, 1),
-      `${r.breaker} A`,
+      r.system ? '—' : num(r.ib, 1),
+      r.system ? '—' : `${r.breaker} A`,
       r.cable,
       r.length ? num(r.length, 1) : '—',
       r.drop === null ? '—' : num(r.drop, 2),

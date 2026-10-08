@@ -1,6 +1,7 @@
 import { dist } from './geometry';
 import { isCable, isSymbol, type Cable, type Circuit, type CircuitKind, type Doc, type SymbolEntity, type Vec } from './types';
 import { symbolDef } from '../symbols/library';
+import { ZONE_MAX_DEVICES, cableTypeOf, circuitPrefix, isSystemKind } from './systems';
 
 /**
  * Llogaritja e qarqeve sipas IEC 60364 (bakër, izolim PVC, tub në mur, metoda B2):
@@ -20,10 +21,10 @@ const IZ: Record<1 | 3, number[]> = {
   3: [15, 20, 27, 34, 46, 62, 80],
 };
 /** Kufiri i rënies së tensionit, %. */
-export const DROP_LIMIT: Record<CircuitKind, number> = { lighting: 3, sockets: 5, appliance: 5 };
+export const DROP_LIMIT: Record<CircuitKind, number> = { lighting: 3, sockets: 5, appliance: 5, cctv: 0, network: 0, fire: 0 };
 /** Minimumi i zakonshëm sipas llojit. */
-const MIN_BREAKER: Record<CircuitKind, number> = { lighting: 10, sockets: 16, appliance: 10 };
-const MIN_SECTION: Record<CircuitKind, number> = { lighting: 1.5, sockets: 2.5, appliance: 1.5 };
+const MIN_BREAKER: Record<string, number> = { lighting: 10, sockets: 16, appliance: 10 };
+const MIN_SECTION: Record<string, number> = { lighting: 1.5, sockets: 2.5, appliance: 1.5 };
 /** Ngarkesa e supozuar për një prizë pa fuqi të shënuar, W. */
 export const SOCKET_W = 200;
 /** Lartësia e tavanit ku kalojnë kabllot, cm. */
@@ -34,10 +35,16 @@ export const LINK_MM = 150;
 export const CIRCUIT_COLORS = ['#DC2626', '#2563EB', '#16A34A', '#D97706', '#7C3AED', '#0891B2', '#DB2777', '#65A30D', '#EA580C', '#4F46E5'];
 
 export function newCircuit(existing: Circuit[], kind: CircuitKind, label: string, id: string): Circuit {
+  return { id, name: freeName(existing, kind), label, kind, phases: 1, color: CIRCUIT_COLORS[existing.length % CIRCUIT_COLORS.length] };
+}
+
+/** Emri i parë i lirë për llojin: Q1, Q2... ose CAM1, NET1, FA1. */
+export function freeName(existing: Circuit[], kind: CircuitKind): string {
   const used = new Set(existing.map((c) => c.name));
+  const prefix = circuitPrefix(kind);
   let n = 1;
-  while (used.has(`Q${n}`)) n++;
-  return { id, name: `Q${n}`, label, kind, phases: 1, color: CIRCUIT_COLORS[existing.length % CIRCUIT_COLORS.length] };
+  while (used.has(`${prefix}${n}`)) n++;
+  return `${prefix}${n}`;
 }
 
 /** Gjatësia e kabllos në plan, mm. */
@@ -78,6 +85,9 @@ export function pointPower(s: SymbolEntity): number {
   return def?.category === 'priza' ? SOCKET_W : 0;
 }
 
+/** overload/drop për energjinë; run = kabllo më e gjatë se lejohet; devices = shumë pajisje në zonë. */
+export type CircuitWarning = 'overload' | 'drop' | 'run' | 'devices';
+
 export interface CircuitCalc {
   circuit: Circuit;
   points: number;
@@ -95,9 +105,13 @@ export interface CircuitCalc {
   length: number;
   /** Rënia e tensionit, % (null kur s'ka kabllo). */
   drop: number | null;
-  /** Përshkrimi i kabllos, p.sh. "3×2.5 mm²". */
+  /** Përshkrimi i kabllos, p.sh. "3×2.5 mm²" ose "U/UTP Cat6". */
   cable: string;
-  warnings: ('overload' | 'drop')[];
+  /** Kablloja më e gjatë e linjës, m. */
+  longest: number;
+  /** Linjë sistemi (kamera, rrjet, zjarr): pa siguresë, seksion dhe rënie tensioni. */
+  system: boolean;
+  warnings: CircuitWarning[];
 }
 
 export function designCurrent(power: number, phases: 1 | 3): number {
@@ -114,11 +128,19 @@ export function cableText(section: number, phases: 1 | 3): string {
 }
 
 /** Llogarit një qark nga pikat dhe kabllot e tij. */
-export function calcCircuit(circuit: Circuit, symbols: SymbolEntity[], lengthMm: number): CircuitCalc {
+export function calcCircuit(circuit: Circuit, symbols: SymbolEntity[], lengthMm: number, longestMm = lengthMm): CircuitCalc {
   const phases = circuit.phases;
   const power = symbols.reduce((s, x) => s + pointPower(x), 0);
+  if (isSystemKind(circuit.kind)) {
+    const type = cableTypeOf(circuit);
+    const longest = longestMm / 1000;
+    const warnings: CircuitWarning[] = [];
+    if (type.maxRun && longest > type.maxRun) warnings.push('run');
+    if (circuit.kind === 'fire' && symbols.length > ZONE_MAX_DEVICES) warnings.push('devices');
+    return { circuit, points: symbols.length, power, ib: 0, breaker: 0, section: 0, iz: 0, length: lengthMm / 1000, drop: null, cable: type.spec, longest, system: true, warnings };
+  }
   const ib = designCurrent(power, phases);
-  const warnings: CircuitCalc['warnings'] = [];
+  const warnings: CircuitWarning[] = [];
 
   let breaker = circuit.breaker ?? BREAKERS.find((b) => b >= Math.max(ib, MIN_BREAKER[circuit.kind])) ?? BREAKERS[BREAKERS.length - 1];
   if (ib > breaker) warnings.push('overload');
@@ -155,6 +177,8 @@ export function calcCircuit(circuit: Circuit, symbols: SymbolEntity[], lengthMm:
     length,
     drop,
     cable: cableText(SECTIONS[idx], phases),
+    longest: longestMm / 1000,
+    system: false,
     warnings: [...new Set(warnings)],
   };
 }
@@ -165,7 +189,7 @@ export function calcAll(doc: Doc, centers: Map<string, Vec>): CircuitCalc[] {
   const cables = doc.entities.filter(isCable);
   return (doc.circuits ?? []).map((c) => {
     const pts = symbols.filter((s) => s.circuit === c.id);
-    const len = cables.filter((k) => k.circuit === c.id).reduce((s, k) => s + cableRunLength(k, symbols, centers), 0);
-    return calcCircuit(c, pts, len);
+    const runs = cables.filter((k) => k.circuit === c.id).map((k) => cableRunLength(k, symbols, centers));
+    return calcCircuit(c, pts, runs.reduce((s, v) => s + v, 0), Math.max(0, ...runs));
   });
 }

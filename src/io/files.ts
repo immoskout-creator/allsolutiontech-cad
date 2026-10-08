@@ -1,4 +1,4 @@
-import { DEFAULT_SCALE, defaultLayers, type Circuit, type Doc, type Entity, type Layer } from '../core/types';
+import { DEFAULT_SCALE, defaultLayers, type Circuit, type CircuitKind, type Doc, type Entity, type Layer } from '../core/types';
 import { setCustomSymbols, symbolDef } from '../symbols/library';
 import { parseCustomSymbols, toSymbolDef } from '../symbols/custom';
 
@@ -73,23 +73,26 @@ export function parse(text: string): Doc {
   };
 }
 
+const CIRCUIT_KINDS: CircuitKind[] = ['lighting', 'sockets', 'appliance', 'cctv', 'network', 'fire'];
+
 function parseCircuits(raw: unknown): Circuit[] {
   if (!Array.isArray(raw)) return [];
   const out: Circuit[] = [];
   for (const x of raw) {
     const c = x as Partial<Circuit> | null;
     if (!c || typeof c.id !== 'string' || typeof c.name !== 'string') continue;
-    if (c.kind !== 'lighting' && c.kind !== 'sockets' && c.kind !== 'appliance') continue;
+    if (!CIRCUIT_KINDS.includes(c.kind as CircuitKind)) continue;
     const q: Circuit = {
       id: c.id,
       name: c.name,
       label: typeof c.label === 'string' ? c.label : '',
-      kind: c.kind,
+      kind: c.kind as CircuitKind,
       phases: c.phases === 3 ? 3 : 1,
       color: typeof c.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : '#DC2626',
     };
     if (isNum(c.breaker) && c.breaker > 0) q.breaker = c.breaker;
     if (isNum(c.section) && c.section > 0) q.section = c.section;
+    if (typeof c.cableType === 'string' && c.cableType) q.cableType = c.cableType;
     out.push(q);
   }
   return out;
