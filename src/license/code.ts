@@ -6,7 +6,7 @@
  * pastaj nënshkrimi ECDSA P-256 / SHA-256 (64 bajt). Shkruhet me base32 Crockford, në grupe nga 4.
  */
 
-/** Programet që mund të hapë një kod. 'all' hap çdo program, edhe atë "të gjitha bashkë". */
+/** Programi që hap një kod. 'all' është programi ALL-IN-ONE; nuk hap programet e veçanta. */
 export const LICENSE_PROGRAMS = ['all', 'civil', 'cctv', 'network', 'fire', 'emergency'] as const;
 export type LicenseProgram = (typeof LICENSE_PROGRAMS)[number];
 
@@ -150,8 +150,8 @@ export async function readCode(code: string, publicKey: CryptoKey): Promise<Lice
   }
 }
 
-/** A e hap kodi këtë program? Kodi "të gjitha" hap çdo program. */
-export const coversProgram = (l: License, program: string) => l.program === 'all' || l.program === program;
+/** A e hap kodi këtë program? Çdo kod hap vetëm programin e vet. */
+export const coversProgram = (l: License, program: string) => l.program === program;
 
 /** Ditët që mbeten (0 = dita e fundit), negative kur ka skaduar; Infinity për përjetë. */
 export const daysLeft = (l: License, today: number) => (l.expiry === LIFETIME ? Infinity : l.expiry - today);

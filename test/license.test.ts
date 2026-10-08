@@ -44,17 +44,22 @@ test('kodi i nënshkruar lexohet; një shkronjë e ndryshuar e prish', async () 
   assert.equal(await readCode(code, real), null);
 });
 
-test('kontrolli: programi, "të gjitha" dhe skadimi', async () => {
+test('kontrolli: secili program me kodin e vet, dhe skadimi', async () => {
   const today = day('2026-10-08');
   const make = (program: License['program'], expiry: number) => createCode({ program, duration: '1m', expiry, serial: 1 }, pair.privateKey);
   const fire = await make('fire', today + 10);
   assert.equal((await checkCode(fire, 'fire', pair.publicKey, today)).ok, true);
   assert.deepEqual(await checkCode(fire, 'cctv', pair.publicKey, today).then((c) => !c.ok && c.reason), 'wrongProgram');
   assert.deepEqual(await checkCode(fire, 'all', pair.publicKey, today).then((c) => !c.ok && c.reason), 'wrongProgram');
+  // çdo kod hap vetëm programin e vet; kodi ALL-IN-ONE vetëm programin ALL-IN-ONE
+  const programs = ['civil', 'cctv', 'network', 'fire', 'emergency', 'all'] as const;
+  for (const owner of programs) {
+    const code = await make(owner, today + 1);
+    for (const p of programs) assert.equal((await checkCode(code, p, pair.publicKey, today)).ok, p === owner, `${owner} te ${p}`);
+  }
   const all = await make('all', today);
-  for (const p of ['civil', 'cctv', 'network', 'fire', 'emergency', 'all']) assert.equal((await checkCode(all, p, pair.publicKey, today)).ok, true, p);
   // dita e fundit vlen, të nesërmen jo
-  assert.deepEqual(await checkCode(all, 'civil', pair.publicKey, today + 1).then((c) => !c.ok && c.reason), 'expired');
+  assert.deepEqual(await checkCode(all, 'all', pair.publicKey, today + 1).then((c) => !c.ok && c.reason), 'expired');
   const life = await createCode({ program: 'civil', duration: 'life', expiry: LIFETIME, serial: 2 }, pair.privateKey);
   assert.equal((await checkCode(life, 'civil', pair.publicKey, today + 20000)).ok, true);
   assert.deepEqual(await checkCode('jo-kod', 'civil', pair.publicKey, today).then((c) => !c.ok && c.reason), 'invalid');

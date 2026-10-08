@@ -10,7 +10,7 @@ declare const __ADMIN_KEY__: JsonWebKey | null;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 const PROGRAM_NAME: Record<LicenseProgram, string> = {
-  all: 'Të gjitha (ALL-IN-ONE)',
+  all: 'ALL-IN-ONE',
   civil: 'Elektrik',
   cctv: 'CCTV',
   network: 'AP',
