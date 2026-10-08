@@ -1,3 +1,4 @@
+import { cameraCoverage, coveragePolygon, type Coverage } from '../core/coverage';
 import {
   DIM_LAYER,
   isCable,
@@ -165,6 +166,13 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     if (c) drawCableTag(ctx, vp, e.points, c.name, color, paperPx);
   }
   if (ov.cablePreview && ov.cablePreview.length >= 2) drawCable(ctx, vp, ov.cablePreview, COLORS.selected, cableW, true);
+
+  // zona e shikimit të kamerave, nën simbolet
+  for (const e of visible) {
+    if (!isSymbol(e)) continue;
+    const cov = cameraCoverage(e, unit);
+    if (cov) drawCoverage(ctx, vp, cov, st.selection.has(e.id) ? COLORS.selected : (colorOf.get(e.layer) ?? COLORS.wall), st.selection.has(e.id), paperPx);
+  }
 
   for (const e of visible) {
     if (!isSymbol(e)) continue;
@@ -490,6 +498,42 @@ function drawSymbolTag(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEnt
   ctx.textAlign = 'left';
   ctx.textBaseline = 'bottom';
   ctx.fillText(name, c.x + r * 0.75, c.y - r * 0.75);
+  ctx.restore();
+}
+
+/** Zona e kamerës: sektor i tejdukshëm me këndin dhe distancën te harku. */
+function drawCoverage(ctx: CanvasRenderingContext2D, vp: Viewport, c: Coverage, color: string, selected: boolean, paperPx: number): void {
+  const pts = coveragePolygon(c).map((p) => vp.toScreen(p));
+  ctx.save();
+  ctx.beginPath();
+  pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+  ctx.closePath();
+  ctx.globalAlpha = selected ? 0.16 : 0.09;
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.globalAlpha = selected ? 0.9 : 0.55;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = selected ? 1.5 : 1;
+  ctx.setLineDash([6, 4]);
+  ctx.stroke();
+  // këndi dhe distanca, pak brenda harkut në mes të zonës
+  const px = Math.max(CIRCUIT_TEXT * paperPx, 9);
+  if (CIRCUIT_TEXT * paperPx >= 3.5) {
+    const a = (c.dir * Math.PI) / 180;
+    const r = c.range * (c.fov >= 360 ? 0.55 : 0.82);
+    const at = vp.toScreen({ x: c.apex.x + Math.cos(a) * r, y: c.apex.y + Math.sin(a) * r });
+    const text = `${Math.round(c.fov)}° · ${+(c.range / 1000).toFixed(1)} m`;
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+    ctx.font = `600 ${Math.min(px, 22)}px "IBM Plex Mono", ui-monospace, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.strokeText(text, at.x, at.y);
+    ctx.fillStyle = color;
+    ctx.fillText(text, at.x, at.y);
+  }
   ctx.restore();
 }
 

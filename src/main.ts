@@ -15,6 +15,7 @@ import { ReportsDialog } from './ui/reports';
 import { cableRunLength } from './core/circuits';
 import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang, type StringKey } from './i18n/strings';
 import { syncCableLayers } from './core/systems';
+import { FOV_LIMITS, RANGE_LIMITS, cameraSettings } from './core/coverage';
 import { EDITION, productName } from './edition';
 import { CATEGORIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
 import { normAngle } from './symbols/place';
@@ -536,6 +537,21 @@ function update<T extends Entity>(id: string, fn: (x: T) => void): void {
   });
 }
 
+/** Objektivat e zakonshëm dhe këndi i tyre horizontal i shikimit. */
+const LENSES: [string, number][] = [['2.8 mm', 105], ['4 mm', 85], ['6 mm', 55], ['8 mm', 40], ['12 mm', 28]];
+
+/** Fushat e kamerës: këndi i shikimit, distanca dhe drejtimi i objektivit. */
+function cameraFields(s: SymbolEntity): string {
+  const cam = cameraSettings(s);
+  if (!cam) return '';
+  return `<div class="prop-grid">
+      <label class="field" for="propFov">${esc(t('camFov'))}<input id="propFov" class="num" type="number" step="1" min="${FOV_LIMITS[0]}" max="${FOV_LIMITS[1]}" value="${cam.fov}" list="lensList"></label>
+      ${numField('propRange', t('camRange'), cam.range, '0.5')}
+      ${numField('propPan', t('camPan'), cam.pan, '5')}
+    </div>
+    <datalist id="lensList">${LENSES.map(([l, v]) => `<option value="${v}" label="${l}"></option>`).join('')}</datalist>`;
+}
+
 const numField = (id: string, label: string, value: number | string, step = '1') =>
   `<label class="field" for="${id}">${esc(label)}<input id="${id}" class="num" type="number" step="${step}" value="${value}"></label>`;
 
@@ -581,6 +597,7 @@ function renderProps(): void {
         ${numField('propPower', t('powerW'), s.power ?? '')}
         ${numField('propAngle', t('rotation'), normAngle(s.angle - 270), '90')}
       </div>
+      ${cameraFields(s)}
       ${circuitField('propCircuit', s.circuit ?? '')}
       ${def.category === 'custom' ? `<button class="btn" id="propEditSymbol" type="button">${esc(t('editSymbol'))}</button>` : ''}
       <button class="btn danger" id="propDelete" type="button">${esc(t('deleteSymbol'))}</button>`;
@@ -595,6 +612,10 @@ function renderProps(): void {
     onNum('propHeight', (x, v) => (v === undefined ? delete x.height : (x.height = Math.max(0, Math.round(v)))));
     onNum('propPower', (x, v) => (v === undefined ? delete x.power : (x.power = Math.max(0, Math.round(v)))));
     onNum('propAngle', (x, v) => v !== undefined && (x.angle = normAngle(v + 270)));
+    // kamera: bosh = vlera standarde e simbolit
+    onNum('propFov', (x, v) => (v === undefined ? delete x.fov : (x.fov = Math.min(FOV_LIMITS[1], Math.max(FOV_LIMITS[0], Math.round(v))))));
+    onNum('propRange', (x, v) => (v === undefined ? delete x.range : (x.range = Math.min(RANGE_LIMITS[1], Math.max(RANGE_LIMITS[0], Math.round(v * 10) / 10)))));
+    onNum('propPan', (x, v) => (v === undefined || v === 0 ? delete x.pan : (x.pan = Math.min(180, Math.max(-180, Math.round(v))))));
     onCircuit('propCircuit', [s.id]);
     $('propDelete').addEventListener('click', () => editor.deleteSelection());
     return;

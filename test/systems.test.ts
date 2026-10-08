@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { calcAll, newCircuit } from '../src/core/circuits';
 import { breakerSpec, cableSpec, materialList } from '../src/core/materials';
 import { ZONE_MAX_DEVICES, syncCableLayers } from '../src/core/systems';
+import { cameraCoverage, cameraSettings, coveragePolygon } from '../src/core/coverage';
 import { parse, serialize } from '../src/io/files';
 import { CATEGORIES, SYMBOLS, categoryLibrary, symbolDef } from '../src/symbols/library';
 import { EDITION, EDITIONS, productName } from '../src/edition';
@@ -106,4 +107,25 @@ test('një projekt i kamerave hapet edhe te programi elektrik me shtresën e vet
   const back = parse(serialize(sampleDoc('cctv')));
   assert.ok(back.layers.some((l) => l.id === 'kamerat'));
   assert.ok(back.layers.some((l) => l.id === 'prizat'));
+});
+
+test('kamera ka kënd shikimi, distancë dhe drejtim; zona vizatohet në shkallë', () => {
+  const cam: SymbolEntity = { id: 'c', kind: 'symbol', layer: 'kamerat', symbol: 'cc-bullet', pos: { x: 0, y: 0 }, angle: 90 };
+  assert.deepEqual(cameraSettings(cam), { fov: 85, range: 20, pan: 0 });
+  assert.equal(cameraSettings({ ...cam, symbol: 'cc-nvr' }), null);
+  const cov = cameraCoverage({ ...cam, fov: 90, range: 10, pan: -30 }, 1)!;
+  assert.equal(cov.dir, 60);
+  assert.equal(cov.range, 10000);
+  const poly = coveragePolygon(cov);
+  assert.deepEqual(poly[0], cov.apex);
+  // skajet e harkut janë 10 m larg, në 15° dhe 105°
+  for (const p of poly.slice(1)) assert.ok(Math.abs(Math.hypot(p.x - cov.apex.x, p.y - cov.apex.y) - 10000) < 1e-6);
+  const first = poly[1];
+  assert.ok(Math.abs(Math.atan2(first.y - cov.apex.y, first.x - cov.apex.x) * (180 / Math.PI) - 15) < 1e-6);
+  // vlerat jashtë kufijve kufizohen; fisheye jep rreth të plotë
+  assert.deepEqual(cameraSettings({ ...cam, fov: 999, range: -4 }), { fov: 360, range: 1, pan: 0 });
+  const fc = cameraCoverage({ ...cam, symbol: 'cc-fisheye' }, 1)!;
+  const fish = coveragePolygon(fc);
+  assert.equal(fish.length, 48);
+  for (const p of fish) assert.ok(Math.abs(Math.hypot(p.x - fc.apex.x, p.y - fc.apex.y) - 8000) < 1e-6);
 });

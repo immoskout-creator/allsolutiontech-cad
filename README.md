@@ -37,6 +37,8 @@ Nga i njëjti kod ndërtohen katër programe të veçanta, secili me emrin, link
 - **AllSolutionTech CAD 2D AP**: rrjeti dhe access point, 7 simbole AST-RJ, shtresa Rrjeti / AP (`dist/ap/`).
 - **AllSolutionTech CAD 2D FIRE**: sinjalizimi i zjarrit, 10 simbole AST-ZJ, shtresa Zjarri (`dist/fire/`).
 
+Te programi CCTV, çdo kamerë ka **këndin e shikimit** (me objektivat 2.8 / 4 / 6 / 8 / 12 mm si sugjerim), **distancën** dhe **drejtimin**; plani tregon zonën e mbulimit në shkallë, me këndin dhe distancën të shkruara.
+
 Te programet e sistemeve, **Qark i ri** krijon linjë (CAM1, NET1, FA1) pa siguresë: zgjidhet kablloja (U/UTP Cat6, F/UTP Cat6 PE, Cat5e, RG59, Cat6A, fibër OM3, kabllo zjarri PH30/PH120, J-Y(St)Y) dhe kontrollohen gjatësia e çdo kablloje (90 m për UTP) dhe numri i pajisjeve në zonën e zjarrit (32). Lista e materialeve jep pajisjet, metrat e kabllove, konektorët RJ45 (2 për çdo kabllo UTP) dhe rezistencat e fundit të zonës. Programi zgjidhet në `src/edition.ts`; `build.mjs` i ndërton të katërt.
 
 ## Simbolet e mia
