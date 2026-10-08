@@ -1,9 +1,12 @@
 // Ndërton programin si një faqe HTML të vetme (pa skedarë të jashtëm përveç fonteve).
 //   node build.mjs         -> katër programet, secili me index.html (hapet direkt në shfletues) dhe artifact.html:
 //                             dist/ (elektrik), dist/cctv/, dist/ap/, dist/fire/
+//                             dist/all/ (të gjitha programet bashkë, ALL-IN-ONE)
+//                          -> faqja e administratorit për kodet e aktivizimit: admin-dist/index.html
+//                             (me çelësin brenda kur admin-key.json është këtu; jashtë dist/ që të mos publikohet me programet)
 //   node build.mjs --test  -> përpilon testet në dist-test/
 import { build } from 'esbuild';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 
 const FONTS =
   '<link rel="preconnect" href="https://fonts.googleapis.com">' +
@@ -15,6 +18,7 @@ const EDITIONS = [
   { id: 'network', dir: 'dist/ap', title: 'AllSolutionTech CAD 2D AP' },
   { id: 'fire', dir: 'dist/fire', title: 'AllSolutionTech CAD 2D FIRE' },
 ];
+EDITIONS.push({ id: 'all', dir: 'dist/all', title: 'AllSolutionTech CAD 2D ALL-IN-ONE' });
 
 if (process.argv.includes('--test')) {
   const tests = (await readdir('test')).filter((f) => f.endsWith('.test.ts')).map((f) => `test/${f}`);
@@ -39,4 +43,19 @@ if (process.argv.includes('--test')) {
     await writeFile(`${ed.dir}/artifact.html`, fragment);
     console.log(`${ed.dir}/index.html ${(page.length / 1024).toFixed(1)} KB`);
   }
+
+  // faqja e administratorit
+  const key = (await access('admin-key.json').then(() => true, () => false)) ? JSON.parse(await readFile('admin-key.json', 'utf8')) : null;
+  const js = await build({
+    entryPoints: ['src/admin/admin.ts'], bundle: true, minify: true, format: 'iife', target: 'es2020', write: false, logLevel: 'warning',
+    define: { __ADMIN_KEY__: JSON.stringify(key) },
+  });
+  const page =
+    '<!doctype html>\n<html lang="sq">\n<head>\n<meta charset="utf-8">\n<meta name="robots" content="noindex">\n' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>AST Kodet e aktivizimit</title>\n' +
+    `${FONTS}\n<style>\n${await readFile('src/admin/admin.css', 'utf8')}</style>\n</head>\n<body>\n${await readFile('src/admin/admin.html', 'utf8')}\n` +
+    `<script>\n${js.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')}</script>\n</body>\n</html>\n`;
+  await mkdir('admin-dist', { recursive: true });
+  await writeFile('admin-dist/index.html', page);
+  console.log(`admin-dist/index.html ${key ? 'me çelësin' : 'pa çelës'}`);
 }

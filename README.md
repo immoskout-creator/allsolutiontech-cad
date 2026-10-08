@@ -44,6 +44,17 @@ Te programi FIRE, detektorët e tymit, të nxehtësisë dhe multisensor kanë **
 
 Te programet e sistemeve, **Qark i ri** krijon linjë (CAM1, NET1, FA1) pa siguresë: zgjidhet kablloja (U/UTP Cat6, F/UTP Cat6 PE, Cat5e, RG59, Cat6A, fibër OM3, kabllo zjarri PH30/PH120, J-Y(St)Y) dhe kontrollohen gjatësia e çdo kablloje (90 m për UTP) dhe numri i pajisjeve në zonën e zjarrit (32). Lista e materialeve jep pajisjet, metrat e kabllove, konektorët RJ45 (2 për çdo kabllo UTP) dhe rezistencat e fundit të zonës. Programi zgjidhet në `src/edition.ts`; `build.mjs` i ndërton të katërt.
 
+## Kodet e aktivizimit
+Çdo program hapet vetëm me një kod aktivizimi nga administratori: **7 ditë, 1 muaj, 6 muaj, 1 vit ose përjetë**. Kodi është për një program (elektrik, CCTV, AP, FIRE, EMERGENCY) ose për **të gjitha**; kodi "të gjitha" hap çdo program.
+- Kodet krijohen te faqja e administratorit `admin-dist/index.html` (zgjidh programin, kohëzgjatjen, datën e fillimit dhe klientin). Faqja ruan listën e kodeve të krijuara dhe e shkarkon në CSV, dhe kontrollon çdo kod që i ngjit.
+- Kodi është i nënshkruar me çelësin privat të administratorit (ECDSA P-256); programet kanë vetëm çelësin publik (`src/license/publicKey.ts`), prandaj kodet nuk krijohen dot duke ndryshuar programin. Afati llogaritet nga data e fillimit; dita e fundit vlen.
+- Çelësi privat është në `admin-key.json`, që **nuk futet në git**. Me të, `npm run build` e fut çelësin brenda faqes së administratorit; pa të, faqja kërkon skedarin. `node scripts/keygen.mjs --force` krijon çelës të ri, por kodet e vjetra nuk vlejnë më.
+- Programi kujton kodin në shfletues dhe tregon lart ditët që mbeten; butoni i licencës ndryshon kodin. Kthimi i orës mbrapa nuk e zgjat licencën.
+- Një program në shfletues nuk mbrohet plotësisht nga dikush që di ta ndryshojë kodin e faqes; versioni `.exe` mund ta forcojë më tej.
+
+## Të gjitha bashkë: ALL-IN-ONE
+`dist/all/` është **AllSolutionTech CAD 2D ALL-IN-ONE**: të gjitha libraritë, linjat dhe shtresat e programeve të tjera në një, me ruajtjen e vet. Lista e librarive majtas zgjedh një librari ose "Të gjitha". Programet e reja që shtohen te `EDITIONS` hyjnë vetë këtu.
+
 ## Simbolet e mia
 Butoni **Simbol i ri** te libraria hap redaktorin: vizaton me vija, drejtkëndësha, rrathë (bosh ose të mbushur), harqe dhe tekst, mbi një rrjetë ku shihet edhe muri. I jep kodin (p.sh. AST-U-01), emrin, shtresën, vendosjen (në mur ose e lirë), lartësinë dhe fuqinë.
 - Simbolet ruhen brenda projektit dhe dalin te "Simbolet e mia"; lapsi mbi pllakë i ndryshon.

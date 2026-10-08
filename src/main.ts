@@ -17,11 +17,16 @@ import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang, 
 import { syncCableLayers } from './core/systems';
 import { WALL_MIN_M, checkFireCached } from './core/firecheck';
 import { DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraModel, cameraSettings, detectorCalc, modelsFor } from './core/coverage';
-import { EDITION, productName } from './edition';
+import { EDITION, editionLibs, productName } from './edition';
+import { startLicenseGate } from './license/gate';
+import { lic } from './license/strings';
 import { CATEGORIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
 import { normAngle } from './symbols/place';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+// pa kod aktivizimi nga administratori programi mbetet i mbyllur
+const licenseGate = startLicenseGate(EDITION.id, productName(), document.querySelector<HTMLElement>('.top .actions'));
 
 const canvas = $<HTMLCanvasElement>('canvas');
 const ctx = canvas.getContext('2d')!;
@@ -67,7 +72,9 @@ function storedLang(): Lang {
 // emri i programit: elektrik, CCTV, AP ose FIRE
 document.title = productName();
 document.querySelector('.brand-name')!.textContent = productName();
-document.querySelector<HTMLElement>('.brand-sub')!.dataset.i18n = EDITION.subKey;
+const brandSub = document.querySelector<HTMLElement>('.brand-sub')!;
+if (EDITION.id !== 'all') brandSub.dataset.i18n = EDITION.subKey;
+else delete brandSub.dataset.i18n;
 
 const langSelect = $<HTMLSelectElement>('langSelect');
 langSelect.innerHTML = LANGS.map((l) => `<option value="${l.id}">${l.label}</option>`).join('');
@@ -77,6 +84,8 @@ function applyLang(lang: Lang): void {
   langSelect.value = lang;
   document.documentElement.lang = lang;
   applyStatic(document);
+  if (EDITION.id === 'all') brandSub.textContent = lic('allSub');
+  licenseGate.refresh();
   try {
     localStorage.setItem(LANG_KEY, lang);
   } catch {
@@ -310,19 +319,34 @@ const LIB_NAME: Record<LibraryId, StringKey> = { civil: 'libCivil', cctv: 'libCc
 const searchInput = $<HTMLInputElement>('symbolSearch');
 searchInput.addEventListener('input', renderLibrary);
 
+/** Te programi "të gjitha bashkë" libraria zgjidhet nga lista; null = të gjitha. */
+let libFilter: LibraryId | null = null;
+$('libList').addEventListener('click', (e) => {
+  const li = (e.target as HTMLElement).closest<HTMLElement>('[data-lib]');
+  if (!li) return;
+  libFilter = (li.dataset.lib || null) as LibraryId | null;
+  renderLibrary();
+});
+
 function renderLibrary(): void {
   const q = searchInput.value.trim().toLowerCase();
   const matches = (d: SymbolDef) =>
     !q || d.code.toLowerCase().includes(q) || [symName(d), ...Object.values(d.names)].some((n) => n.toLowerCase().includes(q));
   const all = allSymbols();
   // çdo program ka librarinë e vet; elektriku tregon edhe ato që vijnë më vonë
-  const count = all.filter((d) => d.category !== 'custom' && categoryLibrary(d.category) === EDITION.lib).length;
+  const libs = editionLibs();
+  const count = (lib: LibraryId) => all.filter((d) => d.category !== 'custom' && categoryLibrary(d.category) === lib).length;
   const later = EDITION.id === 'civil' ? (['libIndustrial', 'libAudio'] as const) : [];
+  const item = (lib: LibraryId | '', name: string, n: number) =>
+    `<li class="lib${(libFilter ?? '') === lib ? ' active' : ''}" data-lib="${lib}" style="cursor:pointer"><span>${esc(name)}</span><small>${n}</small></li>`;
   $('libList').innerHTML =
-    `<li class="lib active"><span>${esc(t(LIB_NAME[EDITION.lib]))}</span><small>${count}</small></li>` +
+    (libs.length > 1
+      ? item('', lic('allLibs'), libs.reduce((s, l) => s + count(l), 0)) + libs.map((l) => item(l, t(LIB_NAME[l]), count(l))).join('')
+      : `<li class="lib active"><span>${esc(t(LIB_NAME[EDITION.lib]))}</span><small>${count(EDITION.lib)}</small></li>`) +
     later.map((k) => `<li class="lib"><span>${esc(t(k))}</span><small>${esc(t('later'))}</small></li>`).join('');
   // simbolet e mia shfaqen në çdo program
-  const inLib = (cat: CategoryId) => cat === 'custom' || categoryLibrary(cat) === EDITION.lib;
+  const shown = libFilter ? [libFilter] : libs;
+  const inLib = (cat: CategoryId) => cat === 'custom' || shown.includes(categoryLibrary(cat));
   const html = CATEGORIES.filter((cat) => inLib(cat.id)).map((cat) => {
     const defs = all.filter((d) => d.category === cat.id && matches(d));
     if (defs.length === 0) return '';
@@ -866,7 +890,7 @@ function renderRoomSummary(): void {
   const walls = store.doc.entities.filter(isWall);
   const rooms = store.doc.entities.filter(isRoom).map((r) => ({ r, shape: findRoom(walls, r.pos) }));
   // te programi i zjarrit tregohet sa mbulohet çdo dhomë nga detektorët
-  const fire = EDITION.id === 'fire' ? checkFireCached(store.doc) : null;
+  const fire = EDITION.kinds.includes('fire') ? checkFireCached(store.doc) : null;
   const cover = new Map(fire?.rooms.map((r) => [r.id, r.covered]) ?? []);
   const key = JSON.stringify([getLang(), walls, rooms.map((x) => x.r), [...cover]]);
   if (key === roomsKey) return;
