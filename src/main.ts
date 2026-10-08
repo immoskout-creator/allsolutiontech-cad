@@ -11,6 +11,7 @@ import { loadAutosave, readFile, saveData, saveFile, writeAutosave } from './io/
 import { mergeSymbols, parseLibrary, serializeLibrary, toSymbolDef } from './symbols/custom';
 import { SymbolEditor } from './ui/symbolEditor';
 import { CircuitPanel, symbolCenters } from './ui/circuits';
+import { ReportsDialog } from './ui/reports';
 import { cableRunLength } from './core/circuits';
 import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang } from './i18n/strings';
 import { CATEGORIES, allSymbols, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type SymbolDef } from './symbols/library';
@@ -79,6 +80,7 @@ function applyLang(lang: Lang): void {
   roomsKey = '';
   syncUi();
   scheduleRender(); // teksti i vizores dhe emrat në plan
+  reports.refresh();
 }
 langSelect.addEventListener('change', () => isLang(langSelect.value) && applyLang(langSelect.value));
 
@@ -176,6 +178,10 @@ const circuitPanel = new CircuitPanel(
   },
   (m) => toast(m),
 );
+
+const reports = new ReportsDialog(store, (m, error) => toast(m, error));
+$('btnReports').addEventListener('click', () => reports.open());
+store.subscribe(() => reports.refresh());
 
 // ---- veglat dhe butonat ----
 
@@ -455,6 +461,10 @@ const typing = (target: EventTarget | null) =>
 
 window.addEventListener('keydown', (e) => {
   if (circuitPanel.isOpen && e.key === 'Escape') return void circuitPanel.closeTable();
+  if (reports.isOpen) {
+    if (e.key === 'Escape') reports.close();
+    return;
+  }
   if (!modal.hidden || symbolEditor.isOpen || circuitPanel.isOpen || typing(e.target)) return;
   const ctrl = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();

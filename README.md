@@ -24,6 +24,12 @@ Paneli **Qarqet** krijon qarqet e kuadrit (Q1, Q2…), me lloj (ndriçim, priza,
 - Për çdo qark llogariten fuqia, rryma Ib, siguresa, kablloja (3×1.5, 3×2.5 … ose 5× për trefazorin), gjatësia me zbritjet në mur dhe rënia e tensionit (IEC 60364, bakër PVC në tub, metoda B2; 3% ndriçim, 5% të tjerat). Kablloja trashet vetë kur rënia del mbi kufi.
 - **Tabela** jep listën e plotë të qarqeve dhe e eksporton në CSV për Excel.
 
+## Raportet
+Butoni **Raportet** lart hap tre raporte, secili gati për printim (A4), për ruajtje si HTML dhe, kur ka kuptim, për eksport CSV:
+- **Lista e materialeve**: pajisjet me sasitë, metrat e kabllove sipas llojit (me zbritjet në mur dhe 10% rezervë) dhe siguresat e kuadrit sipas lakores dhe rrymës.
+- **Simbolet e përdorura**: legjenda e planit, me simbolin, kodin AST, emrin dhe sasinë.
+- **Libraria e plotë**: katalogu i të gjitha simboleve sipas kategorive, përfshirë simbolet e tua.
+
 ## Simbolet e mia
 Butoni **Simbol i ri** te libraria hap redaktorin: vizaton me vija, drejtkëndësha, rrathë (bosh ose të mbushur), harqe dhe tekst, mbi një rrjetë ku shihet edhe muri. I jep kodin (p.sh. AST-U-01), emrin, shtresën, vendosjen (në mur ose e lirë), lartësinë dhe fuqinë.
 - Simbolet ruhen brenda projektit dhe dalin te "Simbolet e mia"; lapsi mbi pllakë i ndryshon.
