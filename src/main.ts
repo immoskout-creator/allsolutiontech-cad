@@ -15,7 +15,7 @@ import { ReportsDialog } from './ui/reports';
 import { cableRunLength } from './core/circuits';
 import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang, type StringKey } from './i18n/strings';
 import { syncCableLayers } from './core/systems';
-import { DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraSettings, detectorCalc } from './core/coverage';
+import { DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraModel, cameraSettings, detectorCalc, modelsFor } from './core/coverage';
 import { EDITION, productName } from './edition';
 import { CATEGORIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
 import { normAngle } from './symbols/place';
@@ -557,7 +557,14 @@ function detectorFields(s: SymbolEntity): string {
 function cameraFields(s: SymbolEntity): string {
   const cam = cameraSettings(s);
   if (!cam) return '';
-  return `<div class="prop-grid">
+  const models = modelsFor(s.symbol);
+  const current = cameraModel(s);
+  const modelSelect = models.length
+    ? `<label class="field" for="propModel">${esc(t('camModel'))}<select id="propModel">
+        <option value=""${current ? '' : ' selected'}>${esc(t('camCustom'))}</option>
+        ${models.map((m) => `<option value="${m.id}"${m.id === current?.id ? ' selected' : ''}>${esc(m.name)}</option>`).join('')}</select></label>`
+    : '';
+  return `${modelSelect}<div class="prop-grid">
       <label class="field" for="propFov">${esc(t('camFov'))}<input id="propFov" class="num" type="number" step="1" min="${FOV_LIMITS[0]}" max="${FOV_LIMITS[1]}" value="${cam.fov}" list="lensList"></label>
       ${numField('propRange', t('camRange'), cam.range, '0.5')}
       ${numField('propPan', t('camPan'), cam.pan, '5')}
@@ -606,7 +613,7 @@ function renderProps(): void {
       <div class="prop-head" style="--tile-color:${TILE_COLORS[def.layer] ?? '#9CC5FF'}">${symbolSvg(def)}
         <div><b>${esc(symName(def))}</b><span>${def.code} · ${esc(layerName(s.layer, s.layer))}</span></div></div>
       <div class="prop-grid">
-        ${def.mount === 'wall' || def.detector ? numField('propHeight', t('heightCm'), s.height ?? (def.detector ? DETECTOR_HEIGHT_CM : '')) : `<div class="field">${esc(t('heightCm'))}<span class="static">${esc(t('ceiling'))}</span></div>`}
+        ${def.mount === 'wall' || def.detector || def.cover ? numField('propHeight', t('heightCm'), s.height ?? (def.mount === 'wall' ? '' : DETECTOR_HEIGHT_CM)) : `<div class="field">${esc(t('heightCm'))}<span class="static">${esc(t('ceiling'))}</span></div>`}
         ${numField('propPower', t('powerW'), s.power ?? '')}
         ${numField('propAngle', t('rotation'), normAngle(s.angle - 270), '90')}
       </div>
@@ -628,6 +635,16 @@ function renderProps(): void {
     onNum('propAngle', (x, v) => v !== undefined && (x.angle = normAngle(v + 270)));
     // kamera: bosh = vlera standarde e simbolit
     onNum('propFov', (x, v) => (v === undefined ? delete x.fov : (x.fov = Math.min(FOV_LIMITS[1], Math.max(FOV_LIMITS[0], Math.round(v))))));
+    // modeli vendos këndin dhe distancën e tij; pastaj mund të përshtaten me dorë për planin
+    $('propModel')?.addEventListener('change', (ev) => {
+      const m = modelsFor(s.symbol).find((x) => x.id === (ev.target as HTMLSelectElement).value);
+      update<SymbolEntity>(s.id, (x) => {
+        if (!m) return void delete x.model;
+        x.model = m.id;
+        x.fov = m.fov;
+        x.range = m.range;
+      });
+    });
     // detektori: këndi i sensorit ruhet te i njëjti fushë si këndi i kamerës
     onNum('propDetAngle', (x, v) => (v === undefined ? delete x.fov : (x.fov = Math.min(DETECTOR_ANGLE_LIMITS[1], Math.max(DETECTOR_ANGLE_LIMITS[0], Math.round(v))))));
     onNum('propRange', (x, v) => (v === undefined ? delete x.range : (x.range = Math.min(RANGE_LIMITS[1], Math.max(RANGE_LIMITS[0], Math.round(v * 10) / 10)))));

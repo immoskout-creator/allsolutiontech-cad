@@ -37,7 +37,7 @@ Nga i njëjti kod ndërtohen katër programe të veçanta, secili me emrin, link
 - **AllSolutionTech CAD 2D AP**: rrjeti dhe access point, 7 simbole AST-RJ, shtresa Rrjeti / AP (`dist/ap/`).
 - **AllSolutionTech CAD 2D FIRE**: sinjalizimi i zjarrit, 10 simbole AST-ZJ, shtresa Zjarri (`dist/fire/`).
 
-Te programi CCTV, çdo kamerë ka **këndin e shikimit** (me objektivat 2.8 / 4 / 6 / 8 / 12 mm si sugjerim), **distancën** dhe **drejtimin**; plani tregon zonën e mbulimit në shkallë, me këndin dhe distancën të shkruara.
+Te programi CCTV, çdo kamerë ka **modelin** (bullet, dome, PTZ, fisheye me objektivin dhe distancën IR), **lartësinë e montimit**, **këndin e shikimit** (me objektivat 2.8 / 4 / 6 / 8 / 12 mm si sugjerim), **distancën** dhe **drejtimin**; plani tregon zonën e mbulimit në shkallë, me këndin dhe distancën të shkruara.
 
 Te programi FIRE, detektorët e tymit, të nxehtësisë dhe multisensor kanë **lartësinë e montimit** dhe **këndin e sensorit**: rrezja në dysheme është lartësia × tan(këndi/2), jo më shumë se 7.5 m për tymin dhe 5.3 m për nxehtësinë; mbi 10.5 m (tym) ose 9 m (nxehtësi) del paralajmërim. Plani vizaton rrethin e mbulimit me këndin dhe rrezen.
 

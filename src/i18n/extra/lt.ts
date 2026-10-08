@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Kabelis ilgesnis nei {v} m – šio kabelio tipo maksimumas.',
     warnDevices: 'Zonoje daugiau nei {v} įrenginių; padalykite ją į dvi zonas.',
     cableGeneric: 'Kabelis {v}',
+    camModel: 'Kameros modelis',
+    camCustom: 'Laisvas (mano reikšmės)',
     camFov: 'Matymo kampas (°)',
     camRange: 'Nuotolis (m)',
     camPan: 'Kameros kryptis (°)',

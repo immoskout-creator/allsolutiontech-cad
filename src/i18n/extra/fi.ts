@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Kaapeli on yli {v} m, tämän kaapelityypin maksimi.',
     warnDevices: 'Ryhmässä on yli {v} laitetta; jaa se kahteen ryhmään.',
     cableGeneric: 'Kaapeli {v}',
+    camModel: 'Kameramalli',
+    camCustom: 'Vapaa (omat arvot)',
     camFov: 'Kuvakulma (°)',
     camRange: 'Kantama (m)',
     camPan: 'Kameran suunta (°)',

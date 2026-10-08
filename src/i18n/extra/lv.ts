@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Kabelis ir garāks par {v} m – maksimumu šim kabeļa tipam.',
     warnDevices: 'Zonā ir vairāk nekā {v} ierīces; sadaliet to divās zonās.',
     cableGeneric: 'Kabelis {v}',
+    camModel: 'Kameras modelis',
+    camCustom: 'Brīvs (manas vērtības)',
     camFov: 'Skata leņķis (°)',
     camRange: 'Darbības attālums (m)',
     camPan: 'Kameras virziens (°)',

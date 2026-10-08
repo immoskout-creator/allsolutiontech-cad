@@ -35,6 +35,8 @@ export interface SymbolEntity {
   power?: number;
   /** Id e qarkut ku është lidhur. */
   circuit?: string;
+  /** Kamera: modeli i zgjedhur nga lista (shih core/coverage.ts). */
+  model?: string;
   /** Kamera: këndi i shikimit, gradë. */
   fov?: number;
   /** Kamera: distanca e shikimit, m. */

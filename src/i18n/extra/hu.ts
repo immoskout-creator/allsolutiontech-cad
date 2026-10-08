@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Egy kábel hosszabb {v} m-nél, ami e kábeltípus maximuma.',
     warnDevices: 'A zónában több mint {v} eszköz van; ossza két zónára.',
     cableGeneric: 'Kábel {v}',
+    camModel: 'Kameramodell',
+    camCustom: 'Egyéni (saját értékek)',
     camFov: 'Látószög (°)',
     camRange: 'Hatótáv (m)',
     camPan: 'Kamera iránya (°)',

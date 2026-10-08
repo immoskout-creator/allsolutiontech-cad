@@ -2,6 +2,7 @@ import { calcAll, cableRunLength, cableText } from './circuits';
 import { isCable, isSymbol, type CircuitKind, type Doc, type Vec } from './types';
 import { allSymbols, type SymbolDef } from '../symbols/library';
 import { cableTypeOf, isSystemKind, type SystemKind } from './systems';
+import { cameraModel } from './coverage';
 
 /** Rezerva që i shtohet gjatësisë së kabllove në listën e materialeve. */
 export const CABLE_RESERVE = 0.1;
@@ -9,6 +10,8 @@ export const CABLE_RESERVE = 0.1;
 export interface SymbolLine {
   def: SymbolDef;
   qty: number;
+  /** Modeli i kamerës, kur është zgjedhur (p.sh. "Bullet 4MP · 4 mm"). */
+  model?: string;
 }
 
 export interface CableLine {
@@ -48,13 +51,21 @@ export interface Materials {
 /** Lakorja e siguresës: B për ndriçim e priza, C për pajisjet me rrymë ndezjeje. */
 export const curveFor = (kind: CircuitKind): 'B' | 'C' => (kind === 'appliance' ? 'C' : 'B');
 
-/** Simbolet e vendosura në plan, me sasitë, sipas renditjes së librarisë. */
+/** Simbolet e vendosura në plan, me sasitë, sipas renditjes së librarisë; kamerat ndahen sipas modelit. */
 export function usedSymbols(doc: Doc): SymbolLine[] {
-  const counts = new Map<string, number>();
-  for (const e of doc.entities) if (isSymbol(e)) counts.set(e.symbol, (counts.get(e.symbol) ?? 0) + 1);
-  return allSymbols()
-    .filter((d) => counts.has(d.id))
-    .map((def) => ({ def, qty: counts.get(def.id)! }));
+  const counts = new Map<string, Map<string, number>>();
+  for (const e of doc.entities) {
+    if (!isSymbol(e)) continue;
+    const model = cameraModel(e)?.name ?? '';
+    const byModel = counts.get(e.symbol) ?? new Map<string, number>();
+    byModel.set(model, (byModel.get(model) ?? 0) + 1);
+    counts.set(e.symbol, byModel);
+  }
+  return allSymbols().flatMap((def) =>
+    [...(counts.get(def.id) ?? new Map<string, number>())]
+      .sort(([a], [b]) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b)))
+      .map(([model, qty]) => (model ? { def, qty, model } : { def, qty })),
+  );
 }
 
 export function materialList(doc: Doc, centers: Map<string, Vec>): Materials {

@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Kabl je duži od {v} m, maksimuma za ovaj tip kabla.',
     warnDevices: 'Zona ima više od {v} uređaja; podelite je u dve zone.',
     cableGeneric: 'Kabl {v}',
+    camModel: 'Model kamere',
+    camCustom: 'Slobodno (moje vrednosti)',
     camFov: 'Ugao gledanja (°)',
     camRange: 'Domet (m)',
     camPan: 'Smer kamere (°)',

@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Kaabel on pikem kui {v} m, selle kaablitüübi maksimum.',
     warnDevices: 'Tsoonis on üle {v} seadme; jagage see kaheks tsooniks.',
     cableGeneric: 'Kaabel {v}',
+    camModel: 'Kaamera mudel',
+    camCustom: 'Vaba (minu väärtused)',
     camFov: 'Vaatenurk (°)',
     camRange: 'Ulatus (m)',
     camPan: 'Kaamera suund (°)',

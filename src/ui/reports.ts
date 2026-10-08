@@ -9,6 +9,9 @@ import { symbolCenters } from './circuits';
 
 export type ReportKind = 'materials' | 'legend' | 'catalog';
 
+/** Emri i simbolit, me modelin e kamerës kur ka. */
+const lineName = (d: SymbolDef, model?: string) => (model ? `${symbolName(d)} · ${model}` : symbolName(d));
+
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -63,8 +66,8 @@ function page(title: string, project: string, body: string): string {
 ${body}</body></html>`;
 }
 
-const symbolRow = (d: SymbolDef, qty?: number) =>
-  `<tr><td class="sym">${symbolSvg(d)}</td><td class="code">${esc(d.code)}</td><td>${esc(symbolName(d))}</td>${
+const symbolRow = (d: SymbolDef, qty?: number, model?: string) =>
+  `<tr><td class="sym">${symbolSvg(d)}</td><td class="code">${esc(d.code)}</td><td>${esc(lineName(d, model))}</td>${
     qty === undefined ? '' : `<td class="qty">${num(qty)}</td><td class="unit">${esc(t('unitPcs'))}</td>`
   }</tr>`;
 
@@ -88,7 +91,7 @@ function materialRows(m: Materials): MaterialRow[] {
   const systemOf = (d: SymbolDef) => LIB_SYSTEM[categoryLibrary(d.category)];
   const civil = m.symbols.filter((s) => !systemOf(s.def));
   const rows: MaterialRow[] = [
-    ...civil.map((s) => ({ group: t('groupDevices'), code: s.def.code, name: symbolName(s.def), qty: s.qty, unit: t('unitPcs'), def: s.def })),
+    ...civil.map((s) => ({ group: t('groupDevices'), code: s.def.code, name: lineName(s.def, s.model), qty: s.qty, unit: t('unitPcs'), def: s.def })),
     ...m.cables
       .filter((c) => !c.system)
       .map((c) => ({
@@ -102,7 +105,7 @@ function materialRows(m: Materials): MaterialRow[] {
   ];
   for (const sys of SYSTEM_KINDS) {
     const group = t(SYSTEM_TITLE[sys]);
-    for (const s of m.symbols) if (systemOf(s.def) === sys) rows.push({ group, code: s.def.code, name: symbolName(s.def), qty: s.qty, unit: t('unitPcs'), def: s.def });
+    for (const s of m.symbols) if (systemOf(s.def) === sys) rows.push({ group, code: s.def.code, name: lineName(s.def, s.model), qty: s.qty, unit: t('unitPcs'), def: s.def });
     for (const c of m.cables) if (c.system === sys) rows.push({ group, code: cableSpec(c), name: t('cableGeneric', { v: cableSpec(c) }), qty: c.qty, unit: 'm' });
     for (const x of m.extras)
       if (x.system === sys) rows.push({ group, code: x.id === 'rj45' ? 'RJ45' : 'EOL', name: t(x.id === 'rj45' ? 'rj45Name' : 'eolName'), qty: x.qty, unit: t('unitPcs') });
@@ -181,7 +184,7 @@ export class ReportsDialog {
         title,
         doc.name,
         `<table><thead><tr><th class="sym">${esc(t('symbolCol'))}</th><th class="code">${esc(t('code'))}</th><th>${esc(t('description'))}</th><th class="qty">${esc(t('qty'))}</th><th class="unit">${esc(t('unit'))}</th></tr></thead>
-        <tbody>${used.map((u) => symbolRow(u.def, u.qty)).join('')}</tbody>
+        <tbody>${used.map((u) => symbolRow(u.def, u.qty, u.model)).join('')}</tbody>
         <tfoot><tr><td colspan="3">${esc(t('totalArea'))}</td><td class="qty">${num(total)}</td><td>${esc(t('unitPcs'))}</td></tr></tfoot></table>
         <p class="note">${esc(t('legendNote'))}</p>`,
       );
@@ -233,7 +236,7 @@ export class ReportsDialog {
     const cell = (v: string) => (/[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
     let table: string[][];
     if (this.kind === 'legend') {
-      table = [[t('code'), t('description'), t('qty'), t('unit')], ...usedSymbols(doc).map((u) => [u.def.code, symbolName(u.def), String(u.qty), t('unitPcs')])];
+      table = [[t('code'), t('description'), t('qty'), t('unit')], ...usedSymbols(doc).map((u) => [u.def.code, lineName(u.def, u.model), String(u.qty), t('unitPcs')])];
     } else {
       const rows = materialRows(materialList(doc, symbolCenters(doc)));
       table = [[t('category'), t('code'), t('description'), t('qty'), t('unit')], ...rows.map((r) => [r.group, r.code, r.name, String(r.qty), r.unit])];

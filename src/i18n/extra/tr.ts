@@ -278,6 +278,8 @@ const locale: ExtraLocale = {
     warnRun: 'Bir kablo, bu kablo tipi için azami {v} m\'yi aşıyor.',
     warnDevices: 'Bölgede {v} cihazdan fazla var; iki bölgeye ayırın.',
     cableGeneric: '{v} kablo',
+    camModel: 'Kamera modeli',
+    camCustom: 'Serbest (kendi değerlerim)',
     camFov: 'Görüş açısı (°)',
     camRange: 'Menzil (m)',
     camPan: 'Kamera yönü (°)',
