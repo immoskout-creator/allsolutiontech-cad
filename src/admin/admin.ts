@@ -163,8 +163,34 @@ $<HTMLInputElement>('keyFile').addEventListener('change', async (e) => {
   }
   $('keyMsg').textContent = ok ? '' : 'Ky nuk është çelësi i duhur.';
   $('keyCard').hidden = ok;
+  if (ok) storeKey(JSON.parse(await file.text()) as JsonWebKey);
 });
 
-if (typeof __ADMIN_KEY__ !== 'undefined' && __ADMIN_KEY__) {
-  void useKey(__ADMIN_KEY__).then((ok) => ($('keyCard').hidden = ok));
-} else $('keyCard').hidden = false;
+// pa çelës brenda faqes: çelësi i zgjedhur një herë mbahet në këtë shfletues
+const KEY_STORE = 'astcad.admin.key.v1';
+function storeKey(jwk: JsonWebKey | null): void {
+  try {
+    if (jwk) localStorage.setItem(KEY_STORE, JSON.stringify(jwk));
+    else localStorage.removeItem(KEY_STORE);
+  } catch {
+    // pa ruajtje: çelësi zgjidhet sërish herën tjetër
+  }
+}
+function storedKey(): JsonWebKey | null {
+  try {
+    const v = localStorage.getItem(KEY_STORE);
+    return v ? (JSON.parse(v) as JsonWebKey) : null;
+  } catch {
+    return null;
+  }
+}
+$('forget').addEventListener('click', () => {
+  storeKey(null);
+  privateKey = null;
+  $('keyCard').hidden = false;
+});
+
+const startKey = (typeof __ADMIN_KEY__ !== 'undefined' && __ADMIN_KEY__) || storedKey();
+if (startKey) void useKey(startKey).then((ok) => ($('keyCard').hidden = ok));
+else $('keyCard').hidden = false;
+$('forget').hidden = typeof __ADMIN_KEY__ !== 'undefined' && !!__ADMIN_KEY__;
