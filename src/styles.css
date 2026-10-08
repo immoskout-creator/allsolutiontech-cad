@@ -118,13 +118,7 @@ button:disabled { cursor: default; opacity: 0.45; }
 .lib-std { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 .lib-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .lib { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 6px; color: #8C95A1; }
-button.lib {
-  width: 100%; background: none; border: 1px solid transparent; font: inherit; font-size: 13px; text-align: left;
-  color: var(--fg-2); cursor: pointer;
-}
-button.lib:hover { background: var(--panel-2); }
-button.lib:focus-visible { outline: 2px solid var(--accent-line); outline-offset: -2px; }
-button.lib[aria-pressed="true"] { background: var(--panel-2); border-color: var(--line-2); color: var(--fg); font-weight: 600; }
+.lib.active { background: var(--panel-2); color: var(--fg); font-weight: 600; }
 .lib small { font-size: 11px; color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
 .search {
   display: flex; align-items: center; gap: 8px; padding: 0 10px;
@@ -333,3 +327,5 @@ button.lib[aria-pressed="true"] { background: var(--panel-2); border-color: var(
 .report-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .report-tabs .chip[aria-selected="true"] { border-color: var(--accent-line); background: var(--accent-soft); color: #CFE2FF; }
 .report-frame { flex: 1 1 auto; min-height: 240px; width: 100%; border: 1px solid var(--line-2); border-radius: 8px; background: #FFFFFF; }
+
+.summary td.warn-cell { color: #F87171; font-weight: 600; }

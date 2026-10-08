@@ -1,5 +1,5 @@
 import { Store } from './core/store';
-import { SCALES, emptyDoc, isCable, isOpening, isRoom, isSymbol, isWall, type Cable, type CircuitKind, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
+import { SCALES, emptyDoc, isCable, isOpening, isRoom, isSymbol, isWall, type Cable, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
 import { DEFAULT_SILL, DOOR_HEIGHTS, DOOR_WIDTHS, SIZE_LIMITS, WINDOW_HEIGHTS, WINDOW_WIDTHS, openingFrame, openingHeight } from './core/openings';
 import { areaText, findRoom } from './core/rooms';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
@@ -13,9 +13,12 @@ import { SymbolEditor } from './ui/symbolEditor';
 import { CircuitPanel, symbolCenters } from './ui/circuits';
 import { ReportsDialog } from './ui/reports';
 import { cableRunLength } from './core/circuits';
-import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang } from './i18n/strings';
+import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang, type StringKey } from './i18n/strings';
 import { syncCableLayers } from './core/systems';
-import { CATEGORIES, LIBRARIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
+import { WALL_MIN_M, checkFireCached } from './core/firecheck';
+import { DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraModel, cameraSettings, detectorCalc, modelsFor } from './core/coverage';
+import { EDITION, productName } from './edition';
+import { CATEGORIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
 import { normAngle } from './symbols/place';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -60,6 +63,11 @@ function storedLang(): Lang {
   }
   return 'sq';
 }
+
+// emri i programit: elektrik, CCTV, AP ose FIRE
+document.title = productName();
+document.querySelector('.brand-name')!.textContent = productName();
+document.querySelector<HTMLElement>('.brand-sub')!.dataset.i18n = EDITION.subKey;
 
 const langSelect = $<HTMLSelectElement>('langSelect');
 langSelect.innerHTML = LANGS.map((l) => `<option value="${l.id}">${l.label}</option>`).join('');
@@ -178,7 +186,7 @@ const circuitPanel = new CircuitPanel(
     scheduleRender();
   },
   (m) => toast(m),
-  () => LIB_KIND[activeLib],
+  () => EDITION.kinds[0],
 );
 
 const reports = new ReportsDialog(store, (m, error) => toast(m, error));
@@ -296,31 +304,8 @@ const layerColor = (id: string) => store.layer(id)?.color ?? '#9CC5FF';
 /** Ngjyrat e shtresave janë për fletën e bardhë; në panelin e errët i çelim pak. */
 const TILE_COLORS: Record<string, string> = { prizat: '#7FB0FF', ndricimi: '#FDBA74', pajisje: '#C4B5FD', kamerat: '#67E8F9', rrjeti: '#86EFAC', zjarri: '#FCA5A5' };
 
-/** Libraria e hapur në panelin e majtë; mbahet në shfletues për herën tjetër. */
-const LIB_KEY = 'astcad.library';
-let activeLib: LibraryId = (() => {
-  try {
-    const v = localStorage.getItem(LIB_KEY) as LibraryId | null;
-    return v && LIBRARIES.includes(v) ? v : 'civil';
-  } catch {
-    return 'civil';
-  }
-})();
-
-function setLibrary(lib: LibraryId): void {
-  activeLib = lib;
-  try {
-    localStorage.setItem(LIB_KEY, lib);
-  } catch {
-    /* pa ruajtje në shfletues */
-  }
-  renderLibrary();
-}
-
-document.querySelectorAll<HTMLButtonElement>('[data-lib]').forEach((b) => b.addEventListener('click', () => setLibrary(b.dataset.lib as LibraryId)));
-
-/** Lloji i qarkut të ri sipas librarisë së hapur. */
-const LIB_KIND: Record<LibraryId, CircuitKind> = { civil: 'sockets', cctv: 'cctv', network: 'network', fire: 'fire' };
+/** Emrat e librarive në panelin e majtë. */
+const LIB_NAME: Record<LibraryId, StringKey> = { civil: 'libCivil', cctv: 'libCctv', network: 'libAp', fire: 'libFire' };
 
 const searchInput = $<HTMLInputElement>('symbolSearch');
 searchInput.addEventListener('input', renderLibrary);
@@ -330,13 +315,14 @@ function renderLibrary(): void {
   const matches = (d: SymbolDef) =>
     !q || d.code.toLowerCase().includes(q) || [symName(d), ...Object.values(d.names)].some((n) => n.toLowerCase().includes(q));
   const all = allSymbols();
-  document.querySelectorAll<HTMLButtonElement>('[data-lib]').forEach((b) => {
-    const lib = b.dataset.lib as LibraryId;
-    b.setAttribute('aria-pressed', String(lib === activeLib));
-    b.querySelector('.lib-count')!.textContent = String(all.filter((d) => d.category !== 'custom' && categoryLibrary(d.category) === lib).length);
-  });
-  // kërkimi kalon nëpër të gjitha libraritë; simbolet e mia shfaqen gjithmonë
-  const inLib = (cat: CategoryId) => !!q || cat === 'custom' || categoryLibrary(cat) === activeLib;
+  // çdo program ka librarinë e vet; elektriku tregon edhe ato që vijnë më vonë
+  const count = all.filter((d) => d.category !== 'custom' && categoryLibrary(d.category) === EDITION.lib).length;
+  const later = EDITION.id === 'civil' ? (['libIndustrial', 'libAudio'] as const) : [];
+  $('libList').innerHTML =
+    `<li class="lib active"><span>${esc(t(LIB_NAME[EDITION.lib]))}</span><small>${count}</small></li>` +
+    later.map((k) => `<li class="lib"><span>${esc(t(k))}</span><small>${esc(t('later'))}</small></li>`).join('');
+  // simbolet e mia shfaqen në çdo program
+  const inLib = (cat: CategoryId) => cat === 'custom' || categoryLibrary(cat) === EDITION.lib;
   const html = CATEGORIES.filter((cat) => inLib(cat.id)).map((cat) => {
     const defs = all.filter((d) => d.category === cat.id && matches(d));
     if (defs.length === 0) return '';
@@ -552,6 +538,55 @@ function update<T extends Entity>(id: string, fn: (x: T) => void): void {
   });
 }
 
+/** Objektivat e zakonshëm dhe këndi i tyre horizontal i shikimit. */
+const LENSES: [string, number][] = [['2.8 mm', 105], ['4 mm', 85], ['6 mm', 55], ['8 mm', 40], ['12 mm', 28]];
+
+/** Detektori i zjarrit: këndi i sensorit dhe rrezja që del nga lartësia. */
+function detectorFields(s: SymbolEntity): string {
+  const d = detectorCalc(s);
+  if (!d) return '';
+  const fmt = (v: number, digits: number) => v.toLocaleString(getLang(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return `<div class="prop-grid">${numField('propDetAngle', t('detAngle'), d.angle, '1')}</div>
+    <div class="stats">
+      <div class="stat"><span>${esc(t('detRadius'))}</span><b>${fmt(d.radius, 1)} m</b></div>
+      <div class="stat"><span>${esc(t('detArea'))}</span><b>${fmt(d.area, 0)} m²</b></div>
+    </div>
+    ${d.tooHigh ? `<p class="warn-text">${esc(t('warnDetHeight', { v: fmt(d.maxHeight, 1) }))}</p>` : ''}
+    ${placement(s, fmt)}`;
+}
+
+/** Largësitë sipas rregullave: nga muri dhe nga detektori fqinj në të njëjtën dhomë. */
+function placement(s: SymbolEntity, fmt: (v: number, digits: number) => string): string {
+  const c = checkFireCached(store.doc).detectors.get(s.id);
+  if (!c) return '';
+  const m = (v: number | null) => (v === null ? '—' : `${fmt(v, 2)} m`);
+  return `<div class="stats">
+      <div class="stat"><span>${esc(t('detWall'))}</span><b>${m(c.wall)}</b></div>
+      <div class="stat"><span>${esc(t('detNeighbour'))}</span><b>${m(c.neighbour)} <small class="muted">≤ ${fmt(c.maxSpacing, 1)} m</small></b></div>
+    </div>
+    ${c.issues.includes('wall') ? `<p class="warn-text">${esc(t('warnDetWall', { v: fmt(WALL_MIN_M, 1) }))}</p>` : ''}
+    ${c.issues.includes('spacing') ? `<p class="warn-text">${esc(t('warnDetSpacing', { v: fmt(c.maxSpacing, 1) }))}</p>` : ''}`;
+}
+
+/** Fushat e kamerës: këndi i shikimit, distanca dhe drejtimi i objektivit. */
+function cameraFields(s: SymbolEntity): string {
+  const cam = cameraSettings(s);
+  if (!cam) return '';
+  const models = modelsFor(s.symbol);
+  const current = cameraModel(s);
+  const modelSelect = models.length
+    ? `<label class="field" for="propModel">${esc(t('camModel'))}<select id="propModel">
+        <option value=""${current ? '' : ' selected'}>${esc(t('camCustom'))}</option>
+        ${models.map((m) => `<option value="${m.id}"${m.id === current?.id ? ' selected' : ''}>${esc(m.name)}</option>`).join('')}</select></label>`
+    : '';
+  return `${modelSelect}<div class="prop-grid">
+      <label class="field" for="propFov">${esc(t('camFov'))}<input id="propFov" class="num" type="number" step="1" min="${FOV_LIMITS[0]}" max="${FOV_LIMITS[1]}" value="${cam.fov}" list="lensList"></label>
+      ${numField('propRange', t('camRange'), cam.range, '0.5')}
+      ${numField('propPan', t('camPan'), cam.pan, '5')}
+    </div>
+    <datalist id="lensList">${LENSES.map(([l, v]) => `<option value="${v}" label="${l}"></option>`).join('')}</datalist>`;
+}
+
 const numField = (id: string, label: string, value: number | string, step = '1') =>
   `<label class="field" for="${id}">${esc(label)}<input id="${id}" class="num" type="number" step="${step}" value="${value}"></label>`;
 
@@ -593,10 +628,12 @@ function renderProps(): void {
       <div class="prop-head" style="--tile-color:${TILE_COLORS[def.layer] ?? '#9CC5FF'}">${symbolSvg(def)}
         <div><b>${esc(symName(def))}</b><span>${def.code} · ${esc(layerName(s.layer, s.layer))}</span></div></div>
       <div class="prop-grid">
-        ${def.mount === 'wall' ? numField('propHeight', t('heightCm'), s.height ?? '') : `<div class="field">${esc(t('heightCm'))}<span class="static">${esc(t('ceiling'))}</span></div>`}
+        ${def.mount === 'wall' || def.detector || def.cover ? numField('propHeight', t('heightCm'), s.height ?? (def.mount === 'wall' ? '' : DETECTOR_HEIGHT_CM)) : `<div class="field">${esc(t('heightCm'))}<span class="static">${esc(t('ceiling'))}</span></div>`}
         ${numField('propPower', t('powerW'), s.power ?? '')}
         ${numField('propAngle', t('rotation'), normAngle(s.angle - 270), '90')}
       </div>
+      ${cameraFields(s)}
+      ${detectorFields(s)}
       ${circuitField('propCircuit', s.circuit ?? '')}
       ${def.category === 'custom' ? `<button class="btn" id="propEditSymbol" type="button">${esc(t('editSymbol'))}</button>` : ''}
       <button class="btn danger" id="propDelete" type="button">${esc(t('deleteSymbol'))}</button>`;
@@ -611,6 +648,22 @@ function renderProps(): void {
     onNum('propHeight', (x, v) => (v === undefined ? delete x.height : (x.height = Math.max(0, Math.round(v)))));
     onNum('propPower', (x, v) => (v === undefined ? delete x.power : (x.power = Math.max(0, Math.round(v)))));
     onNum('propAngle', (x, v) => v !== undefined && (x.angle = normAngle(v + 270)));
+    // kamera: bosh = vlera standarde e simbolit
+    onNum('propFov', (x, v) => (v === undefined ? delete x.fov : (x.fov = Math.min(FOV_LIMITS[1], Math.max(FOV_LIMITS[0], Math.round(v))))));
+    // modeli vendos këndin dhe distancën e tij; pastaj mund të përshtaten me dorë për planin
+    $('propModel')?.addEventListener('change', (ev) => {
+      const m = modelsFor(s.symbol).find((x) => x.id === (ev.target as HTMLSelectElement).value);
+      update<SymbolEntity>(s.id, (x) => {
+        if (!m) return void delete x.model;
+        x.model = m.id;
+        x.fov = m.fov;
+        x.range = m.range;
+      });
+    });
+    // detektori: këndi i sensorit ruhet te i njëjti fushë si këndi i kamerës
+    onNum('propDetAngle', (x, v) => (v === undefined ? delete x.fov : (x.fov = Math.min(DETECTOR_ANGLE_LIMITS[1], Math.max(DETECTOR_ANGLE_LIMITS[0], Math.round(v))))));
+    onNum('propRange', (x, v) => (v === undefined ? delete x.range : (x.range = Math.min(RANGE_LIMITS[1], Math.max(RANGE_LIMITS[0], Math.round(v * 10) / 10)))));
+    onNum('propPan', (x, v) => (v === undefined || v === 0 ? delete x.pan : (x.pan = Math.min(180, Math.max(-180, Math.round(v))))));
     onCircuit('propCircuit', [s.id]);
     $('propDelete').addEventListener('click', () => editor.deleteSelection());
     return;
@@ -812,7 +865,10 @@ let roomsKey = '';
 function renderRoomSummary(): void {
   const walls = store.doc.entities.filter(isWall);
   const rooms = store.doc.entities.filter(isRoom).map((r) => ({ r, shape: findRoom(walls, r.pos) }));
-  const key = JSON.stringify([getLang(), walls, rooms.map((x) => x.r)]);
+  // te programi i zjarrit tregohet sa mbulohet çdo dhomë nga detektorët
+  const fire = EDITION.id === 'fire' ? checkFireCached(store.doc) : null;
+  const cover = new Map(fire?.rooms.map((r) => [r.id, r.covered]) ?? []);
+  const key = JSON.stringify([getLang(), walls, rooms.map((x) => x.r), [...cover]]);
   if (key === roomsKey) return;
   roomsKey = key;
   if (rooms.length === 0) {
@@ -821,10 +877,15 @@ function renderRoomSummary(): void {
   }
   const total = rooms.reduce((s, x) => s + (x.shape?.area ?? 0), 0);
   const rows = rooms
-    .map(({ r, shape }) => `<tr data-room="${r.id}"><td>${esc(r.name)}</td><td class="qty">${shape ? areaText(shape.area) : '—'}</td></tr>`)
+    .map(({ r, shape }) => {
+      const c = cover.get(r.id);
+      const pct = c === undefined ? '' : `<td class="qty${c < 0.999 ? ' warn-cell' : ''}">${Math.floor(c * 100)}%</td>`;
+      return `<tr data-room="${r.id}"><td>${esc(r.name)}</td><td class="qty">${shape ? areaText(shape.area) : '—'}</td>${fire ? pct || '<td class="qty">—</td>' : ''}</tr>`;
+    })
     .join('');
-  $('roomSummary').innerHTML = `<table class="summary rooms"><thead><tr><th>${esc(t('room'))}</th><th class="qty">m²</th></tr></thead>
-    <tbody>${rows}</tbody><tfoot><tr><td>${esc(t('totalArea'))}</td><td class="qty">${areaText(total)}</td></tr></tfoot></table>`;
+  const coverHead = fire ? `<th class="qty">${esc(t('coverage'))}</th>` : '';
+  $('roomSummary').innerHTML = `<table class="summary rooms"><thead><tr><th>${esc(t('room'))}</th><th class="qty">m²</th>${coverHead}</tr></thead>
+    <tbody>${rows}</tbody><tfoot><tr><td>${esc(t('totalArea'))}</td><td class="qty">${areaText(total)}</td>${fire ? '<td></td>' : ''}</tr></tfoot></table>`;
 }
 $('roomSummary').addEventListener('click', (e) => {
   const row = (e.target as HTMLElement).closest<HTMLElement>('[data-room]');

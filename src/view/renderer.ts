@@ -1,3 +1,5 @@
+import { GRID_MM, checkFireCached } from '../core/firecheck';
+import { coveragePolygon, symbolCoverage, type Coverage } from '../core/coverage';
 import {
   DIM_LAYER,
   isCable,
@@ -15,7 +17,7 @@ import {
 } from '../core/types';
 import { moveEntity, wallMap } from '../core/move';
 import { openingFrame, sizeText, wallLength, wallPieces } from '../core/openings';
-import { areaText, findRoomCached } from '../core/rooms';
+import { areaText, findRoomCached, pointInPolygon } from '../core/rooms';
 import { dist, formatMeters, mid, sub } from '../core/geometry';
 import { HIT_RADIUS_UNITS, symbolDef, unitMm } from '../symbols/library';
 import { screenRotation, symbolCenter, symbolHitMm } from '../symbols/place';
@@ -166,6 +168,29 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   }
   if (ov.cablePreview && ov.cablePreview.length >= 2) drawCable(ctx, vp, ov.cablePreview, COLORS.selected, cableW, true);
 
+  // pjesët e dhomave që nuk i mbulon asnjë detektor zjarri
+  if (visible.some((e) => isSymbol(e) && symbolDef(e.symbol)?.detector)) {
+    const fire = checkFireCached(st.doc);
+    const cell = GRID_MM * vp.scale;
+    ctx.save();
+    ctx.fillStyle = 'rgba(220, 38, 38, 0.28)';
+    for (const r of fire.rooms) for (const g of r.gaps) {
+      const p = vp.toScreen(g);
+      ctx.fillRect(p.x - cell / 2, p.y - cell / 2, cell, cell);
+    }
+    ctx.restore();
+  }
+
+  // zona e kamerave dhe e detektorëve të zjarrit, nën simbolet
+  for (const e of visible) {
+    if (!isSymbol(e)) continue;
+    const cov = symbolCoverage(e, unit);
+    if (!cov) continue;
+    // detektori mbulon vetëm dhomën e vet: rrethi pritet te muret e saj
+    const clip = symbolDef(e.symbol)?.detector ? roomPolyAt(st.doc, walls, e.pos) : null;
+    drawCoverage(ctx, vp, cov, st.selection.has(e.id) ? COLORS.selected : (colorOf.get(e.layer) ?? COLORS.wall), st.selection.has(e.id), paperPx, clip);
+  }
+
   for (const e of visible) {
     if (!isSymbol(e)) continue;
     let color = colorOf.get(e.layer) ?? COLORS.wall;
@@ -174,6 +199,8 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     const c = e.circuit ? circuitOf.get(e.circuit) : undefined;
     if (c) drawSymbolTag(ctx, vp, e, c.name, c.color, unit, paperPx);
     if (ov.hoverId === e.id && !st.selection.has(e.id)) drawSymbolRing(ctx, vp, e, COLORS.wallHover, true, unit);
+    // detektor që shkel rregullat e vendosjes: unazë e kuqe
+    if (symbolDef(e.symbol)?.detector && checkFireCached(st.doc).detectors.get(e.id)?.issues.length) drawSymbolRing(ctx, vp, e, '#DC2626', false, unit);
   }
 
   for (const e of visible) {
@@ -490,6 +517,64 @@ function drawSymbolTag(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEnt
   ctx.textAlign = 'left';
   ctx.textBaseline = 'bottom';
   ctx.fillText(name, c.x + r * 0.75, c.y - r * 0.75);
+  ctx.restore();
+}
+
+/** Zona e kamerës: sektor i tejdukshëm me këndin dhe distancën te harku. */
+/** Kontura e dhomës ku ndodhet pika, nëse ka. */
+function roomPolyAt(doc: Doc, walls: Wall[], p: Vec): Vec[] | null {
+  for (const r of doc.entities) {
+    if (!isRoom(r)) continue;
+    const shape = findRoomCached(walls, r.pos);
+    if (shape && pointInPolygon(p, shape.poly)) return shape.poly;
+  }
+  return null;
+}
+
+function drawCoverage(ctx: CanvasRenderingContext2D, vp: Viewport, c: Coverage, color: string, selected: boolean, paperPx: number, clip: Vec[] | null = null): void {
+  const pts = coveragePolygon(c).map((p) => vp.toScreen(p));
+  ctx.save();
+  if (clip) {
+    ctx.beginPath();
+    clip.forEach((q, i) => {
+      const p = vp.toScreen(q);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.closePath();
+    ctx.clip();
+  }
+  ctx.beginPath();
+  pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+  ctx.closePath();
+  // rrathët e detektorëve mbivendosen shumë, ndaj mbushen më lehtë
+  ctx.globalAlpha = selected ? 0.16 : c.fov >= 360 && !clip ? 0.04 : 0.09;
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.globalAlpha = selected ? 0.9 : 0.55;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = selected ? 1.5 : 1;
+  ctx.setLineDash([6, 4]);
+  ctx.stroke();
+  // këndi dhe distanca, pak brenda harkut në mes të zonës
+  const px = Math.max(CIRCUIT_TEXT * paperPx, 9);
+  if (CIRCUIT_TEXT * paperPx >= 3.5) {
+    const a = (c.dir * Math.PI) / 180;
+    // te detektori i prerë nga dhoma, teksti qëndron pranë tij që të mos bjerë jashtë
+    const r = clip ? Math.min(c.range * 0.55, 800) : c.range * (c.fov >= 360 ? 0.55 : 0.82);
+    const at = vp.toScreen({ x: c.apex.x + Math.cos(a) * r, y: c.apex.y + Math.sin(a) * r });
+    const text = c.label;
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+    ctx.font = `600 ${Math.min(px, 22)}px "IBM Plex Mono", ui-monospace, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.strokeText(text, at.x, at.y);
+    ctx.fillStyle = color;
+    ctx.fillText(text, at.x, at.y);
+  }
   ctx.restore();
 }
 

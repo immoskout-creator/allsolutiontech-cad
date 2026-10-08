@@ -38,6 +38,10 @@ export interface SymbolDef {
   height?: number;
   /** Fuqia standarde, W. */
   power?: number;
+  /** Kamera: këndi i shikimit (gradë) dhe distanca (m) standarde. */
+  cover?: { fov: number; range: number };
+  /** Detektor zjarri: këndi i sensorit (gradë), rrezja maksimale (m) dhe lartësia maksimale e montimit (m). */
+  detector?: { angle: number; maxRadius: number; maxHeight: number };
 }
 
 export type CategoryId = 'custom' | 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'sensore' | 'komunikim' | 'cctv' | 'rrjet' | 'zjarr';
@@ -577,22 +581,22 @@ export const SYMBOLS: SymbolDef[] = [
   },
   // ---- Kamera (CCTV) ----
   {
-    id: 'cc-bullet', code: 'AST-CC-01', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 250, power: 6,
+    id: 'cc-bullet', code: 'AST-CC-01', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 250, power: 6, cover: { fov: 85, range: 20 },
     names: { sq: 'Kamerë bullet IP', en: 'IP bullet camera', it: 'Telecamera bullet IP', de: 'IP-Bullet-Kamera' },
     parts: [{ d: 'M0 0 V3' }, { d: rect(-5, 3, 5, 15) }, { d: 'M-5 15 L-8.5 21 H8.5 L5 15' }],
   },
   {
-    id: 'cc-dome', code: 'AST-CC-02', category: 'cctv', layer: 'kamerat', mount: 'center', power: 6,
+    id: 'cc-dome', code: 'AST-CC-02', category: 'cctv', layer: 'kamerat', mount: 'center', power: 6, cover: { fov: 105, range: 12 },
     names: { sq: 'Kamerë dome IP', en: 'IP dome camera', it: 'Telecamera dome IP', de: 'IP-Dome-Kamera' },
     parts: [{ d: circle(0, 0, 9.5) }, { d: 'M-9.5 0 H9.5' }, { d: circle(0, 3.8, 2.6), fill: true }],
   },
   {
-    id: 'cc-ptz', code: 'AST-CC-03', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 300, power: 25,
+    id: 'cc-ptz', code: 'AST-CC-03', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 300, power: 25, cover: { fov: 60, range: 50 },
     names: { sq: 'Kamerë PTZ (rrotulluese)', en: 'PTZ camera', it: 'Telecamera PTZ (brandeggiabile)', de: 'PTZ-Kamera (schwenkbar)' },
     parts: [{ d: 'M0 0 V3' }, { d: rect(-5, 3, 5, 14) }, { d: 'M-5 14 L-8 20 H8 L5 14' }, { d: 'M-9 5 Q-14 12 -9 19 M9 5 Q14 12 9 19 M-9 19 L-10.5 16.5 M9 19 L10.5 16.5' }],
   },
   {
-    id: 'cc-fisheye', code: 'AST-CC-04', category: 'cctv', layer: 'kamerat', mount: 'center', power: 8,
+    id: 'cc-fisheye', code: 'AST-CC-04', category: 'cctv', layer: 'kamerat', mount: 'center', power: 8, cover: { fov: 360, range: 8 },
     names: { sq: 'Kamerë fisheye 360°', en: '360° fisheye camera', it: 'Telecamera fisheye 360°', de: '360°-Fisheye-Kamera' },
     parts: [{ d: circle(0, 0, 10) }, { d: circle(0, 0, 6.5) }, { d: strokeText('360', 0, 0, 4.2) }],
   },
@@ -612,7 +616,7 @@ export const SYMBOLS: SymbolDef[] = [
     parts: [{ d: 'M0 0 V3' }, { d: rect(-11, 3, 11, 18) }, { d: rect(-8, 6, 8, 15) }, { d: 'M0 18 V21 M-5 21 H5' }],
   },
   {
-    id: 'cc-ir', code: 'AST-CC-08', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 250, power: 10,
+    id: 'cc-ir', code: 'AST-CC-08', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 250, power: 10, cover: { fov: 60, range: 30 },
     names: { sq: 'Ndriçues infra të kuq (IR)', en: 'Infrared illuminator', it: 'Illuminatore infrarosso', de: 'Infrarot-Strahler' },
     parts: [{ d: 'M0 0 V3' }, { d: 'M-8 3 H8 V9 A8 8 0 0 1 -8 9 Z' }, { d: strokeText('IR', 0, 8, 4.5) }, { d: 'M-6 19 L-8 22.5 M0 20 V24 M6 19 L8 22.5' }],
   },
@@ -656,17 +660,17 @@ export const SYMBOLS: SymbolDef[] = [
 
   // ---- Sinjalizim zjarri ----
   {
-    id: 'zj-tym', code: 'AST-ZJ-01', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    id: 'zj-tym', code: 'AST-ZJ-01', category: 'zjarr', layer: 'zjarri', mount: 'center', detector: { angle: 140, maxRadius: 7.5, maxHeight: 10.5 },
     names: { sq: 'Detektor optik tymi', en: 'Optical smoke detector', it: 'Rivelatore ottico di fumo', de: 'Optischer Rauchmelder' },
     parts: [{ d: circle(0, 0, 10) }, { d: strokeText('S', 0, 0, 9) }],
   },
   {
-    id: 'zj-nxehtesi', code: 'AST-ZJ-02', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    id: 'zj-nxehtesi', code: 'AST-ZJ-02', category: 'zjarr', layer: 'zjarri', mount: 'center', detector: { angle: 126, maxRadius: 5.3, maxHeight: 9 },
     names: { sq: 'Detektor nxehtësie', en: 'Heat detector', it: 'Rivelatore di calore', de: 'Wärmemelder' },
     parts: [{ d: circle(0, 0, 10) }, { d: strokeText('T', 0, 0, 9) }],
   },
   {
-    id: 'zj-multi', code: 'AST-ZJ-03', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    id: 'zj-multi', code: 'AST-ZJ-03', category: 'zjarr', layer: 'zjarri', mount: 'center', detector: { angle: 140, maxRadius: 7.5, maxHeight: 10.5 },
     names: { sq: 'Detektor multisensor (tym + nxehtësi)', en: 'Multisensor detector (smoke + heat)', it: 'Rivelatore multisensore (fumo + calore)', de: 'Multisensormelder (Rauch + Wärme)' },
     parts: [{ d: circle(0, 0, 10) }, { d: strokeText('ST', 0, 0, 7) }],
   },
