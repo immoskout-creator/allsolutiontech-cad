@@ -1,6 +1,7 @@
 import type { SymbolEntity, Vec } from './types';
 import { symbolDef } from '../symbols/library';
 import { symbolCenter } from '../symbols/place';
+import { emergencyCoverage } from './emergency';
 
 /** Zona që sheh kamera: kulmi te objektivi, drejtimi, këndi i shikimit dhe distanca. */
 export interface Coverage {
@@ -13,6 +14,8 @@ export interface Coverage {
   range: number;
   /** Teksti mbi zonë, p.sh. "85° · 8 m" ose "140° · R 7.4 m". */
   label: string;
+  /** Rrethi i brendshëm me vijë, mm (ndriçimi 1 lux i rrugës së evakuimit). */
+  inner?: number;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -99,12 +102,12 @@ export function detectorCalc(e: SymbolEntity): DetectorCalc | null {
   return { height, angle, radius, area: Math.PI * radius * radius, tooHigh: height > d.maxHeight, maxHeight: d.maxHeight };
 }
 
-/** Zona e çdo simboli që ka mbulim: sektori i kamerës ose rrethi i detektorit. */
+/** Zona e çdo simboli që ka mbulim: sektori i kamerës, rrethi i detektorit ose i ndriçuesit të emergjencës. */
 export function symbolCoverage(e: SymbolEntity, unit: number): Coverage | null {
   const cam = cameraCoverage(e, unit);
   if (cam) return cam;
   const det = detectorCalc(e);
-  if (!det) return null;
+  if (!det) return emergencyCoverage(e, unit);
   return {
     apex: symbolCenter(e, unit),
     // teksti mbi detektor, që të mos mbulojë emrin e dhomës

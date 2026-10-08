@@ -84,10 +84,10 @@ test('zona e zjarrit me shumë pajisje jep paralajmërim; kablloja ndjek shtres�
   assert.ok(back.layers.some((l) => l.id === 'zjarri'));
 });
 
-test('katër programe: secili me librarinë, linjën dhe planin shembull të vet', () => {
-  assert.deepEqual(Object.keys(EDITIONS), ['civil', 'cctv', 'network', 'fire']);
+test('pesë programe: secili me librarinë, linjën dhe planin shembull të vet', () => {
+  assert.deepEqual(Object.keys(EDITIONS), ['civil', 'cctv', 'network', 'fire', 'emergency']);
   assert.equal(EDITION.id, 'civil');
-  assert.equal(new Set(Object.values(EDITIONS).map((e) => e.storage)).size, 4);
+  assert.equal(new Set(Object.values(EDITIONS).map((e) => e.storage)).size, 5);
   for (const ed of Object.values(EDITIONS)) {
     const doc = sampleDoc(ed.id);
     const symbols = doc.entities.filter((e) => e.kind === 'symbol') as SymbolEntity[];

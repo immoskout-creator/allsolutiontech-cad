@@ -71,8 +71,8 @@ const symbolRow = (d: SymbolDef, qty?: number, model?: string) =>
     qty === undefined ? '' : `<td class="qty">${num(qty)}</td><td class="unit">${esc(t('unitPcs'))}</td>`
   }</tr>`;
 
-const SYSTEM_TITLE: Record<SystemKind, StringKey> = { cctv: 'libCctv', network: 'libAp', fire: 'libFire' };
-const LIB_SYSTEM: Partial<Record<LibraryId, SystemKind>> = { cctv: 'cctv', network: 'network', fire: 'fire' };
+const SYSTEM_TITLE: Record<SystemKind, StringKey> = { cctv: 'libCctv', network: 'libAp', fire: 'libFire', emergency: 'libEm' };
+const LIB_SYSTEM: Partial<Record<LibraryId, SystemKind>> = { cctv: 'cctv', network: 'network', fire: 'fire', emergency: 'emergency' };
 
 /**
  * Rreshtat e listës së materialeve: grupi, kodi, përshkrimi, sasia, njësia.

@@ -43,6 +43,8 @@ export interface SymbolEntity {
   range?: number;
   /** Kamera: drejtimi i objektivit kundrejt simbolit, gradë (+ = majtas). */
   pan?: number;
+  /** Ndriçues emergjence: fluksi në modalitetin e emergjencës, lm. */
+  lumens?: number;
 }
 
 /** Kabllo e vizatuar si vijë e thyer; gjatësia i shtohet qarkut të saj. */
@@ -54,8 +56,8 @@ export interface Cable {
   circuit?: string;
 }
 
-/** Qarqet e energjisë dhe linjat e sistemeve (kamera, rrjet, zjarr). */
-export type CircuitKind = 'lighting' | 'sockets' | 'appliance' | 'cctv' | 'network' | 'fire';
+/** Qarqet e energjisë dhe linjat e sistemeve (kamera, rrjet, zjarr, emergjencë). */
+export type CircuitKind = 'lighting' | 'sockets' | 'appliance' | 'cctv' | 'network' | 'fire' | 'emergency';
 
 /** Qark elektrik i kuadrit: pikat dhe kabllot i referohen me id. */
 export interface Circuit {
@@ -149,6 +151,7 @@ const ALL_LAYERS: Layer[] = [
   { id: 'kamerat', name: 'Kamerat', color: '#0891B2', visible: true, locked: false },
   { id: 'rrjeti', name: 'Rrjeti / AP', color: '#16A34A', visible: true, locked: false },
   { id: 'zjarri', name: 'Zjarri', color: '#DC2626', visible: true, locked: false },
+  { id: 'emergjenca', name: 'Emergjenca', color: '#059669', visible: true, locked: false },
   { id: 'kabllot', name: 'Kabllot', color: '#6B7380', visible: true, locked: false },
   { id: 'kuotat', name: 'Kuotat', color: '#4B5563', visible: true, locked: false },
   { id: 'tekstet', name: 'Tekstet', color: '#9AA3AF', visible: true, locked: false },

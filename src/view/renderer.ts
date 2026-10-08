@@ -1,4 +1,5 @@
 import { GRID_MM, checkFireCached } from '../core/firecheck';
+import { EM_GRID_MM, checkEmergencyCached } from '../core/emergency';
 import { coveragePolygon, symbolCoverage, type Coverage } from '../core/coverage';
 import {
   DIM_LAYER,
@@ -180,6 +181,17 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     }
     ctx.restore();
   }
+  // pjesët e dhomave nën 0.5 lux në emergjencë
+  if (visible.some((e) => isSymbol(e) && symbolDef(e.symbol)?.emergency)) {
+    const cell = EM_GRID_MM * vp.scale;
+    ctx.save();
+    ctx.fillStyle = 'rgba(220, 38, 38, 0.28)';
+    for (const r of checkEmergencyCached(st.doc).rooms) for (const g of r.gaps) {
+      const p = vp.toScreen(g);
+      ctx.fillRect(p.x - cell / 2, p.y - cell / 2, cell, cell);
+    }
+    ctx.restore();
+  }
 
   // zona e kamerave dhe e detektorëve të zjarrit, nën simbolet
   for (const e of visible) {
@@ -187,7 +199,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     const cov = symbolCoverage(e, unit);
     if (!cov) continue;
     // detektori mbulon vetëm dhomën e vet: rrethi pritet te muret e saj
-    const clip = symbolDef(e.symbol)?.detector ? roomPolyAt(st.doc, walls, e.pos) : null;
+    const clip = symbolDef(e.symbol)?.detector || symbolDef(e.symbol)?.emergency ? roomPolyAt(st.doc, walls, cov.apex) : null;
     drawCoverage(ctx, vp, cov, st.selection.has(e.id) ? COLORS.selected : (colorOf.get(e.layer) ?? COLORS.wall), st.selection.has(e.id), paperPx, clip);
   }
 
@@ -201,6 +213,8 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     if (ov.hoverId === e.id && !st.selection.has(e.id)) drawSymbolRing(ctx, vp, e, COLORS.wallHover, true, unit);
     // detektor që shkel rregullat e vendosjes: unazë e kuqe
     if (symbolDef(e.symbol)?.detector && checkFireCached(st.doc).detectors.get(e.id)?.issues.length) drawSymbolRing(ctx, vp, e, '#DC2626', false, unit);
+    // tabelë EXIT që nuk shihet nga e gjithë dhoma
+    if (symbolDef(e.symbol)?.sign && checkEmergencyCached(st.doc).signs.get(e.id)?.tooFar) drawSymbolRing(ctx, vp, e, '#DC2626', false, unit);
   }
 
   for (const e of visible) {
@@ -556,6 +570,14 @@ function drawCoverage(ctx: CanvasRenderingContext2D, vp: Viewport, c: Coverage, 
   ctx.lineWidth = selected ? 1.5 : 1;
   ctx.setLineDash([6, 4]);
   ctx.stroke();
+  // rrethi i brendshëm: 1 lux për rrugën e evakuimit
+  if (c.inner && c.inner > 0) {
+    const ctr = vp.toScreen(c.apex);
+    ctx.beginPath();
+    ctx.arc(ctr.x, ctr.y, c.inner * vp.scale, 0, Math.PI * 2);
+    ctx.setLineDash([2, 3]);
+    ctx.stroke();
+  }
   // këndi dhe distanca, pak brenda harkut në mes të zonës
   const px = Math.max(CIRCUIT_TEXT * paperPx, 9);
   if (CIRCUIT_TEXT * paperPx >= 3.5) {
