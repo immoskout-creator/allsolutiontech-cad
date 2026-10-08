@@ -39,6 +39,17 @@ const REPORT_CSS = `
   tfoot td { font-weight: 600; border-top: 1px solid #9CA3AF; border-bottom: none; }
   .note { color: #4B5563; font-size: 11px; margin: 10px 0 0; }
   .empty { color: #6B7280; padding: 24px 0; }
+  @media screen and (max-width: 600px) {
+    body { padding: 12px; font-size: 11px; }
+    header { flex-direction: column; align-items: flex-start; }
+    .meta { text-align: left; }
+    th.sym, td.sym { width: 42px; }
+    td.sym svg { width: 34px; height: 26px; }
+    th.code, td.code { width: 86px; font-size: 10px; }
+    th.qty, td.qty { width: 40px; }
+    th.unit, td.unit { width: 40px; }
+    td { overflow-wrap: anywhere; }
+  }
 `;
 
 function page(title: string, project: string, body: string): string {
