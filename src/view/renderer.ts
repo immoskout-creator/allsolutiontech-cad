@@ -17,8 +17,8 @@ import {
   type Wall,
 } from '../core/types';
 import { moveEntity, wallMap } from '../core/move';
-import { openingFrame, sizeText, wallLength, wallPieces } from '../core/openings';
-import { areaText, findRoomCached, pointInPolygon } from '../core/rooms';
+import { doorKeepouts, openingFrame, sizeText, wallLength, wallPieces } from '../core/openings';
+import { areaText, findRoomCached, inKeepout, labelSpot, pointInPolygon, type Keepout } from '../core/rooms';
 import { dist, formatMeters, mid, sub } from '../core/geometry';
 import { HIT_RADIUS_UNITS, symbolDef, unitMm } from '../symbols/library';
 import { screenRotation, symbolCenter, symbolHitMm } from '../symbols/place';
@@ -149,11 +149,14 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     drawDimensions(ctx, vp, visible.filter(isWall), st.doc.scale, colorOf.get(DIM_LAYER) ?? COLORS.label);
   }
 
+  const keepouts = doorKeepouts(st.doc.entities.filter(isOpening), walls);
   for (const e of visible) {
     if (!isRoom(e)) continue;
     const shape = findRoomCached(walls, e.pos);
     const color = st.selection.has(e.id) ? COLORS.selected : (colorOf.get(e.layer) ?? COLORS.label);
-    drawRoomLabel(ctx, vp, e, shape ? areaText(shape.area) : null, color, paperPx);
+    // etiketa që bie mbi harkun e një dere zhvendoset te pika më e lirë e dhomës
+    const at = shape && inKeepout(e.pos, keepouts) ? labelSpotCached(shape.poly, keepouts) : e.pos;
+    drawRoomLabel(ctx, vp, { ...e, pos: at }, shape ? areaText(shape.area) : null, color, paperPx);
   }
 
   // kabllot, me ngjyrën e qarkut
@@ -343,33 +346,97 @@ function drawOpening(ctx: CanvasRenderingContext2D, vp: Viewport, o: Opening, w:
   } else {
     ctx.stroke();
     const width = Math.hypot(f.p2.x - f.p1.x, f.p2.y - f.p1.y);
-    const hingeBase = o.hinge === 'a' ? f.p1 : f.p2;
-    const otherBase = o.hinge === 'a' ? f.p2 : f.p1;
+    const leaf = o.leaf ?? 'single';
     const face = f.half * o.side;
-    const hinge = { x: hingeBase.x + f.n.x * face, y: hingeBase.y + f.n.y * face };
-    const other = { x: otherBase.x + f.n.x * face, y: otherBase.y + f.n.y * face };
-    const tip = { x: hinge.x + f.n.x * o.side * width, y: hinge.y + f.n.y * o.side * width };
-    const H = vp.toScreen(hinge);
-    const T = vp.toScreen(tip);
-    const O = vp.toScreen(other);
-    const r = width * vp.scale;
-    // krahu i derës
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(H.x, H.y);
-    ctx.lineTo(T.x, T.y);
-    ctx.stroke();
-    // harku nga maja e krahut te kasa tjetër
-    const a0 = Math.atan2(T.y - H.y, T.x - H.x);
-    const a1 = Math.atan2(O.y - H.y, O.x - H.x);
-    let d = a1 - a0;
-    while (d > Math.PI) d -= Math.PI * 2;
-    while (d < -Math.PI) d += Math.PI * 2;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    ctx.arc(H.x, H.y, r, a0, a0 + d, d < 0);
-    ctx.stroke();
+    if (o.exterior) {
+      // dera e jashtme: pragu nga ana e jashtme dhe kasa e trashë
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      const a = at(f.p1, -face);
+      const b = at(f.p2, -face);
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      for (const p of [f.p1, f.p2]) {
+        const c = at(p, -f.half);
+        const d = at(p, f.half);
+        ctx.moveTo(c.x, c.y);
+        ctx.lineTo(d.x, d.y);
+      }
+      ctx.stroke();
+    }
+    if (leaf === 'single' || leaf === 'double') {
+      // krahu (ose dy krahët) dhe harku i hapjes
+      const leaves: [Vec, Vec, number][] =
+        leaf === 'single'
+          ? [o.hinge === 'a' ? [f.p1, f.p2, width] : [f.p2, f.p1, width]]
+          : [
+              [f.p1, { x: (f.p1.x + f.p2.x) / 2, y: (f.p1.y + f.p2.y) / 2 }, width / 2],
+              [f.p2, { x: (f.p1.x + f.p2.x) / 2, y: (f.p1.y + f.p2.y) / 2 }, width / 2],
+            ];
+      for (const [hingeBase, otherBase, lw] of leaves) {
+        const hinge = { x: hingeBase.x + f.n.x * face, y: hingeBase.y + f.n.y * face };
+        const other = { x: otherBase.x + f.n.x * face, y: otherBase.y + f.n.y * face };
+        const tip = { x: hinge.x + f.n.x * o.side * lw, y: hinge.y + f.n.y * o.side * lw };
+        const H = vp.toScreen(hinge);
+        const T = vp.toScreen(tip);
+        const O = vp.toScreen(other);
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(H.x, H.y);
+        ctx.lineTo(T.x, T.y);
+        ctx.stroke();
+        const a0 = Math.atan2(T.y - H.y, T.x - H.x);
+        const a1 = Math.atan2(O.y - H.y, O.x - H.x);
+        let d = a1 - a0;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.arc(H.x, H.y, lw * vp.scale, a0, a0 + d, d < 0);
+        ctx.stroke();
+      }
+    } else {
+      // rrëshqitëse: kanati paralel me murin, nga ana e hapjes, me shigjetën e lëvizjes
+      const panels: [number, number, number][] =
+        leaf === 'sliding'
+          ? [o.hinge === 'a' ? [0, 1, -1] : [0, 1, 1]]
+          : [
+              [0, 0.5, -1],
+              [0.5, 1, 1],
+            ];
+      const off = face + o.side * Math.max(20, f.half * 0.35);
+      const pt = (k: number, across: number) =>
+        vp.toScreen({ x: f.p1.x + (f.p2.x - f.p1.x) * k + f.n.x * across, y: f.p1.y + (f.p2.y - f.p1.y) * k + f.n.y * across });
+      const thick = o.side * Math.max(30, f.half * 0.3);
+      for (const [k0, k1, dir] of panels) {
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([]);
+        const c = [pt(k0, off), pt(k1, off), pt(k1, off + thick), pt(k0, off + thick)];
+        ctx.beginPath();
+        ctx.moveTo(c[0].x, c[0].y);
+        for (const q of c.slice(1)) ctx.lineTo(q.x, q.y);
+        ctx.closePath();
+        ctx.stroke();
+        // shigjeta drejt anës ku rrëshqet kanati
+        const mid = (k0 + k1) / 2;
+        const span = (k1 - k0) * 0.35;
+        const across = off + thick * 3;
+        const s0 = pt(mid - dir * span, across);
+        const s1 = pt(mid + dir * span, across);
+        const ang = Math.atan2(s1.y - s0.y, s1.x - s0.x);
+        const ah = 6;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(s0.x, s0.y);
+        ctx.lineTo(s1.x, s1.y);
+        ctx.lineTo(s1.x - ah * Math.cos(ang - 0.45), s1.y - ah * Math.sin(ang - 0.45));
+        ctx.moveTo(s1.x, s1.y);
+        ctx.lineTo(s1.x - ah * Math.cos(ang + 0.45), s1.y - ah * Math.sin(ang + 0.45));
+        ctx.stroke();
+      }
+    }
   }
   ctx.restore();
 }
@@ -415,6 +482,18 @@ function fillPolygon(ctx: CanvasRenderingContext2D, vp: Viewport, poly: Vec[], c
 }
 
 /** Emri i dhomës dhe sipërfaqja, me madhësi letre sipas shkallës. */
+const spotCache = new Map<string, Vec>();
+function labelSpotCached(poly: Vec[], zones: Keepout[]): Vec {
+  const key = JSON.stringify([poly, zones]);
+  let v = spotCache.get(key);
+  if (!v) {
+    if (spotCache.size > 200) spotCache.clear();
+    v = labelSpot(poly, zones);
+    spotCache.set(key, v);
+  }
+  return v;
+}
+
 function drawRoomLabel(
   ctx: CanvasRenderingContext2D,
   vp: Viewport,
@@ -431,11 +510,18 @@ function drawRoomLabel(
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
+  // sfond i lehtë rreth tekstit, që vijat e dyerve dhe kabllove të mos e ngatërrojnë
+  ctx.strokeStyle = COLORS.paper;
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 4;
   ctx.font = `600 ${Math.min(namePx, 48)}px "IBM Plex Sans", system-ui, sans-serif`;
+  ctx.strokeText(r.name, c.x, c.y);
   ctx.fillText(r.name, c.x, c.y);
   ctx.textBaseline = 'top';
   ctx.font = `500 ${Math.min(areaPx, 36)}px "IBM Plex Mono", ui-monospace, monospace`;
-  ctx.fillText(area === null ? '— m²' : `${area} m²`, c.x, c.y + areaPx * 0.25);
+  const areaLabel = area === null ? '— m²' : `${area} m²`;
+  ctx.strokeText(areaLabel, c.x, c.y + areaPx * 0.25);
+  ctx.fillText(areaLabel, c.x, c.y + areaPx * 0.25);
   ctx.restore();
 }
 

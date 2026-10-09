@@ -78,6 +78,10 @@
         <select id="sheetScale"></select>
       </label>
       <div class="field-inline opening-size" id="openingWidthField" hidden>
+        <span id="doorTypeField" hidden>
+          <select id="doorLeaf" data-i18n-title="doorLeaf"></select>
+          <button class="chip" id="chipExterior" type="button" aria-pressed="false" data-i18n="doorExteriorChip" data-i18n-title="doorExteriorCheck"></button>
+        </span>
         <label for="openingWidth"><span data-i18n="openingWidth"></span></label>
         <input id="openingWidth" class="num" type="number" min="30" max="600" step="5" list="openingWidthList">
         <label for="openingHeight"><span data-i18n="openingHeight"></span></label>
@@ -86,16 +90,15 @@
         <datalist id="openingWidthList"></datalist>
         <datalist id="openingHeightList"></datalist>
       </div>
-      <label class="field-inline" for="wallThickness" id="wallThicknessField"><span data-i18n="thickness"></span>
-        <select id="wallThickness">
-          <option value="100">10 cm</option>
-          <option value="120">12 cm</option>
-          <option value="150">15 cm</option>
-          <option value="200">20 cm</option>
-          <option value="250" selected>25 cm</option>
-          <option value="300">30 cm</option>
-        </select>
-      </label>
+      <span class="field-inline" id="wallThicknessField">
+        <label for="wallThickness"><span data-i18n="thickness"></span></label>
+        <input id="wallThickness" class="num" type="number" min="1" max="200" step="1" value="25" list="wallThicknessList">
+        <label for="wallHeight"><span data-i18n="wallHeightShort"></span></label>
+        <input id="wallHeight" class="num" type="number" min="10" max="2000" step="5" value="270" list="wallHeightList">
+        <span class="unit">cm</span>
+        <datalist id="wallThicknessList"><option value="7.5"></option><option value="10"></option><option value="12"></option><option value="15"></option><option value="20"></option><option value="25"></option><option value="30"></option><option value="38"></option><option value="40"></option><option value="50"></option></datalist>
+        <datalist id="wallHeightList"><option value="100"></option><option value="250"></option><option value="270"></option><option value="280"></option><option value="300"></option><option value="350"></option><option value="400"></option><option value="600"></option></datalist>
+      </span>
       <button class="chip" id="chipSnap" type="button" aria-pressed="true" data-i18n-title="snapTitle">Snap</button>
       <button class="chip" id="chipGrid" type="button" aria-pressed="true" data-i18n-title="gridTitle" data-i18n="grid"></button>
       <button class="chip" id="chipOrtho" type="button" aria-pressed="false" data-i18n-title="orthoTitle">Orto</button>

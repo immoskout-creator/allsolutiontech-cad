@@ -12,6 +12,7 @@ import {
   ROOM_LAYER,
   WALL_LAYER,
   type Cable,
+  type DoorLeaf,
   type Opening,
   type Room,
   type SymbolEntity,
@@ -19,8 +20,8 @@ import {
   type Wall,
 } from '../core/types';
 import { moveEntity, wallMap } from '../core/move';
-import { DEFAULT_SILL, openingFrame, placeOnWall } from '../core/openings';
-import { findRoom } from '../core/rooms';
+import { DEFAULT_SILL, doorKeepouts, openingFrame, placeOnWall } from '../core/openings';
+import { findRoom, labelSpot } from '../core/rooms';
 import { t } from '../i18n/strings';
 import {
   add,
@@ -58,6 +59,11 @@ export interface Settings {
   /** Lartësia e dyerve dhe dritareve të reja, mm. */
   doorHeight: number;
   windowHeight: number;
+  /** Lloji i dyerve të reja dhe nëse janë dyer të jashtme. */
+  doorLeaf: DoorLeaf;
+  doorExterior: boolean;
+  /** Lartësia e mureve të reja, mm. */
+  wallHeight: number;
 }
 
 /** Mesazhet që editori i tregon përdoruesit. */
@@ -474,7 +480,7 @@ export class Editor {
   }
 
   private addWall(a: Vec, b: Vec): void {
-    const w: Wall = { id: newId('w'), kind: 'wall', layer: WALL_LAYER, a, b, thickness: this.settings.wallThickness };
+    const w: Wall = { id: newId('w'), kind: 'wall', layer: WALL_LAYER, a, b, thickness: this.settings.wallThickness, height: this.settings.wallHeight };
     this.store.commit((doc) => {
       doc.entities.push(w);
     });
@@ -529,6 +535,8 @@ export class Editor {
     const height = type === 'door' ? this.settings.doorHeight : this.settings.windowHeight;
     const o: Omit<Opening, 'id' | 'layer'> = { kind: 'opening', type, wall: hit.wall, t: hit.t, width, height, side: hit.side, hinge: this.placeHinge };
     if (type === 'window') o.sill = DEFAULT_SILL;
+    if (type === 'door' && this.settings.doorLeaf !== 'single') o.leaf = this.settings.doorLeaf;
+    if (type === 'door' && this.settings.doorExterior) o.exterior = true;
     return o;
   }
 
@@ -566,7 +574,8 @@ export class Editor {
       kind: 'room',
       layer: ROOM_LAYER,
       name: t('roomDefault', { n: rooms.length + 1 }),
-      pos: { x: Math.round(p.x), y: Math.round(p.y) },
+      // etiketa shkon te pika më e lirë e dhomës, larg mureve dhe harqeve të dyerve
+      pos: labelSpot(shape.poly, doorKeepouts(this.store.doc.entities.filter(isOpening), walls)),
     };
     this.store.commit((doc) => {
       doc.entities.push(room);
