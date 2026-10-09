@@ -169,7 +169,7 @@ test('modeli i kamerës del në listën e materialeve, i ndarë sipas modelit', 
   assert.ok(modelsFor('cc-bullet').length >= 4);
   const used = usedSymbols(sampleDoc('cctv'));
   const bullets = used.filter((u) => u.def.id === 'cc-bullet').map((u) => [u.model, u.qty]);
-  assert.deepEqual(bullets, [['Bullet 2MP · 2.8 mm', 1], ['Bullet 4MP · 4 mm', 2]]);
+  assert.deepEqual(bullets, [['Bullet IP 2MP · 2.8 mm', 1], ['Bullet IP 4MP · 4 mm', 2]]);
 });
 
 test('zjarri: mbulimi i dhomave dhe largësitë sipas rregullave', () => {

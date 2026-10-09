@@ -46,6 +46,10 @@ export interface Overlay {
   snap?: { p: Vec; kind: SnapKind };
   cursor?: Vec;
   hoverId?: string | null;
+  /** Kamera që po kthehet me maus: drejtimi i ri (pan) para se të ruhet. */
+  aim?: { id: string; pan: number };
+  /** Doreza e rrotullimit të kamerës së zgjedhur: qendra dhe pika ku kapet. */
+  aimHandle?: { apex: Vec; tip: Vec };
 }
 
 export interface RenderState {
@@ -199,7 +203,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   // zona e kamerave dhe e detektorëve të zjarrit, nën simbolet
   for (const e of visible) {
     if (!isSymbol(e)) continue;
-    const cov = symbolCoverage(e, unit);
+    const cov = symbolCoverage(ov.aim?.id === e.id ? { ...e, pan: ov.aim.pan } : e, unit);
     if (!cov) continue;
     // detektori mbulon vetëm dhomën e vet: rrethi pritet te muret e saj
     const clip = symbolDef(e.symbol)?.detector || symbolDef(e.symbol)?.beam || symbolDef(e.symbol)?.emergency ? roomPolyAt(st.doc, walls, cov.apex) : null;
@@ -245,6 +249,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     }
   }
 
+  if (ov.aimHandle) drawAimHandle(ctx, vp, ov.aimHandle.apex, ov.aimHandle.tip);
   if (ov.box) drawBox(ctx, ov.box);
   if (ov.snap && ov.snap.kind !== 'none') drawSnap(ctx, vp.toScreen(ov.snap.p), ov.snap.kind);
   if (ov.cursor) drawCrosshair(ctx, ov.cursor);
@@ -826,6 +831,36 @@ function drawBox(ctx: CanvasRenderingContext2D, box: { a: Vec; b: Vec; crossing:
   ctx.strokeRect(x + 0.5, y + 0.5, w, h);
   ctx.setLineDash([]);
 }
+
+/** Doreza e kamerës: vijë nga kamera dhe rreth me shigjeta rrotullimi; kapet me maus dhe kthen kamerën. */
+function drawAimHandle(ctx: CanvasRenderingContext2D, vp: Viewport, apex: Vec, tip: Vec): void {
+  const A = vp.toScreen(apex);
+  const T = vp.toScreen(tip);
+  ctx.save();
+  ctx.strokeStyle = COLORS.snap;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(A.x, A.y);
+  ctx.lineTo(T.x, T.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(T.x, T.y, AIM_HANDLE_PX, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // dy harqe të vogla: shenja e rrotullimit
+  ctx.beginPath();
+  ctx.arc(T.x, T.y, AIM_HANDLE_PX - 3.5, -2.6, -0.6);
+  ctx.moveTo(T.x + (AIM_HANDLE_PX - 3.5) * Math.cos(0.5), T.y + (AIM_HANDLE_PX - 3.5) * Math.sin(0.5));
+  ctx.arc(T.x, T.y, AIM_HANDLE_PX - 3.5, 0.5, 2.5);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Rrezja e dorezës së rrotullimit të kamerës, px. */
+export const AIM_HANDLE_PX = 8;
 
 function drawSnap(ctx: CanvasRenderingContext2D, p: Vec, kind: SnapKind): void {
   ctx.strokeStyle = COLORS.snap;

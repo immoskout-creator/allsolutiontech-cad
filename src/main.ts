@@ -1,3 +1,4 @@
+import { importDxf } from './io/dxfImport';
 import { Store } from './core/store';
 import { DOOR_LEAVES, SCALES, WALL_HEIGHT, emptyDoc, isCable, isOpening, isRoom, isSymbol, isWall, type Cable, type DoorLeaf, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
 import { DEFAULT_SILL, DOOR_HEIGHTS, SIZE_LIMITS, SWINGS, WINDOW_HEIGHTS, WINDOW_WIDTHS, applySwing, doorWidths, insideSide, openingFrame, openingHeight, swingOf, widthForLeaf, type Swing } from './core/openings';
@@ -18,7 +19,7 @@ import { syncCableLayers } from './core/systems';
 import { WALL_MIN_M, checkFireCached } from './core/firecheck';
 import { EM_HEIGHT_CM, LUMEN_LIMITS, LUX_OPEN, UNIFORMITY_MAX, checkEmergencyCached, emModel, emModelsFor, luminaireCalc, signCalc } from './core/emergency';
 import { BEAM_LIMITS, TILT_LIMITS, beamCalc, cameraGround } from './core/coverage';
-import { DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraModel, cameraSettings, detectorCalc, modelsFor } from './core/coverage';
+import { CAMERA_TECHS, DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraModel, cameraSettings, detectorCalc, modelsFor, recorderModel, recordersFor } from './core/coverage';
 import { EDITION, editionLibs, productName } from './edition';
 import { startLicenseGate } from './license/gate';
 import { lic } from './license/strings';
@@ -120,6 +121,8 @@ function scheduleRender(): void {
 function draw(): void {
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const aim = editor.aimTarget();
+  editor.overlay.aimHandle = aim ? { apex: aim.apex, tip: aim.tip } : undefined;
   render(ctx, vp, {
     doc: store.doc,
     selection: store.selection,
@@ -489,7 +492,7 @@ fileInput.addEventListener('change', async () => {
   fileInput.value = '';
   if (!f) return;
   try {
-    const doc = await readFile(f);
+    const doc = /\.dxf$/i.test(f.name) ? importDxf(await f.text(), f.name.replace(/\.dxf$/i, '')) : await readFile(f);
     store.replace(doc);
     fitAll();
     toast(t('toastOpened', { v: doc.name }));
@@ -673,7 +676,13 @@ function cameraFields(s: SymbolEntity): string {
   const modelSelect = models.length
     ? `<label class="field" for="propModel">${esc(t('camModel'))}<select id="propModel">
         <option value=""${current ? '' : ' selected'}>${esc(t('camCustom'))}</option>
-        ${models.map((m) => `<option value="${m.id}"${m.id === current?.id ? ' selected' : ''}>${esc(m.name)}</option>`).join('')}</select></label>`
+        ${CAMERA_TECHS.filter((tech) => models.some((m) => m.tech === tech))
+          .map((tech) => `<optgroup label="${tech}">${models
+            .filter((m) => m.tech === tech)
+            .sort((a, b) => a.mp - b.mp)
+            .map((m) => `<option value="${m.id}"${m.id === current?.id ? ' selected' : ''}>${esc(m.name)}</option>`)
+            .join('')}</optgroup>`)
+          .join('')}</select></label>`
     : '';
   return `${modelSelect}<div class="prop-grid">
       <label class="field" for="propFov">${esc(t('camFov'))}<input id="propFov" class="num" type="number" step="1" min="${FOV_LIMITS[0]}" max="${FOV_LIMITS[1]}" value="${cam.fov}" list="lensList"></label>
@@ -685,7 +694,22 @@ function cameraFields(s: SymbolEntity): string {
       <div class="stat"><span>${esc(t('camBlind'))}</span><b>${fmt(g.blind)} m</b></div>
       <div class="stat"><span>${esc(t('camReach'))}</span><b>${fmt(g.reach)} m</b></div>
     </div>` : ''}
+    ${cam.fov < 360 ? `<p class="muted small">${esc(t('camAimHint'))}</p>` : ''}
     <datalist id="lensList">${LENSES.map(([l, v]) => `<option value="${v}" label="${l}"></option>`).join('')}</datalist>`;
+}
+
+/** Regjistruesi (NVR / DVR / XVR): modeli me kanalet; kamerat në plan krahasohen me kanalet. */
+function recorderFields(s: SymbolEntity): string {
+  const models = recordersFor(s.symbol);
+  if (!models.length) return '';
+  const current = recorderModel(s);
+  const cams = store.doc.entities.filter((e) => isSymbol(e) && !!cameraSettings(e)).length;
+  const groups = ['IP', 'Hybrid', 'Analog'] as const;
+  return `<label class="field" for="propRecModel">${esc(t('recModel'))}<select id="propRecModel">
+      <option value=""${current ? '' : ' selected'}>${esc(t('camCustom'))}</option>
+      ${groups.filter((g) => models.some((m) => m.tech === g)).map((g) => `<optgroup label="${g === 'IP' ? 'NVR (IP)' : g === 'Hybrid' ? 'XVR' : 'DVR'}">${models.filter((m) => m.tech === g).map((m) => `<option value="${m.id}"${m.id === current?.id ? ' selected' : ''}>${esc(m.name)}</option>`).join('')}</optgroup>`).join('')}
+    </select></label>
+    ${current && cams > current.channels ? `<p class="warn-text">${esc(t('warnRecChannels', { n: cams, c: current.channels }))}</p>` : ''}`;
 }
 
 /** Ndriçuesi i emergjencës: fluksi dhe rrezet 0.5 / 1 lux; tabela EXIT: distanca e shikimit. */
@@ -765,6 +789,7 @@ function renderProps(): void {
         ${numField('propAngle', t('rotation'), normAngle(s.angle - 270), '90')}
       </div>
       ${cameraFields(s)}
+      ${recorderFields(s)}
       ${detectorFields(s)}
       ${beamFields(s)}
       ${emergencyFields(s)}
@@ -793,6 +818,10 @@ function renderProps(): void {
         x.fov = m.fov;
         x.range = m.range;
       });
+    });
+    $('propRecModel')?.addEventListener('change', (ev) => {
+      const id = (ev.target as HTMLSelectElement).value;
+      update<SymbolEntity>(s.id, (x) => void (id ? (x.model = id) : delete x.model));
     });
     // detektori: këndi i sensorit ruhet te i njëjti fushë si këndi i kamerës
     onNum('propDetAngle', (x, v) => (v === undefined ? delete x.fov : (x.fov = Math.min(DETECTOR_ANGLE_LIMITS[1], Math.max(DETECTOR_ANGLE_LIMITS[0], Math.round(v))))));
@@ -962,7 +991,7 @@ function renderOpeningProps(el: HTMLElement, o: Opening): void {
     </div>
     ${door ? `<datalist id="propWidthList">${doorWidths(leaf).map((v) => `<option value="${v / 10}"></option>`).join('')}</datalist>` : ''}
     ${door ? `<div class="btn-row"><button class="btn" id="propFlipSide" type="button">${esc(t('flipSide'))}</button>
-      <button class="btn" id="propFlipHinge" type="button">${esc(t(sliding ? 'flipSlide' : 'flipHinge'))}</button></div>` : ''}
+      ${leaf === 'double' ? '' : `<button class="btn" id="propFlipHinge" type="button">${esc(t(sliding ? 'flipSlide' : 'flipHinge'))}</button>`}</div>` : ''}
     <button class="btn danger" id="propDelete" type="button">${esc(t('delete'))}</button>`;
   if (door) $('propWidth').setAttribute('list', 'propWidthList');
   $('propLeaf')?.addEventListener('change', (e) => {

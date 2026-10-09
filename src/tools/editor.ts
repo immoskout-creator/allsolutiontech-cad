@@ -40,6 +40,8 @@ import {
 } from '../core/geometry';
 import { symbolDef, unitMm } from '../symbols/library';
 import { attachToWall, normAngle, symbolCenter, symbolHitMm } from '../symbols/place';
+import { cameraSettings } from '../core/coverage';
+import { AIM_HANDLE_PX } from '../view/renderer';
 import type { Overlay, SnapKind } from '../view/renderer';
 import type { Viewport } from '../view/viewport';
 
@@ -83,6 +85,7 @@ const FREE_ANGLE = 270;
 type Drag =
   | { kind: 'pan'; last: Vec }
   | { kind: 'box'; start: Vec }
+  | { kind: 'aim'; id: string }
   | { kind: 'move'; startWorld: Vec; startScreen: Vec; ids: Set<string>; active: boolean };
 
 /**
@@ -243,6 +246,22 @@ export class Editor {
     return best?.id ?? null;
   }
 
+  // ---- doreza e kamerës ----
+
+  /** Kamera e vetme e zgjedhur (jo fisheye) dhe pika e dorezës së saj, në drejtimin ku shikon. */
+  aimTarget(): { id: string; apex: Vec; tip: Vec } | null {
+    if (this.tool !== 'select' || this.store.selection.size !== 1) return null;
+    const e = this.store.selected()[0];
+    if (!e || !isSymbol(e)) return null;
+    const s = cameraSettings(e);
+    if (!s || s.fov >= 360) return null;
+    const apex = symbolCenter(e, this.unit);
+    const pan = this.overlay.aim?.id === e.id ? this.overlay.aim.pan : s.pan;
+    const a = ((e.angle + pan) * Math.PI) / 180;
+    const r = this.vp.px(70);
+    return { id: e.id, apex, tip: { x: apex.x + Math.cos(a) * r, y: apex.y + Math.sin(a) * r } };
+  }
+
   // ---- miu ----
 
   pointerDown(screen: Vec, button: number, shift: boolean): void {
@@ -296,6 +315,13 @@ export class Editor {
       return;
     }
 
+    // doreza e kamerës së zgjedhur: kapet dhe kthen kamerën ku duam
+    const aim = this.aimTarget();
+    if (aim && dist(screen, this.vp.toScreen(aim.tip)) <= AIM_HANDLE_PX + 4) {
+      this.drag = { kind: 'aim', id: aim.id };
+      return;
+    }
+
     const hit = this.hitTest(screen);
     if (hit) {
       if (shift) {
@@ -324,6 +350,18 @@ export class Editor {
       d.last = screen;
     } else if (d?.kind === 'box') {
       this.overlay.box = { a: d.start, b: screen, crossing: screen.x < d.start.x };
+    } else if (d?.kind === 'aim') {
+      const e = this.store.doc.entities.find((x): x is SymbolEntity => isSymbol(x) && x.id === d.id);
+      if (e) {
+        const c = symbolCenter(e, this.unit);
+        const w = this.vp.toWorld(screen);
+        const deg = (Math.atan2(w.y - c.y, w.x - c.x) * 180) / Math.PI;
+        // pa Shift kapet çdo 5°, me Shift lirshëm
+        const step = shift ? 1 : 5;
+        let pan = Math.round((deg - e.angle) / step) * step;
+        pan = ((((pan + 180) % 360) + 360) % 360) - 180;
+        this.overlay.aim = { id: e.id, pan };
+      }
     } else if (d?.kind === 'move') {
       if (!d.active && dist(screen, d.startScreen) > DRAG_PX) d.active = true;
       if (d.active) {
@@ -396,6 +434,17 @@ export class Editor {
           })
           .map((e) => e.id);
         this.store.setSelection([...this.store.selection, ...ids]);
+      }
+    } else if (d?.kind === 'aim') {
+      const a = this.overlay.aim;
+      this.overlay.aim = undefined;
+      if (a) {
+        this.store.commit((doc) => {
+          const e = doc.entities.find((x): x is SymbolEntity => isSymbol(x) && x.id === a.id);
+          if (!e) return;
+          if (a.pan === 0) delete e.pan;
+          else e.pan = a.pan;
+        });
       }
     } else if (d?.kind === 'move') {
       const delta = this.overlay.moveDelta;
