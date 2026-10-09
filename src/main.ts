@@ -8,7 +8,10 @@ import { sampleDoc } from './core/sample';
 import { Viewport } from './view/viewport';
 import { render } from './view/renderer';
 import { Editor, type ToolId } from './tools/editor';
-import { loadAutosave, readFile, saveData, saveFile, writeAutosave } from './io/files';
+import { fileName, loadAutosave, readFile, saveData, saveFile, writeAutosave } from './io/files';
+import { docToDxf } from './io/dxf';
+import { docToPdf } from './io/pdf';
+import { ex } from './io/exportStrings';
 import { mergeSymbols, parseLibrary, serializeLibrary, toSymbolDef } from './symbols/custom';
 import { SymbolEditor } from './ui/symbolEditor';
 import { CircuitPanel, symbolCenters } from './ui/circuits';
@@ -87,6 +90,8 @@ function applyLang(lang: Lang): void {
   langSelect.value = lang;
   document.documentElement.lang = lang;
   applyStatic(document);
+  $('btnPdf').title = ex('pdfTitle');
+  $('btnDxf').title = ex('dxfTitle');
   if (EDITION.id === 'all') brandSub.textContent = lic('allSub');
   licenseGate.refresh();
   try {
@@ -558,6 +563,29 @@ async function save(): Promise<void> {
   }
 }
 $('btnSave').addEventListener('click', save);
+
+// ---- eksporti: PDF për printim, DXF për AutoCAD/ActCAD ----
+
+async function exportPlan(kind: 'pdf' | 'dxf'): Promise<void> {
+  if (!store.doc.entities.length) return toast(ex('empty'), true);
+  try {
+    const data =
+      kind === 'dxf'
+        ? docToDxf(store.doc)
+        : docToPdf(store.doc, {
+            title: store.doc.name,
+            product: productName(),
+            date: new Date().toLocaleDateString('sq-AL', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+            labels: { project: ex('project'), scale: ex('scale'), date: ex('date'), sheet: ex('sheet') },
+          });
+    const r = await saveData(fileName(store.doc, kind), data, kind === 'pdf' ? 'application/pdf' : 'application/dxf');
+    if (r === 'saved') toast(ex(kind === 'pdf' ? 'pdfSaved' : 'dxfSaved'));
+  } catch (err) {
+    toast((err as Error).message, true);
+  }
+}
+$('btnPdf').addEventListener('click', () => void exportPlan('pdf'));
+$('btnDxf').addEventListener('click', () => void exportPlan('dxf'));
 
 const modal = $<HTMLDivElement>('confirmNew');
 const newName = $<HTMLInputElement>('newName');

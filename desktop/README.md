@@ -14,6 +14,11 @@ npm ci && npm run build          # në rrënjë: faqet e programeve
 cd desktop && npm ci
 node build-installers.mjs        # të gjashtë instaluesit në desktop/release/
 node build-installers.mjs --edition fire
+node build-installers.mjs --stage --edition fire && npx electron stage/fire   # provë pa instalues
 ```
+
+Në programin e Windows, Ruaj, PDF dhe DXF hapin dritaren "Ruaj si" (desktop/preload.cjs → main.cjs).
+Ikona është `icon.png` (logoja AST). Te Releases ka edhe `SHA256SUMS.txt`; në Windows kontrollohet me
+`certutil -hashfile <skedari> SHA256`.
 
 Instaluesit nuk janë ende të nënshkruar, ndaj Windows SmartScreen shfaq një paralajmërim deri sa të shtohet një certifikatë.

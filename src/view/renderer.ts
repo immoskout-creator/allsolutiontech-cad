@@ -59,6 +59,10 @@ export interface RenderState {
   overlay: Overlay;
   /** Teksti i vizores, p.sh. "Shkalla 1:50". */
   scaleLabel: string;
+  /** Për eksport (PDF, DXF): pa letrën, rrjetën, vizoren dhe paralajmërimet e ekranit. */
+  print?: boolean;
+  /** Vetëm entitetet e kësaj shtrese (eksporti DXF vizaton shtresë për shtresë). */
+  only?: string;
 }
 
 const COLORS = {
@@ -90,10 +94,12 @@ const GRID_STEPS = [10, 50, 100, 500, 1000, 5000, 10000, 50000];
 
 export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderState): void {
   const { width, height } = vp;
-  ctx.fillStyle = COLORS.paper;
-  ctx.fillRect(0, 0, width, height);
+  if (!st.print) {
+    ctx.fillStyle = COLORS.paper;
+    ctx.fillRect(0, 0, width, height);
+  }
 
-  if (st.showGrid) drawGrid(ctx, vp);
+  if (st.showGrid && !st.print) drawGrid(ctx, vp);
 
   const hidden = new Set(st.doc.layers.filter((l) => !l.visible).map((l) => l.id));
   const ov = st.overlay;
@@ -104,7 +110,8 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   const shifted = (e: Entity): Entity =>
     ov.moveIds?.has(e.id) && ov.moveDelta ? moveEntity(e, ov.moveDelta, ov.moveIds, docWalls) : e;
   const all = st.doc.entities.map(shifted);
-  const visible = all.filter((e) => !hidden.has(e.layer));
+  const shown = all.filter((e) => !hidden.has(e.layer));
+  const visible = st.only === undefined ? shown : shown.filter((e) => e.layer === st.only);
   const walls = all.filter(isWall);
   const openingsOf = new Map<string, Opening[]>();
   for (const o of all.filter(isOpening)) openingsOf.set(o.wall, [...(openingsOf.get(o.wall) ?? []), o]);
@@ -149,8 +156,8 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     }
   }
 
-  if (!hidden.has(DIM_LAYER)) {
-    drawDimensions(ctx, vp, visible.filter(isWall), st.doc.scale, colorOf.get(DIM_LAYER) ?? COLORS.label);
+  if (!hidden.has(DIM_LAYER) && (st.only === undefined || st.only === DIM_LAYER)) {
+    drawDimensions(ctx, vp, shown.filter(isWall), st.doc.scale, colorOf.get(DIM_LAYER) ?? COLORS.label);
   }
 
   const keepouts = doorKeepouts(st.doc.entities.filter(isOpening), walls);
@@ -177,7 +184,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   if (ov.cablePreview && ov.cablePreview.length >= 2) drawCable(ctx, vp, ov.cablePreview, COLORS.selected, cableW, true);
 
   // pjesët e dhomave që nuk i mbulon asnjë detektor zjarri
-  if (visible.some((e) => isSymbol(e) && (symbolDef(e.symbol)?.detector || symbolDef(e.symbol)?.beam))) {
+  if (!st.print && visible.some((e) => isSymbol(e) && (symbolDef(e.symbol)?.detector || symbolDef(e.symbol)?.beam))) {
     const fire = checkFireCached(st.doc);
     const cell = GRID_MM * vp.scale;
     ctx.save();
@@ -189,7 +196,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     ctx.restore();
   }
   // pjesët e dhomave nën 0.5 lux në emergjencë
-  if (visible.some((e) => isSymbol(e) && symbolDef(e.symbol)?.emergency)) {
+  if (!st.print && visible.some((e) => isSymbol(e) && symbolDef(e.symbol)?.emergency)) {
     const cell = EM_GRID_MM * vp.scale;
     ctx.save();
     ctx.fillStyle = 'rgba(220, 38, 38, 0.28)';
@@ -219,6 +226,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     if (c) drawSymbolTag(ctx, vp, e, c.name, c.color, unit, paperPx);
     if (ov.hoverId === e.id && !st.selection.has(e.id)) drawSymbolRing(ctx, vp, e, COLORS.wallHover, true, unit);
     // detektor që shkel rregullat e vendosjes: unazë e kuqe
+    if (st.print) continue;
     if (symbolDef(e.symbol)?.detector && checkFireCached(st.doc).detectors.get(e.id)?.issues.length) drawSymbolRing(ctx, vp, e, '#DC2626', false, unit);
     // tabelë EXIT që nuk shihet nga e gjithë dhoma
     if (symbolDef(e.symbol)?.sign && checkEmergencyCached(st.doc).signs.get(e.id)?.tooFar) drawSymbolRing(ctx, vp, e, '#DC2626', false, unit);
@@ -253,7 +261,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   if (ov.box) drawBox(ctx, ov.box);
   if (ov.snap && ov.snap.kind !== 'none') drawSnap(ctx, vp.toScreen(ov.snap.p), ov.snap.kind);
   if (ov.cursor) drawCrosshair(ctx, ov.cursor);
-  drawScaleBar(ctx, vp, st.scaleLabel);
+  if (!st.print) drawScaleBar(ctx, vp, st.scaleLabel);
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D, vp: Viewport): void {
@@ -555,7 +563,13 @@ function drawSymbol(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity
   ctx.lineJoin = 'round';
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
+  // eksporti (io/recorder.ts) i lexon rrugët si tekst SVG
+  const svg = (ctx as unknown as { svgPath?: (d: string, fill: boolean) => void }).svgPath;
   for (const part of def.parts) {
+    if (svg) {
+      svg.call(ctx, part.d, !!part.fill);
+      continue;
+    }
     const p = path(part.d);
     if (part.fill) ctx.fill(p);
     else ctx.stroke(p);
