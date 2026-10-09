@@ -820,7 +820,7 @@ const numField = (id: string, label: string, value: number | string, step = '1')
 let propsKey = '';
 function renderProps(): void {
   const sel = store.selected();
-  const key = JSON.stringify([getLang(), store.doc.name, sel, store.doc.entities.length, store.doc.circuits]);
+  const key = JSON.stringify([getLang(), store.doc.name, sel, store.doc.entities.length, store.doc.circuits, store.doc.logo?.jpeg.length]);
   if (key === propsKey) return;
   propsKey = key;
   const el = $('props');
@@ -838,7 +838,14 @@ function renderProps(): void {
         <div class="stat"><span>${esc(t('symbolsCount'))}</span><b>${symbols}</b></div>
         <div class="stat wide"><span>${esc(t('wallLength'))}</span><b>${(total / 1000).toFixed(1)} m</b></div>
       </div>
+      <div class="field">${esc(t('projectLogo'))}
+        <div class="logo-row">${store.doc.logo ? `<img class="logo-preview" src="${store.doc.logo.jpeg}" alt="">` : '<div class="logo">AST</div>'}
+          <button class="btn" id="propLogo" type="button">${esc(t('logoUpload'))}</button>
+          ${store.doc.logo ? `<button class="btn" id="propLogoDel" type="button">${esc(t('logoRemove'))}</button>` : ''}</div>
+        <span class="muted small">${esc(t('logoHint'))}</span></div>
       <p class="muted small">${esc(t('pickHint'))}</p>`;
+    $('propLogo').addEventListener('click', pickLogo);
+    $('propLogoDel')?.addEventListener('click', () => store.commit((d) => void delete d.logo));
     const input = $<HTMLInputElement>('propName');
     input.addEventListener('change', () => {
       const name = input.value.trim();
@@ -1296,7 +1303,54 @@ function updateStatus(): void {
   }
 }
 
+/** Ngarkon logon e projektit (PNG, JPG, SVG…): zvogëlohet deri 600 px, sfondi i tejdukshëm bëhet i bardhë, ruhet si JPEG. */
+function pickLogo(): void {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.addEventListener('change', () => {
+    const f = input.files?.[0];
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const k = Math.min(1, 600 / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+      const w = Math.max(1, Math.round((img.naturalWidth || 600) * k));
+      const h = Math.max(1, Math.round((img.naturalHeight || 600) * k));
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      const g = c.getContext('2d')!;
+      g.fillStyle = '#FFFFFF';
+      g.fillRect(0, 0, w, h);
+      g.drawImage(img, 0, 0, w, h);
+      const jpeg = c.toDataURL('image/jpeg', 0.92);
+      store.commit((d) => void (d.logo = { jpeg, w, h }));
+      toast(t('logoSaved'));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      toast(t('logoBad'), true);
+    };
+    img.src = url;
+  });
+  input.click();
+}
+
+/** Koka e programit tregon logon e projektit kur ka një. */
+let headerLogo: string | undefined;
+function syncHeaderLogo(): void {
+  if (headerLogo === store.doc.logo?.jpeg) return;
+  headerLogo = store.doc.logo?.jpeg;
+  const el = document.querySelector<HTMLElement>('.top .logo');
+  if (!el) return;
+  el.classList.toggle('has-img', !!headerLogo);
+  el.innerHTML = headerLogo ? `<img src="${headerLogo}" alt="">` : 'AST';
+}
+
 function syncUi(): void {
+  syncHeaderLogo();
   toolButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === editor.tool)));
   canvas.className = `tool-${editor.tool}`;
   $<HTMLButtonElement>('btnUndo').disabled = !store.canUndo;

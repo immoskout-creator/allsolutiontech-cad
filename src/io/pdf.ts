@@ -1,4 +1,4 @@
-import type { Doc, Vec } from '../core/types';
+import type { Doc, ProjectLogo, Vec } from '../core/types';
 import { recordDrawing, type Drawing } from './export';
 import { latin1 } from './dxf';
 import { PX_PER_PAPER_MM, parseColor, type Shape } from './recorder';
@@ -65,6 +65,8 @@ interface PageInput {
   product: string;
   date: string;
   labels: { project: string; scale: string; date: string; sheet: string };
+  /** Logoja e përdoruesit (JPEG); pa të vizatohet logoja AST. */
+  logo?: ProjectLogo;
 }
 
 /** Përmbajtja e faqes (operatorët PDF) dhe madhësia e fletës. */
@@ -132,9 +134,16 @@ export function drawingToPdf(drawing: Drawing, docScale: number, page: PageInput
   const tbW = Math.min(190, W - 2 * MARGIN);
   const tx = W - MARGIN - tbW, ty = MARGIN;
   ops.push(`${P(0.35)} w ${P(tx)} ${P(ty)} ${P(tbW)} ${P(TITLE_H)} re S`);
-  // logoja: katror portokalli me "AST"
-  ops.push(`0.961 0.62 0.259 rg ${P(tx + 3)} ${P(ty + 3)} ${P(18)} ${P(18)} re f`);
-  ops.push(`BT 1 1 1 rg /F2 ${P(6.2)} Tf ${P(tx + 4.6)} ${P(ty + 9.8)} Td (AST) Tj ET`);
+  // logoja e përdoruesit brenda katrorit 18 × 18 mm, me përpjesëtimet e veta; pa të katrori portokalli me "AST"
+  const jpeg = page.logo ? jpegBytes(page.logo.jpeg) : null;
+  if (page.logo && jpeg) {
+    const k = 18 / Math.max(page.logo.w, page.logo.h);
+    const lw = page.logo.w * k, lh = page.logo.h * k;
+    ops.push(`q ${P(lw)} 0 0 ${P(lh)} ${P(tx + 3 + (18 - lw) / 2)} ${P(ty + 3 + (18 - lh) / 2)} cm /Im1 Do Q`);
+  } else {
+    ops.push(`0.961 0.62 0.259 rg ${P(tx + 3)} ${P(ty + 3)} ${P(18)} ${P(18)} re f`);
+    ops.push(`BT 1 1 1 rg /F2 ${P(6.2)} Tf ${P(tx + 4.6)} ${P(ty + 9.8)} Td (AST) Tj ET`);
+  }
   const cols = [tx + 24, tx + 24 + (tbW - 24) * 0.58];
   ops.push(`${P(0.2)} w ${P(tx + 24)} ${P(ty)} m ${P(tx + 24)} ${P(ty + TITLE_H)} l S`);
   ops.push(`${P(cols[1])} ${P(ty)} m ${P(cols[1])} ${P(ty + TITLE_H)} l S`);
@@ -153,12 +162,14 @@ export function drawingToPdf(drawing: Drawing, docScale: number, page: PageInput
   const objs = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${P(W)} ${P(H)}] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>`,
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${P(W)} ${P(H)}] /Resources << /Font << /F1 5 0 R /F2 6 0 R >>${jpeg ? ' /XObject << /Im1 8 0 R >>' : ''} >> /Contents 4 0 R >>`,
     `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
     `<< /Title ${pdfString(page.title)} /Producer ${pdfString(page.product)} /Creator (AllSolutionTech CAD) >>`,
   ];
+  if (page.logo && jpeg)
+    objs.push(`<< /Type /XObject /Subtype /Image /Width ${page.logo.w} /Height ${page.logo.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n${jpeg}\nendstream`);
   let out = '%PDF-1.4\n%\xe2\xe3\xcf\xd3\n';
   const offsets: number[] = [];
   objs.forEach((o, i) => {
@@ -172,7 +183,18 @@ export function drawingToPdf(drawing: Drawing, docScale: number, page: PageInput
   return out;
 }
 
+/** Bajtet e JPEG-ut nga data URL, si varg latin1 (një shkronjë për bajt), ose null. */
+function jpegBytes(dataUrl: string): string | null {
+  const m = /^data:image\/jpeg;base64,(.+)$/.exec(dataUrl);
+  if (!m) return null;
+  try {
+    return atob(m[1]);
+  } catch {
+    return null;
+  }
+}
+
 /** Plani si skedar PDF. */
 export function docToPdf(doc: Doc, page: PageInput): Uint8Array<ArrayBuffer> {
-  return latin1(drawingToPdf(recordDrawing(doc), doc.scale, page));
+  return latin1(drawingToPdf(recordDrawing(doc), doc.scale, { ...page, logo: page.logo ?? doc.logo }));
 }

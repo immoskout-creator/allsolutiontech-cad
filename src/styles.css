@@ -341,3 +341,9 @@ button:disabled { cursor: default; opacity: 0.45; }
 #doorTypeField[hidden] { display: none; }
 a.btn { text-decoration: none; }
 #wallThickness, #wallHeight { width: 64px; }
+
+/* logoja e projektit */
+.logo.has-img { background: #FFFFFF; padding: 2px; }
+.logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.logo-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; flex-wrap: wrap; }
+.logo-preview { width: 40px; height: 40px; object-fit: contain; background: #FFFFFF; border-radius: 6px; }
