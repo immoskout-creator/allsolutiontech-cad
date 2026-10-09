@@ -1,4 +1,4 @@
-import { DEFAULT_SCALE, DOOR_LEAVES, defaultLayers, knownLayer, type Circuit, type CircuitKind, type Doc, type Entity, type Layer } from '../core/types';
+import { DEFAULT_SCALE, DOOR_LEAVES, defaultLayers, knownLayer, type Circuit, type CircuitKind, type Doc, type Entity, type Layer, type ProjectLogo } from '../core/types';
 import { setCustomSymbols, symbolDef } from '../symbols/library';
 import { EDITION } from '../edition';
 import { parseCustomSymbols, toSymbolDef } from '../symbols/custom';
@@ -79,7 +79,16 @@ export function parse(text: string): Doc {
     entities: kept,
     ...(symbols.length ? { symbols } : {}),
     ...(circuits.length ? { circuits } : {}),
+    ...(parseLogo(d.logo) ? { logo: parseLogo(d.logo)! } : {}),
   };
+}
+
+/** Logoja e projektit: vetëm JPEG si data URL, me madhësi të arsyeshme. */
+function parseLogo(raw: unknown): ProjectLogo | null {
+  const l = raw as Partial<ProjectLogo> | null;
+  if (!l || typeof l.jpeg !== 'string' || !l.jpeg.startsWith('data:image/jpeg;base64,') || l.jpeg.length > 2_000_000) return null;
+  if (!isNum(l.w) || !isNum(l.h) || l.w < 1 || l.h < 1 || l.w > 2000 || l.h > 2000) return null;
+  return { jpeg: l.jpeg, w: Math.round(l.w), h: Math.round(l.h) };
 }
 
 const CIRCUIT_KINDS: CircuitKind[] = ['lighting', 'sockets', 'appliance', 'cctv', 'network', 'fire', 'emergency'];

@@ -141,8 +141,17 @@ export interface Doc {
   entities: Entity[];
   /** Simbolet e vizatuara nga përdoruesi, që udhëtojnë bashkë me projektin. */
   symbols?: CustomSymbol[];
+  /** Logoja e përdoruesit për tabelën e titullit (PDF) dhe kokën e programit. */
+  logo?: ProjectLogo;
   /** Qarqet e kuadrit. */
   circuits?: Circuit[];
+}
+
+/** Logoja si JPEG (data URL) me madhësinë në piksel. */
+export interface ProjectLogo {
+  jpeg: string;
+  w: number;
+  h: number;
 }
 
 export const WALL_LAYER = 'muret';
