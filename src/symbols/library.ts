@@ -630,6 +630,41 @@ export const SYMBOLS: SymbolDef[] = [
     names: { sq: 'Ndriçues infra të kuq (IR)', en: 'Infrared illuminator', it: 'Illuminatore infrarosso', de: 'Infrarot-Strahler' },
     parts: [{ d: 'M0 0 V3' }, { d: 'M-8 3 H8 V9 A8 8 0 0 1 -8 9 Z' }, { d: strokeText('IR', 0, 8, 4.5) }, { d: 'M-6 19 L-8 22.5 M0 20 V24 M6 19 L8 22.5' }],
   },
+  {
+    id: 'cc-turret', code: 'AST-CC-09', category: 'cctv', layer: 'kamerat', mount: 'center', power: 6, cover: { fov: 105, range: 30 },
+    names: { sq: 'Kamerë turret / eyeball IP', en: 'IP turret / eyeball camera', it: 'Telecamera turret / eyeball IP', de: 'IP-Turret-/Eyeball-Kamera' },
+    parts: [{ d: circle(0, 0, 9.5) }, { d: circle(0, 0, 5) }, { d: circle(0, 0, 2), fill: true }],
+  },
+  {
+    id: 'cc-box', code: 'AST-CC-10', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 300, power: 8, cover: { fov: 40, range: 60 },
+    names: { sq: 'Kamerë box me objektiv të ndërrueshëm', en: 'Box camera with interchangeable lens', it: 'Telecamera box con ottica intercambiabile', de: 'Boxkamera mit Wechselobjektiv' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 15) }, { d: rect(-4, 15, 4, 20) }],
+  },
+  {
+    id: 'cc-pano', code: 'AST-CC-11', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 300, power: 10, cover: { fov: 180, range: 25 },
+    names: { sq: 'Kamerë panoramike 180° (me dy objektivë)', en: '180° panoramic camera (dual lens)', it: 'Telecamera panoramica 180° (doppia ottica)', de: '180°-Panoramakamera (Doppelobjektiv)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-10, 3, 10, 12) }, { d: circle(-4.5, 15.5, 3) }, { d: circle(4.5, 15.5, 3) }],
+  },
+  {
+    id: 'cc-bullet-ahd', code: 'AST-CC-12', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 250, power: 4, cover: { fov: 90, range: 20 },
+    names: { sq: 'Kamerë bullet analoge HD (AHD/TVI/CVI)', en: 'Analog HD bullet camera (AHD/TVI/CVI)', it: 'Telecamera bullet analogica HD (AHD/TVI/CVI)', de: 'Analog-HD-Bullet-Kamera (AHD/TVI/CVI)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-5, 3, 5, 15) }, { d: 'M-5 15 L-8.5 21 H8.5 L5 15' }, { d: strokeText('A', 0, 9, 5) }],
+  },
+  {
+    id: 'cc-dome-ahd', code: 'AST-CC-13', category: 'cctv', layer: 'kamerat', mount: 'center', power: 4, cover: { fov: 100, range: 15 },
+    names: { sq: 'Kamerë dome analoge HD (AHD/TVI/CVI)', en: 'Analog HD dome camera (AHD/TVI/CVI)', it: 'Telecamera dome analogica HD (AHD/TVI/CVI)', de: 'Analog-HD-Dome-Kamera (AHD/TVI/CVI)' },
+    parts: [{ d: circle(0, 0, 9.5) }, { d: 'M-9.5 0 H9.5' }, { d: strokeText('A', 0, -4.5, 4.5) }, { d: circle(0, 3.8, 2.6), fill: true }],
+  },
+  {
+    id: 'cc-dvr', code: 'AST-CC-14', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 180, power: 25,
+    names: { sq: 'Regjistrues DVR / XVR (analog dhe hibrid)', en: 'DVR / XVR recorder (analog and hybrid)', it: 'Videoregistratore DVR / XVR (analogico e ibrido)', de: 'Rekorder DVR / XVR (analog und hybrid)' },
+    parts: [{ d: rect(-12, 0, 12, 16) }, { d: strokeText('DVR', 0, 8, 6) }],
+  },
+  {
+    id: 'cc-intercom', code: 'AST-CC-15', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 150, power: 5, cover: { fov: 110, range: 5 },
+    names: { sq: 'Videocitofon / zile me kamerë', en: 'Video intercom / video doorbell', it: 'Videocitofono / campanello con telecamera', de: 'Videosprechanlage / Videotürklingel' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 19) }, { d: circle(0, 7.5, 2) }, { d: circle(0, 14.5, 2), fill: true }],
+  },
 
   // ---- Access point dhe rrjet ----
   {
@@ -666,6 +701,26 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'rj-patch', code: 'AST-RJ-07', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 180,
     names: { sq: 'Patch panel', en: 'Patch panel', it: 'Patch panel', de: 'Patchfeld' },
     parts: [{ d: rect(-12, 0, 12, 11) }, { d: 'M-9.5 4 H-6.5 V7 H-9.5 Z M-4.5 4 H-1.5 V7 H-4.5 Z M1.5 4 H4.5 V7 H1.5 Z M6.5 4 H9.5 V7 H6.5 Z', fill: true }],
+  },
+  {
+    id: 'rj-rack', code: 'AST-RJ-08', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 0, power: 100,
+    names: { sq: 'Rack 19" (kabineti i rrjetit)', en: '19" rack (network cabinet)', it: 'Armadio rack 19"', de: '19"-Netzwerkschrank' },
+    parts: [{ d: rect(-12, 0, 12, 18) }, { d: 'M-12 0 L12 18 M-9 4.5 H9 M-9 9 H9 M-9 13.5 H9' }],
+  },
+  {
+    id: 'rj-ont', code: 'AST-RJ-09', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 180, power: 10,
+    names: { sq: 'Modem fibre / ONT', en: 'Fibre modem / ONT', it: 'Modem fibra / ONT', de: 'Glasfasermodem / ONT' },
+    parts: [{ d: rect(-11, 0, 11, 14) }, { d: strokeText('ONT', 0, 7, 5.5) }],
+  },
+  {
+    id: 'rj-mesh', code: 'AST-RJ-10', category: 'rrjet', layer: 'rrjeti', mount: 'center', power: 10,
+    names: { sq: 'Wi-Fi mesh / repeater', en: 'Wi-Fi mesh / repeater', it: 'Wi-Fi mesh / ripetitore', de: 'WLAN-Mesh / Repeater' },
+    parts: [{ d: rect(-8, -8, 8, 8) }, { d: 'M-5 -1 A7 7 0 0 1 5 -1 M-2.8 2 A3.6 3.6 0 0 1 2.8 2' }, { d: circle(0, 4.5, 1.2), fill: true }],
+  },
+  {
+    id: 'rj-rj45', code: 'AST-RJ-11', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 30,
+    names: { sq: 'Prizë rrjeti RJ45 e thjeshtë', en: 'Single RJ45 data outlet', it: 'Presa dati RJ45 singola', de: 'Datendose RJ45 einfach' },
+    parts: [{ d: 'M0 0 V5' }, { d: 'M-7 5 H7 L0 16 Z' }],
   },
 
   // ---- Sinjalizim zjarri ----
@@ -718,6 +773,26 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'zj-beam', code: 'AST-ZJ-10', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 600, beam: { range: 50, half: 7.5, maxHeight: 25 },
     names: { sq: 'Detektor linear me rreze', en: 'Beam smoke detector', it: 'Rivelatore lineare a barriera', de: 'Linienförmiger Rauchmelder' },
     parts: [{ d: 'M0 0 V3' }, { d: rect(-7, 3, 7, 11) }, { d: 'M0 11 V13.5 M0 16 V18.5 M0 21 V23.5' }],
+  },
+  {
+    id: 'zj-gaz', code: 'AST-ZJ-11', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 30, power: 3,
+    names: { sq: 'Detektor gazi (metan / GLP / CO)', en: 'Gas detector (methane / LPG / CO)', it: 'Rivelatore gas (metano / GPL / CO)', de: 'Gasmelder (Methan / Flüssiggas / CO)' },
+    parts: [{ d: 'M0 0 V3' }, { d: circle(0, 12, 9) }, { d: strokeText('G', 0, 12, 8) }],
+  },
+  {
+    id: 'zj-sprinkler', code: 'AST-ZJ-12', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    names: { sq: 'Sprinkler', en: 'Sprinkler head', it: 'Sprinkler', de: 'Sprinklerkopf' },
+    parts: [{ d: circle(0, 0, 6) }, { d: 'M-10 0 H-6 M6 0 H10 M0 -10 V-6 M0 6 V10 M-7 -7 L-4.2 -4.2 M7 7 L4.2 4.2 M-7 7 L-4.2 4.2 M7 -7 L4.2 -4.2' }],
+  },
+  {
+    id: 'zj-fikes', code: 'AST-ZJ-13', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 120,
+    names: { sq: 'Zjarrfikës portativ', en: 'Portable fire extinguisher', it: 'Estintore portatile', de: 'Feuerlöscher' },
+    parts: [{ d: 'M0 0 V3' }, { d: 'M-5 3 H5 V19 A5 2 0 0 1 -5 19 Z' }, { d: 'M-2 3 V0.5 H4' }],
+  },
+  {
+    id: 'zj-hidrant', code: 'AST-ZJ-14', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 150,
+    names: { sq: 'Hidrant / kuti zjarrfikëse me zorrë', en: 'Fire hose cabinet', it: 'Idrante a muro / naspo', de: 'Wandhydrant' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-10, 3, 10, 19) }, { d: circle(0, 11, 5) }, { d: circle(0, 11, 1.5), fill: true }],
   },
 
   // ---- Industriale (400 V) ----

@@ -1,7 +1,19 @@
-import type { Opening, Vec, Wall } from './types';
+import type { DoorLeaf, Opening, Vec, Wall } from './types';
+import { findRoom, type Keepout } from './rooms';
 
 /** Gjerësitë standarde, mm. */
-export const DOOR_WIDTHS = [700, 800, 900, 1000, 1200, 1400];
+export const DOOR_WIDTHS = [700, 800, 900, 1000, 1100, 1200, 1400];
+/** Dyert me dy kanate dhe ato rrëshqitëse me dy kanate. */
+export const DOUBLE_DOOR_WIDTHS = [1200, 1400, 1600, 1800, 2000, 2400];
+/** Sugjerimet e gjerësisë sipas llojit të derës. */
+export const doorWidths = (leaf: DoorLeaf = 'single'): number[] => (leaf === 'double' || leaf === 'sliding2' ? DOUBLE_DOOR_WIDTHS : DOOR_WIDTHS);
+/** Gjerësia që i përshtatet llojit të ri: dy kanate jo më ngushtë se 120 cm, një kanat jo më gjerë se 140 cm. */
+export function widthForLeaf(width: number, leaf: DoorLeaf): number {
+  const two = leaf === 'double' || leaf === 'sliding2';
+  if (two && width < 1200) return 1400;
+  if (!two && width > 1400) return 1000;
+  return width;
+}
 export const WINDOW_WIDTHS = [600, 800, 1000, 1200, 1500, 1800, 2400];
 export const DEFAULT_WIDTH = { door: 900, window: 1200 } as const;
 export const DOOR_HEIGHTS = [2000, 2100, 2200, 2400];
@@ -111,4 +123,62 @@ export function placeOnWall(
     best = { wall: w.id, t: Math.round(t), side: across >= 0 ? 1 : -1, d };
   }
   return best ? { wall: best.wall, t: best.t, side: best.side } : null;
+}
+
+/**
+ * Ana e murit ku është brendësia e ndërtesës për këtë hapje (1 ose -1), nga dhomat e mbyllura me mure:
+ * ana me dhomë është "brenda". Kur të dyja anët (ose asnjëra) kanë dhomë, ana 1 quhet brenda.
+ */
+export function insideSide(o: Pick<Opening, 't' | 'width'>, w: Wall, walls: Wall[]): 1 | -1 {
+  const f = openingFrame(o, w);
+  if (!f) return 1;
+  const mid = { x: (f.p1.x + f.p2.x) / 2, y: (f.p1.y + f.p2.y) / 2 };
+  const probe = (k: number) => ({ x: mid.x + f.n.x * k * (f.half + 150), y: mid.y + f.n.y * k * (f.half + 150) });
+  const left = !!findRoom(walls, probe(1));
+  const right = !!findRoom(walls, probe(-1));
+  return !left && right ? -1 : 1;
+}
+
+/** Hapja e derës me fjalë: nga brenda/jashtë dhe menteshat majtas/djathtas, parë nga ana ku hapet dera. */
+export type Swing = 'inRight' | 'inLeft' | 'outRight' | 'outLeft';
+export const SWINGS: Swing[] = ['inRight', 'inLeft', 'outRight', 'outLeft'];
+
+export function swingOf(o: Pick<Opening, 'side' | 'hinge'>, inside: 1 | -1): Swing {
+  const into = o.side === inside ? 'in' : 'out';
+  // shikuesi qëndron nga ana ku hapet dera dhe sheh murin (drejtimi -n·side); e djathta e tij është -u·side
+  const hingeDir = o.hinge === 'a' ? -1 : 1;
+  const right = hingeDir * o.side < 0;
+  return `${into}${right ? 'Right' : 'Left'}` as Swing;
+}
+
+export function applySwing(s: Swing, inside: 1 | -1): Pick<Opening, 'side' | 'hinge'> {
+  const side: 1 | -1 = s.startsWith('in') ? inside : inside === 1 ? -1 : 1;
+  const right = s.endsWith('Right');
+  const hingeDir = (right ? -1 : 1) * side;
+  return { side, hinge: hingeDir > 0 ? 'b' : 'a' };
+}
+
+/** Zonat e dyerve (harku i kanatit ose kanati rrëshqitës) që etiketat e dhomave duhet t'i shmangin. */
+export function doorKeepouts(openings: Opening[], walls: Wall[]): Keepout[] {
+  const byId = new Map(walls.map((w) => [w.id, w]));
+  const out: Keepout[] = [];
+  for (const o of openings) {
+    if (o.type !== 'door') continue;
+    const w = byId.get(o.wall);
+    const f = w && openingFrame(o, w);
+    if (!f) continue;
+    const width = f.s2 - f.s1;
+    const leaf = o.leaf ?? 'single';
+    const mid = { x: (f.p1.x + f.p2.x) / 2, y: (f.p1.y + f.p2.y) / 2 };
+    const margin = 250;
+    if (leaf === 'single') {
+      const h = o.hinge === 'a' ? f.p1 : f.p2;
+      out.push({ c: h, r: width + margin });
+    } else if (leaf === 'double') {
+      out.push({ c: f.p1, r: width / 2 + margin }, { c: f.p2, r: width / 2 + margin });
+    } else {
+      out.push({ c: mid, r: width / 2 + margin });
+    }
+  }
+  return out;
 }

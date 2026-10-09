@@ -25,7 +25,11 @@ export interface Coverage {
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 
-/** Modelet e kamerave: objektivi, këndi horizontal i shikimit dhe distanca (IR) që japin prodhuesit. */
+/** Teknologjia e kamerës, nga më e vjetra te më e reja. */
+export type CameraTech = 'CVBS' | 'AHD' | 'TVI' | 'CVI' | 'IP' | 'IP AI';
+export const CAMERA_TECHS: CameraTech[] = ['CVBS', 'AHD', 'TVI', 'CVI', 'IP', 'IP AI'];
+
+/** Modelet e kamerave: teknologjia, megapikselët, objektivi, këndi horizontal i shikimit dhe distanca (IR) që japin prodhuesit. */
 export interface CameraModel {
   id: string;
   /** Emri pa gjuhë, del edhe në listën e materialeve. */
@@ -34,22 +38,125 @@ export interface CameraModel {
   symbol: string;
   fov: number;
   range: number;
+  tech: CameraTech;
+  /** Rezolucioni, megapiksel (CVBS ≈ 0.4). */
+  mp: number;
+}
+
+/** Objektivat e zakonshëm dhe këndi horizontal që japin (sensor 1/2.7"–1/2.8"). */
+const LENS_FOV: Record<string, number> = { '2.8': 105, '3.6': 88, '4': 85, '6': 55, '8': 42, '12': 28, '2.8–12': 100, '2.7–13.5': 100, '5–50': 55 };
+
+/** Kamera e zakonshme: emri ndërtohet nga lloji, teknologjia, MP dhe objektivi. */
+function cam(id: string, symbol: string, kind: string, tech: CameraTech, mp: number, lens: string, range: number, fov = LENS_FOV[lens]): CameraModel {
+  const res = tech === 'CVBS' ? '960H' : `${mp}MP`;
+  return { id, name: `${kind} ${tech} ${res} · ${lens} mm`, symbol, fov, range, tech, mp };
 }
 
 export const CAMERA_MODELS: CameraModel[] = [
-  { id: 'b2-28', name: 'Bullet 2MP · 2.8 mm', symbol: 'cc-bullet', fov: 105, range: 20 },
-  { id: 'b4-4', name: 'Bullet 4MP · 4 mm', symbol: 'cc-bullet', fov: 85, range: 30 },
-  { id: 'b4-6', name: 'Bullet 4MP · 6 mm', symbol: 'cc-bullet', fov: 55, range: 40 },
-  { id: 'b4-v', name: 'Bullet 4MP · 2.8–12 mm', symbol: 'cc-bullet', fov: 60, range: 50 },
-  { id: 'b8-4', name: 'Bullet 8MP · 4 mm', symbol: 'cc-bullet', fov: 100, range: 40 },
-  { id: 'd2-28', name: 'Dome 2MP · 2.8 mm', symbol: 'cc-dome', fov: 105, range: 15 },
-  { id: 'd4-28', name: 'Dome 4MP · 2.8 mm', symbol: 'cc-dome', fov: 105, range: 30 },
-  { id: 'd4-4', name: 'Dome 4MP · 4 mm', symbol: 'cc-dome', fov: 85, range: 30 },
-  { id: 'd4-v', name: 'Dome 4MP · 2.8–12 mm', symbol: 'cc-dome', fov: 60, range: 40 },
-  { id: 'p4-25x', name: 'PTZ 4MP · 25×', symbol: 'cc-ptz', fov: 60, range: 100 },
-  { id: 'p4-45x', name: 'PTZ 4MP · 45×', symbol: 'cc-ptz', fov: 55, range: 200 },
-  { id: 'f12', name: 'Fisheye 12MP · 360°', symbol: 'cc-fisheye', fov: 360, range: 10 },
+  // modelet e para (id-të ruhen, që projektet e vjetra të njohin modelin)
+  cam('b2-28', 'cc-bullet', 'Bullet', 'IP', 2, '2.8', 20),
+  cam('b4-4', 'cc-bullet', 'Bullet', 'IP', 4, '4', 30),
+  cam('b4-6', 'cc-bullet', 'Bullet', 'IP', 4, '6', 40),
+  cam('b4-v', 'cc-bullet', 'Bullet', 'IP', 4, '2.8–12', 50, 60),
+  cam('b8-4', 'cc-bullet', 'Bullet', 'IP', 8, '4', 40, 100),
+  cam('d2-28', 'cc-dome', 'Dome', 'IP', 2, '2.8', 15),
+  cam('d4-28', 'cc-dome', 'Dome', 'IP', 4, '2.8', 30),
+  cam('d4-4', 'cc-dome', 'Dome', 'IP', 4, '4', 30),
+  cam('d4-v', 'cc-dome', 'Dome', 'IP', 4, '2.8–12', 40, 60),
+  { id: 'p4-25x', name: 'PTZ IP 4MP · 25×', symbol: 'cc-ptz', fov: 60, range: 100, tech: 'IP', mp: 4 },
+  { id: 'p4-45x', name: 'PTZ IP 4MP · 45×', symbol: 'cc-ptz', fov: 55, range: 200, tech: 'IP', mp: 4 },
+  { id: 'f12', name: 'Fisheye IP 12MP · 360°', symbol: 'cc-fisheye', fov: 360, range: 10, tech: 'IP', mp: 12 },
+  // bullet IP: 2–12 MP dhe kamerat e reja me AI / ngjyra natën
+  cam('b5-28', 'cc-bullet', 'Bullet', 'IP', 5, '2.8', 30),
+  cam('b6-28', 'cc-bullet', 'Bullet', 'IP', 6, '2.8', 30),
+  cam('b8-28', 'cc-bullet', 'Bullet', 'IP', 8, '2.8', 40, 110),
+  cam('b8-v', 'cc-bullet', 'Bullet', 'IP', 8, '2.7–13.5', 60, 105),
+  cam('b12-4', 'cc-bullet', 'Bullet', 'IP', 12, '4', 50, 95),
+  cam('bai4-28', 'cc-bullet', 'Bullet ColorVu/Full Color', 'IP AI', 4, '2.8', 30),
+  cam('bai8-4', 'cc-bullet', 'Bullet AcuSense', 'IP AI', 8, '4', 40, 100),
+  // dome IP
+  cam('d5-28', 'cc-dome', 'Dome', 'IP', 5, '2.8', 30),
+  cam('d6-28', 'cc-dome', 'Dome', 'IP', 6, '2.8', 30),
+  cam('d8-28', 'cc-dome', 'Dome', 'IP', 8, '2.8', 30, 110),
+  cam('d8-v', 'cc-dome', 'Dome', 'IP', 8, '2.7–13.5', 40, 105),
+  cam('dai4-28', 'cc-dome', 'Dome AcuSense', 'IP AI', 4, '2.8', 30),
+  // PTZ dhe fisheye
+  { id: 'p2-25x', name: 'PTZ IP 2MP · 25×', symbol: 'cc-ptz', fov: 60, range: 100, tech: 'IP', mp: 2 },
+  { id: 'p8-32x', name: 'PTZ IP 8MP · 32×', symbol: 'cc-ptz', fov: 58, range: 200, tech: 'IP', mp: 8 },
+  { id: 'pai4-45x', name: 'PTZ IP AI 4MP · 45× · laser 500 m', symbol: 'cc-ptz', fov: 55, range: 300, tech: 'IP AI', mp: 4 },
+  { id: 'pa2-18x', name: 'PTZ AHD 2MP · 18×', symbol: 'cc-ptz', fov: 60, range: 100, tech: 'AHD', mp: 2 },
+  { id: 'f5', name: 'Fisheye IP 5MP · 360°', symbol: 'cc-fisheye', fov: 360, range: 8, tech: 'IP', mp: 5 },
+  { id: 'f6', name: 'Fisheye IP 6MP · 360°', symbol: 'cc-fisheye', fov: 360, range: 10, tech: 'IP', mp: 6 },
+  // turret / eyeball
+  cam('t2-28', 'cc-turret', 'Turret', 'IP', 2, '2.8', 30),
+  cam('t4-28', 'cc-turret', 'Turret', 'IP', 4, '2.8', 30),
+  cam('t5-28', 'cc-turret', 'Turret', 'IP', 5, '2.8', 30),
+  cam('t8-28', 'cc-turret', 'Turret', 'IP', 8, '2.8', 30, 110),
+  cam('tai4-28', 'cc-turret', 'Turret ColorVu/Full Color', 'IP AI', 4, '2.8', 30),
+  cam('ta2-28', 'cc-turret', 'Turret', 'AHD', 2, '2.8', 20),
+  cam('ta5-28', 'cc-turret', 'Turret', 'TVI', 5, '2.8', 25),
+  // box, panoramike, videocitofon
+  cam('x4-v', 'cc-box', 'Box', 'IP', 4, '5–50', 120),
+  cam('x8-v', 'cc-box', 'Box', 'IP', 8, '5–50', 120),
+  { id: 'pn4', name: 'Panoramike IP 2×4MP · 180°', symbol: 'cc-pano', fov: 180, range: 30, tech: 'IP', mp: 8 },
+  { id: 'pn8', name: 'Panoramike IP 2×8MP · 180°', symbol: 'cc-pano', fov: 180, range: 40, tech: 'IP AI', mp: 16 },
+  { id: 'vi2', name: 'Videocitofon IP 2MP', symbol: 'cc-intercom', fov: 110, range: 5, tech: 'IP', mp: 2 },
+  { id: 'vi-ahd', name: 'Videocitofon AHD 2MP', symbol: 'cc-intercom', fov: 100, range: 4, tech: 'AHD', mp: 2 },
+  // analoge: nga CVBS (960H) te AHD / TVI / CVI 1–8 MP
+  cam('ab-cvbs', 'cc-bullet-ahd', 'Bullet', 'CVBS', 0.4, '3.6', 15),
+  cam('ab1-36', 'cc-bullet-ahd', 'Bullet', 'AHD', 1, '3.6', 20),
+  cam('ab2-36', 'cc-bullet-ahd', 'Bullet', 'AHD', 2, '3.6', 20),
+  cam('ab2-28', 'cc-bullet-ahd', 'Bullet', 'AHD', 2, '2.8', 20),
+  cam('ab4-28', 'cc-bullet-ahd', 'Bullet', 'AHD', 4, '2.8', 25),
+  cam('ab5-28', 'cc-bullet-ahd', 'Bullet', 'AHD', 5, '2.8', 25),
+  cam('tb2-36', 'cc-bullet-ahd', 'Bullet', 'TVI', 2, '3.6', 20),
+  cam('tb5-28', 'cc-bullet-ahd', 'Bullet', 'TVI', 5, '2.8', 30),
+  cam('tb8-28', 'cc-bullet-ahd', 'Bullet', 'TVI', 8, '2.8', 40, 110),
+  cam('cb2-36', 'cc-bullet-ahd', 'Bullet', 'CVI', 2, '3.6', 30),
+  cam('cb5-28', 'cc-bullet-ahd', 'Bullet', 'CVI', 5, '2.8', 30),
+  cam('cb8-v', 'cc-bullet-ahd', 'Bullet', 'CVI', 8, '2.7–13.5', 60, 105),
+  cam('ad-cvbs', 'cc-dome-ahd', 'Dome', 'CVBS', 0.4, '3.6', 10),
+  cam('ad1-36', 'cc-dome-ahd', 'Dome', 'AHD', 1, '3.6', 15),
+  cam('ad2-28', 'cc-dome-ahd', 'Dome', 'AHD', 2, '2.8', 20),
+  cam('ad5-28', 'cc-dome-ahd', 'Dome', 'AHD', 5, '2.8', 20),
+  cam('td2-28', 'cc-dome-ahd', 'Dome', 'TVI', 2, '2.8', 20),
+  cam('td5-28', 'cc-dome-ahd', 'Dome', 'TVI', 5, '2.8', 20),
+  cam('td8-28', 'cc-dome-ahd', 'Dome', 'TVI', 8, '2.8', 30, 110),
+  cam('cd2-28', 'cc-dome-ahd', 'Dome', 'CVI', 2, '2.8', 20),
+  cam('cd5-28', 'cc-dome-ahd', 'Dome', 'CVI', 5, '2.8', 20),
 ];
+
+/** Regjistruesit: NVR (IP), DVR (analog) dhe XVR (hibrid), me kanalet dhe rezolucionin. */
+export interface RecorderModel {
+  id: string;
+  name: string;
+  symbol: string;
+  tech: 'IP' | 'Analog' | 'Hybrid';
+  channels: number;
+}
+
+const rec = (id: string, symbol: string, name: string, tech: RecorderModel['tech'], channels: number): RecorderModel => ({ id, name, symbol, tech, channels });
+
+export const RECORDER_MODELS: RecorderModel[] = [
+  rec('nvr4p', 'cc-nvr', 'NVR 4 kanale · 4 PoE · 8MP (4K) · 1 HDD', 'IP', 4),
+  rec('nvr8p', 'cc-nvr', 'NVR 8 kanale · 8 PoE · 8MP (4K) · 1 HDD', 'IP', 8),
+  rec('nvr16p', 'cc-nvr', 'NVR 16 kanale · 16 PoE · 12MP · 2 HDD', 'IP', 16),
+  rec('nvr32', 'cc-nvr', 'NVR 32 kanale · 12MP · 4 HDD', 'IP', 32),
+  rec('nvr64', 'cc-nvr', 'NVR 64 kanale · 32MP · 8 HDD RAID', 'IP', 64),
+  rec('nvr16ai', 'cc-nvr', 'NVR AI 16 kanale · njohje fytyre / targa · 4 HDD', 'IP', 16),
+  rec('nvr128', 'cc-nvr', 'NVR 128 kanale · 16 HDD RAID (projekte të mëdha)', 'IP', 128),
+  rec('dvr4', 'cc-dvr', 'DVR 4 kanale · 1080p (AHD/TVI/CVI/CVBS)', 'Analog', 4),
+  rec('dvr8', 'cc-dvr', 'DVR 8 kanale · 1080p (AHD/TVI/CVI/CVBS)', 'Analog', 8),
+  rec('dvr16', 'cc-dvr', 'DVR 16 kanale · 1080p · 2 HDD', 'Analog', 16),
+  rec('dvr960', 'cc-dvr', 'DVR 960H 8 kanale (CVBS, i vjetër)', 'Analog', 8),
+  rec('xvr4', 'cc-dvr', 'XVR 4 kanale · 5MP · + 2 IP', 'Hybrid', 6),
+  rec('xvr8', 'cc-dvr', 'XVR 8 kanale · 5MP · + 4 IP', 'Hybrid', 12),
+  rec('xvr16', 'cc-dvr', 'XVR 16 kanale · 8MP (4K) · + 8 IP · 2 HDD', 'Hybrid', 24),
+  rec('xvr32', 'cc-dvr', 'XVR 32 kanale · 5MP · + 16 IP · 4 HDD', 'Hybrid', 48),
+];
+
+export const recordersFor = (symbol: string) => RECORDER_MODELS.filter((m) => m.symbol === symbol);
+export const recorderModel = (e: SymbolEntity) => RECORDER_MODELS.find((m) => m.id === e.model && m.symbol === e.symbol);
 
 export const modelsFor = (symbol: string) => CAMERA_MODELS.filter((m) => m.symbol === symbol);
 export const cameraModel = (e: SymbolEntity) => CAMERA_MODELS.find((m) => m.id === e.model && m.symbol === e.symbol);
