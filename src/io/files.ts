@@ -1,4 +1,4 @@
-import { DEFAULT_SCALE, defaultLayers, knownLayer, type Circuit, type CircuitKind, type Doc, type Entity, type Layer } from '../core/types';
+import { DEFAULT_SCALE, DOOR_LEAVES, defaultLayers, knownLayer, type Circuit, type CircuitKind, type Doc, type Entity, type Layer } from '../core/types';
 import { setCustomSymbols, symbolDef } from '../symbols/library';
 import { EDITION } from '../edition';
 import { parseCustomSymbols, toSymbolDef } from '../symbols/custom';
@@ -31,7 +31,7 @@ export function parse(text: string): Doc {
   const entities = raw2.filter((x): x is Entity => {
     const e = x as Partial<Entity> | null;
     if (!e || typeof e.id !== 'string' || typeof e.layer !== 'string') return false;
-    if (e.kind === 'wall') return isVec(e.a) && isVec(e.b) && isNum(e.thickness);
+    if (e.kind === 'wall') return isVec(e.a) && isVec(e.b) && isNum(e.thickness) && (e.height === undefined || (isNum(e.height) && e.height > 0));
     if (e.kind === 'symbol') return typeof e.symbol === 'string' && !!symbolDef(e.symbol) && isVec(e.pos) && isNum(e.angle);
     if (e.kind === 'room') return typeof e.name === 'string' && isVec(e.pos);
     if (e.kind === 'cable') return Array.isArray(e.points) && e.points.length >= 2 && e.points.every(isVec);
@@ -45,7 +45,9 @@ export function parse(text: string): Doc {
         (e.height === undefined || (isNum(e.height) && e.height > 0)) &&
         (e.sill === undefined || (isNum(e.sill) && e.sill >= 0)) &&
         (e.side === 1 || e.side === -1) &&
-        (e.hinge === 'a' || e.hinge === 'b')
+        (e.hinge === 'a' || e.hinge === 'b') &&
+        (e.leaf === undefined || DOOR_LEAVES.includes(e.leaf)) &&
+        (e.exterior === undefined || typeof e.exterior === 'boolean')
       );
     }
     return false;

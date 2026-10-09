@@ -1,6 +1,7 @@
+import { importDxf } from './io/dxfImport';
 import { Store } from './core/store';
-import { SCALES, emptyDoc, isCable, isOpening, isRoom, isSymbol, isWall, type Cable, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
-import { DEFAULT_SILL, DOOR_HEIGHTS, DOOR_WIDTHS, SIZE_LIMITS, WINDOW_HEIGHTS, WINDOW_WIDTHS, openingFrame, openingHeight } from './core/openings';
+import { DOOR_LEAVES, SCALES, WALL_HEIGHT, emptyDoc, isCable, isOpening, isRoom, isSymbol, isWall, type Cable, type DoorLeaf, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
+import { DEFAULT_SILL, DOOR_HEIGHTS, SIZE_LIMITS, SWINGS, WINDOW_HEIGHTS, WINDOW_WIDTHS, applySwing, doorWidths, insideSide, openingFrame, openingHeight, swingOf, widthForLeaf, type Swing } from './core/openings';
 import { areaText, findRoom } from './core/rooms';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
 import { sampleDoc } from './core/sample';
@@ -21,11 +22,11 @@ import { syncCableLayers } from './core/systems';
 import { WALL_MIN_M, checkFireCached } from './core/firecheck';
 import { EM_HEIGHT_CM, LUMEN_LIMITS, LUX_OPEN, UNIFORMITY_MAX, checkEmergencyCached, emModel, emModelsFor, luminaireCalc, signCalc } from './core/emergency';
 import { BEAM_LIMITS, TILT_LIMITS, beamCalc, cameraGround } from './core/coverage';
-import { DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraModel, cameraSettings, detectorCalc, modelsFor } from './core/coverage';
+import { CAMERA_TECHS, DETECTOR_ANGLE_LIMITS, DETECTOR_HEIGHT_CM, FOV_LIMITS, RANGE_LIMITS, cameraModel, cameraSettings, detectorCalc, modelsFor, recorderModel, recordersFor } from './core/coverage';
 import { EDITION, editionLibs, productName } from './edition';
 import { startLicenseGate } from './license/gate';
 import { lic } from './license/strings';
-import { CATEGORIES, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, type CategoryId, type LibraryId, type SymbolDef } from './symbols/library';
+import { CATEGORIES, VOLTS, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, symbolVolt, type CategoryId, type LibraryId, type SymbolDef, type Volt } from './symbols/library';
 import { normAngle } from './symbols/place';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -56,7 +57,7 @@ const vp = new Viewport();
 const editor = new Editor(
   store,
   vp,
-  { snap: true, grid: true, ortho: false, gridStep: 100, wallThickness: 250, doorWidth: 900, windowWidth: 1200, doorHeight: 2100, windowHeight: 1400 },
+  { snap: true, grid: true, ortho: false, gridStep: 100, wallThickness: 250, doorWidth: 900, windowWidth: 1200, doorHeight: 2100, windowHeight: 1400, doorLeaf: 'single', doorExterior: false, wallHeight: WALL_HEIGHT },
   () => scheduleRender(),
   (m) => toast(t(m === 'roomNotClosed' ? 'toastRoomNotClosed' : m === 'roomExists' ? 'toastRoomExists' : 'toastNoWall'), true),
 );
@@ -125,6 +126,8 @@ function scheduleRender(): void {
 function draw(): void {
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const aim = editor.aimTarget();
+  editor.overlay.aimHandle = aim ? { apex: aim.apex, tip: aim.tip } : undefined;
   render(ctx, vp, {
     doc: store.doc,
     selection: store.selection,
@@ -231,10 +234,21 @@ function syncWidthField(): void {
   $('wallThicknessField').hidden = placing;
   if (!placing) return;
   const door = editor.tool === 'door';
-  if (sizeFor !== editor.tool) {
-    sizeFor = editor.tool;
+  $('doorTypeField').hidden = !door;
+  const s0 = editor.settings;
+  $('chipExterior').setAttribute('aria-pressed', String(s0.doorExterior));
+  const leafSel = $<HTMLSelectElement>('doorLeaf');
+  const leafKey = `${getLang()}`;
+  if (leafSel.dataset.lang !== leafKey) {
+    leafSel.dataset.lang = leafKey;
+    leafSel.innerHTML = DOOR_LEAVES.map((v) => `<option value="${v}">${esc(t(`leaf_${v}`))}</option>`).join('');
+  }
+  leafSel.value = s0.doorLeaf;
+  const sizeKey = `${editor.tool}:${door ? s0.doorLeaf : ''}`;
+  if (sizeFor !== sizeKey) {
+    sizeFor = sizeKey;
     const opts = (list: number[]) => list.map((v) => `<option value="${v / 10}"></option>`).join('');
-    $('openingWidthList').innerHTML = opts(door ? DOOR_WIDTHS : WINDOW_WIDTHS);
+    $('openingWidthList').innerHTML = opts(door ? doorWidths(s0.doorLeaf) : WINDOW_WIDTHS);
     $('openingHeightList').innerHTML = opts(door ? DOOR_HEIGHTS : WINDOW_HEIGHTS);
   }
   const s = editor.settings;
@@ -263,6 +277,21 @@ heightInput.addEventListener('change', () => {
   if (editor.tool === 'door') editor.settings.doorHeight = mm;
   else editor.settings.windowHeight = mm;
 });
+$<HTMLSelectElement>('doorLeaf').addEventListener('change', (e) => {
+  const v = (e.target as HTMLSelectElement).value as DoorLeaf;
+  editor.settings.doorLeaf = v;
+  editor.settings.doorWidth = widthForLeaf(editor.settings.doorWidth, v);
+  syncWidthField();
+  scheduleRender();
+});
+$('chipExterior').addEventListener('click', () => {
+  const s = editor.settings;
+  s.doorExterior = !s.doorExterior;
+  // dera e hyrjes standarde është më e gjerë
+  if (s.doorExterior && s.doorLeaf === 'single' && s.doorWidth < 1000) s.doorWidth = 1000;
+  syncWidthField();
+  scheduleRender();
+});
 for (const input of [widthInput, heightInput]) {
   // Enter e kthen fokusin te plani, që të vazhdosh menjëherë me vendosjen
   input.addEventListener('keydown', (e) => e.key === 'Enter' && canvas.focus());
@@ -288,11 +317,27 @@ scaleSelect.addEventListener('change', () => {
   if (v !== store.doc.scale) store.commit((d) => (d.scale = v));
 });
 
-const thicknessSelect = $<HTMLSelectElement>('wallThickness');
-thicknessSelect.addEventListener('change', () => {
-  editor.settings.wallThickness = Number(thicknessSelect.value);
+/** Trashësia dhe lartësia e mureve të reja: çdo masë në cm, lista jep vetëm sugjerime. */
+const thicknessInput = $<HTMLInputElement>('wallThickness');
+thicknessInput.addEventListener('change', () => {
+  const mm = cmToMm(thicknessInput.value, 10, 2000);
+  if (mm === null) return void (thicknessInput.value = String(editor.settings.wallThickness / 10));
+  editor.settings.wallThickness = mm;
   scheduleRender();
 });
+const wallHeightInput = $<HTMLInputElement>('wallHeight');
+wallHeightInput.addEventListener('change', () => {
+  const mm = cmToMm(wallHeightInput.value, 100, 20000);
+  if (mm === null) return void (wallHeightInput.value = String(editor.settings.wallHeight / 10));
+  editor.settings.wallHeight = mm;
+});
+for (const input of [thicknessInput, wallHeightInput]) input.addEventListener('keydown', (e) => e.key === 'Enter' && canvas.focus());
+
+/** cm të shkruara (me pikë ose presje) në mm, brenda kufijve; ndryshe null. */
+function cmToMm(raw: string, min: number, max: number): number | null {
+  const mm = Math.round(Number(raw.replace(',', '.')) * 10);
+  return Number.isFinite(mm) && mm >= min && mm <= max ? mm : null;
+}
 
 function toggleChip(id: string, key: 'snap' | 'grid' | 'ortho'): void {
   editor.settings[key] = !editor.settings[key];
@@ -335,6 +380,31 @@ $('libList').addEventListener('click', (e) => {
   renderLibrary();
 });
 
+/** Elektrika ndahet në 230 V dhe 400 V: secila ndizet/fiket veç, të paktën njëra mbetet e ndezur. */
+const VOLT_KEY = 'astcad.volts';
+let volts = new Set<Volt>(VOLTS);
+try {
+  const saved = (JSON.parse(localStorage.getItem(VOLT_KEY) ?? 'null') as Volt[] | null)?.filter((v) => VOLTS.includes(v));
+  if (saved?.length) volts = new Set(saved);
+} catch {
+  // pa ruajtje në shfletues: të dyja të ndezura
+}
+$('voltBar').addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-volt]');
+  if (!btn) return;
+  const v = Number(btn.dataset.volt) as Volt;
+  if (!volts.has(v)) volts.add(v);
+  else if (volts.size > 1) volts.delete(v);
+  // fikja e të vetmes së ndezur kalon te tjetra
+  else volts = new Set(VOLTS.filter((x) => x !== v));
+  try {
+    localStorage.setItem(VOLT_KEY, JSON.stringify([...volts]));
+  } catch {
+    // s'ka gjë, zgjedhja vlen deri në mbyllje
+  }
+  renderLibrary();
+});
+
 function renderLibrary(): void {
   const q = searchInput.value.trim().toLowerCase();
   const matches = (d: SymbolDef) =>
@@ -353,9 +423,14 @@ function renderLibrary(): void {
     later.map((k) => `<li class="lib"><span>${esc(t(k))}</span><small>${esc(t('later'))}</small></li>`).join('');
   // simbolet e mia shfaqen në çdo program
   const shown = libFilter ? [libFilter] : libs;
-  const inLib = (cat: CategoryId) => cat === 'custom' || shown.includes(categoryLibrary(cat));
-  const html = CATEGORIES.filter((cat) => inLib(cat.id)).map((cat) => {
-    const defs = all.filter((d) => d.category === cat.id && matches(d));
+  const civil = shown.includes('civil');
+  const bar = $('voltBar');
+  bar.hidden = !civil;
+  bar.innerHTML = VOLTS.map(
+    (v) => `<button class="chip" type="button" data-volt="${v}" aria-pressed="${volts.has(v)}" title="${esc(t(v === 230 ? 'phase1' : 'phase3'))}">${v} V</button>`,
+  ).join('');
+  const section = (cat: (typeof CATEGORIES)[number], volt?: Volt) => {
+    const defs = all.filter((d) => d.category === cat.id && matches(d) && (volt === undefined || symbolVolt(d) === volt));
     if (defs.length === 0) return '';
     const tiles = defs
       .map((d) => {
@@ -368,7 +443,20 @@ function renderLibrary(): void {
       })
       .join('');
     return `<section><h3 class="sym-cat">${esc(categoryName(cat))}</h3><div class="tiles">${tiles}</div></section>`;
-  }).join('');
+  };
+  const isCivil = (cat: CategoryId) => cat !== 'custom' && categoryLibrary(cat) === 'civil';
+  // elektrika: së pari grupi 230 V, pastaj 400 V, secili me kategoritë e veta
+  const civilHtml = civil
+    ? VOLTS.filter((v) => volts.has(v))
+        .map((v) => {
+          const body = CATEGORIES.filter((cat) => isCivil(cat.id)).map((cat) => section(cat, v)).join('');
+          return body && `<div class="volt-group"><h3 class="volt-head">${esc(t(v === 230 ? 'phase1' : 'phase3'))}</h3>${body}</div>`;
+        })
+        .join('')
+    : '';
+  const mine = CATEGORIES.filter((cat) => cat.id === 'custom').map((cat) => section(cat)).join('');
+  const others = CATEGORIES.filter((cat) => cat.id !== 'custom' && !isCivil(cat.id) && shown.includes(categoryLibrary(cat.id)));
+  const html = mine + civilHtml + others.map((cat) => section(cat)).join('');
   $('symbolGroups').innerHTML = html || `<p class="muted small">${esc(t('noResults'))}</p>`;
 }
 
@@ -452,7 +540,7 @@ fileInput.addEventListener('change', async () => {
   fileInput.value = '';
   if (!f) return;
   try {
-    const doc = await readFile(f);
+    const doc = /\.dxf$/i.test(f.name) ? importDxf(await f.text(), f.name.replace(/\.dxf$/i, '')) : await readFile(f);
     store.replace(doc);
     fitAll();
     toast(t('toastOpened', { v: doc.name }));
@@ -576,13 +664,26 @@ window.addEventListener('keyup', (e) => editor.keyUp(e));
 
 const WALL_ICON =
   '<svg viewBox="0 0 24 24" class="ic" style="color:#9CC5FF;width:30px;height:30px"><rect x="3" y="9" width="18" height="6"></rect><path d="M7 9v6M11 9v6M15 9v6M19 9v6"></path></svg>';
-const THICKNESSES = [100, 120, 150, 200, 250, 300];
 
-function thicknessOptions(current: number | null): string {
-  const opts = THICKNESSES.map((v) => `<option value="${v}"${v === current ? ' selected' : ''}>${v / 10} cm</option>`);
-  if (current === null) opts.unshift(`<option value="" selected>${esc(t('mixed'))}</option>`);
-  else if (!THICKNESSES.includes(current)) opts.unshift(`<option value="${current}" selected>${current / 10} cm</option>`);
-  return opts.join('');
+/** Fushat e trashësisë dhe lartësisë së murit (cm, çdo vlerë); bosh = vlera të ndryshme. */
+function wallSizeFields(thick: number | null, height: number | null): string {
+  const v = (mm: number | null) => (mm === null ? '' : String(mm / 10));
+  return `<label class="field" for="propThick">${esc(t('thicknessShort'))}<input id="propThick" class="num" type="number" step="0.5" min="1" list="wallThicknessList" value="${v(thick)}" placeholder="${esc(t('mixed'))}"></label>
+    <label class="field" for="propWallH">${esc(t('wallHeightCm'))}<input id="propWallH" class="num" type="number" step="1" min="10" list="wallHeightList" value="${v(height)}" placeholder="${esc(t('mixed'))}"></label>`;
+}
+
+/** Ndryshon trashësinë dhe lartësinë e mureve me këto id. */
+function onWallSize(ids: Set<string>): void {
+  $('propThick')?.addEventListener('change', (e) => {
+    const mm = cmToMm((e.target as HTMLInputElement).value, 10, 2000);
+    if (mm === null) return void ((propsKey = ''), renderProps());
+    store.commit((d) => d.entities.forEach((x) => isWall(x) && ids.has(x.id) && (x.thickness = mm)));
+  });
+  $('propWallH')?.addEventListener('change', (e) => {
+    const mm = cmToMm((e.target as HTMLInputElement).value, 100, 20000);
+    if (mm === null) return void ((propsKey = ''), renderProps());
+    store.commit((d) => d.entities.forEach((x) => isWall(x) && ids.has(x.id) && (x.height = mm)));
+  });
 }
 
 function update<T extends Entity>(id: string, fn: (x: T) => void): void {
@@ -646,7 +747,13 @@ function cameraFields(s: SymbolEntity): string {
   const modelSelect = models.length
     ? `<label class="field" for="propModel">${esc(t('camModel'))}<select id="propModel">
         <option value=""${current ? '' : ' selected'}>${esc(t('camCustom'))}</option>
-        ${models.map((m) => `<option value="${m.id}"${m.id === current?.id ? ' selected' : ''}>${esc(m.name)}</option>`).join('')}</select></label>`
+        ${CAMERA_TECHS.filter((tech) => models.some((m) => m.tech === tech))
+          .map((tech) => `<optgroup label="${tech}">${models
+            .filter((m) => m.tech === tech)
+            .sort((a, b) => a.mp - b.mp)
+            .map((m) => `<option value="${m.id}"${m.id === current?.id ? ' selected' : ''}>${esc(m.name)}</option>`)
+            .join('')}</optgroup>`)
+          .join('')}</select></label>`
     : '';
   return `${modelSelect}<div class="prop-grid">
       <label class="field" for="propFov">${esc(t('camFov'))}<input id="propFov" class="num" type="number" step="1" min="${FOV_LIMITS[0]}" max="${FOV_LIMITS[1]}" value="${cam.fov}" list="lensList"></label>
@@ -658,7 +765,22 @@ function cameraFields(s: SymbolEntity): string {
       <div class="stat"><span>${esc(t('camBlind'))}</span><b>${fmt(g.blind)} m</b></div>
       <div class="stat"><span>${esc(t('camReach'))}</span><b>${fmt(g.reach)} m</b></div>
     </div>` : ''}
+    ${cam.fov < 360 ? `<p class="muted small">${esc(t('camAimHint'))}</p>` : ''}
     <datalist id="lensList">${LENSES.map(([l, v]) => `<option value="${v}" label="${l}"></option>`).join('')}</datalist>`;
+}
+
+/** Regjistruesi (NVR / DVR / XVR): modeli me kanalet; kamerat në plan krahasohen me kanalet. */
+function recorderFields(s: SymbolEntity): string {
+  const models = recordersFor(s.symbol);
+  if (!models.length) return '';
+  const current = recorderModel(s);
+  const cams = store.doc.entities.filter((e) => isSymbol(e) && !!cameraSettings(e)).length;
+  const groups = ['IP', 'Hybrid', 'Analog'] as const;
+  return `<label class="field" for="propRecModel">${esc(t('recModel'))}<select id="propRecModel">
+      <option value=""${current ? '' : ' selected'}>${esc(t('camCustom'))}</option>
+      ${groups.filter((g) => models.some((m) => m.tech === g)).map((g) => `<optgroup label="${g === 'IP' ? 'NVR (IP)' : g === 'Hybrid' ? 'XVR' : 'DVR'}">${models.filter((m) => m.tech === g).map((m) => `<option value="${m.id}"${m.id === current?.id ? ' selected' : ''}>${esc(m.name)}</option>`).join('')}</optgroup>`).join('')}
+    </select></label>
+    ${current && cams > current.channels ? `<p class="warn-text">${esc(t('warnRecChannels', { n: cams, c: current.channels }))}</p>` : ''}`;
 }
 
 /** Ndriçuesi i emergjencës: fluksi dhe rrezet 0.5 / 1 lux; tabela EXIT: distanca e shikimit. */
@@ -738,6 +860,7 @@ function renderProps(): void {
         ${numField('propAngle', t('rotation'), normAngle(s.angle - 270), '90')}
       </div>
       ${cameraFields(s)}
+      ${recorderFields(s)}
       ${detectorFields(s)}
       ${beamFields(s)}
       ${emergencyFields(s)}
@@ -766,6 +889,10 @@ function renderProps(): void {
         x.fov = m.fov;
         x.range = m.range;
       });
+    });
+    $('propRecModel')?.addEventListener('change', (ev) => {
+      const id = (ev.target as HTMLSelectElement).value;
+      update<SymbolEntity>(s.id, (x) => void (id ? (x.model = id) : delete x.model));
     });
     // detektori: këndi i sensorit ruhet te i njëjti fushë si këndi i kamerës
     onNum('propDetAngle', (x, v) => (v === undefined ? delete x.fov : (x.fov = Math.min(DETECTOR_ANGLE_LIMITS[1], Math.max(DETECTOR_ANGLE_LIMITS[0], Math.round(v))))));
@@ -809,9 +936,7 @@ function renderProps(): void {
       <div class="prop-head">${WALL_ICON}<div><b>${esc(t('wall'))}</b><span>${esc(t('layer'))}: ${esc(layerName(w.layer, w.layer))}</span></div></div>
       <div class="prop-grid">
         ${numField('propLen', t('lengthCm'), Math.round(dist(w.a, w.b) / 10))}
-        <label class="field" for="propThick">${esc(t('thicknessShort'))}
-          <select id="propThick">${thicknessOptions(w.thickness)}</select>
-        </label>
+        ${wallSizeFields(w.thickness, w.height ?? WALL_HEIGHT)}
         ${numField('propAx', t('startX'), (w.a.x / 1000).toFixed(2), '0.01')}
         ${numField('propAy', t('startY'), (w.a.y / 1000).toFixed(2), '0.01')}
       </div>
@@ -825,10 +950,7 @@ function renderProps(): void {
         x.b = add(x.a, scale(dir, (cm * 10) / l));
       });
     });
-    $<HTMLSelectElement>('propThick').addEventListener('change', (e) => {
-      const v = Number((e.target as HTMLSelectElement).value);
-      if (v > 0) update<Wall>(w.id, (x) => void (x.thickness = v));
-    });
+    onWallSize(new Set([w.id]));
     const moveStart = (axis: 'x' | 'y') => (e: Event) => {
       const v = Number((e.target as HTMLInputElement).value);
       if (!Number.isFinite(v)) return;
@@ -846,22 +968,17 @@ function renderProps(): void {
 
   const walls = sel.filter(isWall);
   const ts = new Set(walls.map((w) => w.thickness));
+  const hs = new Set(walls.map((w) => w.height ?? WALL_HEIGHT));
   const selLen = walls.reduce((s, w) => s + dist(w.a, w.b), 0);
   const wired = sel.filter((e): e is SymbolEntity | Cable => isSymbol(e) || isCable(e));
   const cs = new Set(wired.map((e) => e.circuit ?? ''));
   el.innerHTML = `
     <div class="prop-head">${WALL_ICON}<div><b>${esc(t('nSelected', { n: sel.length }))}</b>
       <span>${walls.length ? esc(t('total', { v: formatMeters(selLen) })) : ''}</span></div></div>
-    ${walls.length ? `<label class="field" for="propThick">${esc(t('thicknessAll'))}
-      <select id="propThick">${thicknessOptions(ts.size === 1 ? walls[0].thickness : null)}</select></label>` : ''}
+    ${walls.length ? `<div class="prop-grid">${wallSizeFields(ts.size === 1 ? walls[0].thickness : null, hs.size === 1 ? [...hs][0] : null)}</div>` : ''}
     ${wired.length ? circuitField('propCircuit', cs.size === 1 ? [...cs][0] : null, 'assignCircuit') : ''}
     <button class="btn danger" id="propDelete" type="button">${esc(t('deleteN', { n: sel.length }))}</button>`;
-  $('propThick')?.addEventListener('change', (e) => {
-    const v = Number((e.target as HTMLSelectElement).value);
-    if (!(v > 0)) return;
-    const ids = new Set(walls.map((w) => w.id));
-    store.commit((d) => d.entities.forEach((x) => isWall(x) && ids.has(x.id) && (x.thickness = v)));
-  });
+  onWallSize(new Set(walls.map((w) => w.id)));
   onCircuit('propCircuit', wired.map((e) => e.id));
   $('propDelete').addEventListener('click', () => editor.deleteSelection());
 }
@@ -922,18 +1039,55 @@ function renderOpeningProps(el: HTMLElement, o: Opening): void {
   const door = o.type === 'door';
   const wall = store.doc.entities.find((e): e is Wall => isWall(e) && e.id === o.wall);
   const f = wall && openingFrame(o, wall);
+  const walls = store.doc.entities.filter(isWall);
+  const inside = wall ? insideSide(o, wall, walls) : 1;
+  const leaf = o.leaf ?? 'single';
+  const swing = swingOf(o, inside);
+  const sliding = leaf === 'sliding' || leaf === 'sliding2';
+  const sel = (id: string, items: [string, string][], cur: string) =>
+    `<select id="${id}">${items.map(([v, l]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   el.innerHTML = `
-    <div class="prop-head">${door ? DOOR_ICON : WINDOW_ICON}<div><b>${esc(t(door ? 'door' : 'window'))}</b>
+    <div class="prop-head">${door ? DOOR_ICON : WINDOW_ICON}<div><b>${esc(t(door ? (o.exterior ? 'doorExterior' : 'door') : 'window'))}</b>
       <span>${esc(t('layer'))}: ${esc(layerName(o.layer, o.layer))}</span></div></div>
+    ${door ? `<label class="field" for="propLeaf">${esc(t('doorLeaf'))}${sel('propLeaf', DOOR_LEAVES.map((v) => [v, t(`leaf_${v}`)]), leaf)}</label>
+      ${leaf === 'single' ? `<label class="field" for="propSwing">${esc(t('doorSwing'))}${sel('propSwing', SWINGS.map((v) => [v, t(`swing_${v}`)]), swing)}</label>` : ''}
+      ${sliding ? `<label class="field" for="propSlide">${esc(t('doorSlide'))}${sel('propSlide', [['in', t('slideIn')], ['out', t('slideOut')]], o.side === inside ? 'in' : 'out')}</label>` : ''}
+      ${leaf === 'double' ? `<label class="field" for="propSlide">${esc(t('doorSwing'))}${sel('propSlide', [['in', t('openIn')], ['out', t('openOut')]], o.side === inside ? 'in' : 'out')}</label>` : ''}
+      <label class="check" for="propExterior"><input id="propExterior" type="checkbox"${o.exterior ? ' checked' : ''}> ${esc(t('doorExteriorCheck'))}</label>` : ''}
     <div class="prop-grid">
       ${numField('propWidth', t('widthCm'), Math.round(o.width / 10))}
       ${numField('propHeight', t('openingHeightCm'), Math.round(openingHeight(o) / 10))}
       ${door ? '' : numField('propSill', t('sillCm'), Math.round((o.sill ?? DEFAULT_SILL) / 10))}
       ${numField('propFrom', t('fromWallStart'), f ? Math.round(f.s1 / 10) : '')}
     </div>
+    ${door ? `<datalist id="propWidthList">${doorWidths(leaf).map((v) => `<option value="${v / 10}"></option>`).join('')}</datalist>` : ''}
     ${door ? `<div class="btn-row"><button class="btn" id="propFlipSide" type="button">${esc(t('flipSide'))}</button>
-      <button class="btn" id="propFlipHinge" type="button">${esc(t('flipHinge'))}</button></div>` : ''}
+      ${leaf === 'double' ? '' : `<button class="btn" id="propFlipHinge" type="button">${esc(t(sliding ? 'flipSlide' : 'flipHinge'))}</button>`}</div>` : ''}
     <button class="btn danger" id="propDelete" type="button">${esc(t('delete'))}</button>`;
+  if (door) $('propWidth').setAttribute('list', 'propWidthList');
+  $('propLeaf')?.addEventListener('change', (e) => {
+    const v = (e.target as HTMLSelectElement).value as DoorLeaf;
+    update<Opening>(o.id, (x) => {
+      if (v === 'single') delete x.leaf;
+      else x.leaf = v;
+      x.width = widthForLeaf(x.width, v);
+    });
+  });
+  $('propSwing')?.addEventListener('change', (e) => {
+    const v = applySwing((e.target as HTMLSelectElement).value as Swing, inside);
+    update<Opening>(o.id, (x) => void Object.assign(x, v));
+  });
+  $('propSlide')?.addEventListener('change', (e) => {
+    const into = (e.target as HTMLSelectElement).value === 'in';
+    update<Opening>(o.id, (x) => void (x.side = into ? inside : inside === 1 ? -1 : 1));
+  });
+  $('propExterior')?.addEventListener('change', (e) => {
+    const on = (e.target as HTMLInputElement).checked;
+    update<Opening>(o.id, (x) => {
+      if (on) x.exterior = true;
+      else delete x.exterior;
+    });
+  });
   $<HTMLInputElement>('propWidth').addEventListener('change', (e) => {
     const mm = sizeMm(e.target as HTMLInputElement);
     if (mm === null) return void (propsKey = '', renderProps());

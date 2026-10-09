@@ -15,7 +15,7 @@ const LETTERS: Record<string, string> = {
 };
 
 /** Fjalë që mbeten me shkronja latine edhe në cirilicë: njësi, taste, emra teknikë. */
-const KEEP = new Set(['cm', 'mm', 'm', 'm²', 'W', 'kW', 'V', 'Ctrl', 'Shift', 'Esc', 'Enter', 'Delete', 'Backspace', 'Alt', 'Schuko', 'Snap', 'smart', 'home', 'wallbox', 'Wallbox', 'multiswitch']);
+const KEEP = new Set(['cm', 'mm', 'm', 'm²', 'W', 'kW', 'V', 'Ctrl', 'Shift', 'Esc', 'Enter', 'Delete', 'Backspace', 'Alt', 'mA', 'Schuko', 'Snap', 'smart', 'home', 'wallbox', 'Wallbox', 'multiswitch']);
 
 function word(w: string): string {
   // shkurtime (IP44, USB, LED, RJ45, TV/SAT, AST-PR-01) dhe shkronja të vetme të tasteve (W, D, N, M)

@@ -23,6 +23,9 @@
       <button class="btn" id="btnReports" type="button" data-i18n-title="reportsTitle">
         <svg class="ic" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"></path><path d="M9 11h7M9 15h7M9 7h3"></path></svg><span data-i18n="reports"></span>
       </button>
+      <a class="btn" id="btnContact" href="mailto:info@allsolutiontech.de" data-i18n-title="contactTitle">
+        <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg><span data-i18n="contact"></span>
+      </a>
       <button class="btn btn-primary" id="btnSave" type="button" data-i18n-title="saveTitle">
         <svg class="ic" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"></path><path d="M8 3v6h8V3"></path><path d="M8 21v-7h8v7"></path></svg><span data-i18n="save"></span>
       </button>
@@ -32,7 +35,7 @@
       <button class="btn" id="btnDxf" type="button">
         <svg class="ic" viewBox="0 0 24 24"><path d="M4 20 20 4M4 4h7v7H4zM13 13h7v7h-7z"></path></svg><span>DXF</span>
       </button>
-      <input type="file" id="fileInput" accept=".json,.astcad,application/json" hidden>
+      <input type="file" id="fileInput" accept=".json,.astcad,.dxf,application/json" hidden>
     </div>
   </header>
 
@@ -84,6 +87,10 @@
         <select id="sheetScale"></select>
       </label>
       <div class="field-inline opening-size" id="openingWidthField" hidden>
+        <span id="doorTypeField" hidden>
+          <select id="doorLeaf" data-i18n-title="doorLeaf"></select>
+          <button class="chip" id="chipExterior" type="button" aria-pressed="false" data-i18n="doorExteriorChip" data-i18n-title="doorExteriorCheck"></button>
+        </span>
         <label for="openingWidth"><span data-i18n="openingWidth"></span></label>
         <input id="openingWidth" class="num" type="number" min="30" max="600" step="5" list="openingWidthList">
         <label for="openingHeight"><span data-i18n="openingHeight"></span></label>
@@ -92,16 +99,15 @@
         <datalist id="openingWidthList"></datalist>
         <datalist id="openingHeightList"></datalist>
       </div>
-      <label class="field-inline" for="wallThickness" id="wallThicknessField"><span data-i18n="thickness"></span>
-        <select id="wallThickness">
-          <option value="100">10 cm</option>
-          <option value="120">12 cm</option>
-          <option value="150">15 cm</option>
-          <option value="200">20 cm</option>
-          <option value="250" selected>25 cm</option>
-          <option value="300">30 cm</option>
-        </select>
-      </label>
+      <span class="field-inline" id="wallThicknessField">
+        <label for="wallThickness"><span data-i18n="thickness"></span></label>
+        <input id="wallThickness" class="num" type="number" min="1" max="200" step="1" value="25" list="wallThicknessList">
+        <label for="wallHeight"><span data-i18n="wallHeightShort"></span></label>
+        <input id="wallHeight" class="num" type="number" min="10" max="2000" step="5" value="270" list="wallHeightList">
+        <span class="unit">cm</span>
+        <datalist id="wallThicknessList"><option value="7.5"></option><option value="10"></option><option value="12"></option><option value="15"></option><option value="20"></option><option value="25"></option><option value="30"></option><option value="38"></option><option value="40"></option><option value="50"></option></datalist>
+        <datalist id="wallHeightList"><option value="100"></option><option value="250"></option><option value="270"></option><option value="280"></option><option value="300"></option><option value="350"></option><option value="400"></option><option value="600"></option></datalist>
+      </span>
       <button class="chip" id="chipSnap" type="button" aria-pressed="true" data-i18n-title="snapTitle">Snap</button>
       <button class="chip" id="chipGrid" type="button" aria-pressed="true" data-i18n-title="gridTitle" data-i18n="grid"></button>
       <button class="chip" id="chipOrtho" type="button" aria-pressed="false" data-i18n-title="orthoTitle">Orto</button>
@@ -117,6 +123,7 @@
         <span class="lib-std">IEC 60617</span>
       </div>
       <ul class="lib-list" id="libList"></ul>
+      <div class="volt-bar" id="voltBar" role="group" data-i18n-aria="phases" hidden></div>
       <div class="lib-actions">
         <button class="btn btn-small" id="btnNewSymbol" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg><span data-i18n="newSymbol"></span></button>
         <button class="btn btn-small" id="btnImportLib" type="button" data-i18n-title="importLibTitle" data-i18n="importLib"></button>

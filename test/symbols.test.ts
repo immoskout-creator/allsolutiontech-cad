@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SYMBOLS, symbolDef, CATEGORIES, categoryLibrary, strokeText } from '../src/symbols/library';
+import { SYMBOLS, symbolDef, symbolVolt, CATEGORIES, categoryLibrary, strokeText } from '../src/symbols/library';
 import { EDITIONS } from '../src/edition';
 import { attachToWall, localToWorld, normAngle, screenRotation } from '../src/symbols/place';
 import { setLang, t } from '../src/i18n/strings';
@@ -89,4 +89,16 @@ test('çdo kategori ka simbole dhe çdo simbol ka shtresë ekzistuese', () => {
     const ed = Object.values(EDITIONS).find((e) => e.lib === categoryLibrary(s.category))!;
     assert.ok(defaultLayers(ed.layers).some((l) => l.id === s.layer), s.id);
   }
+});
+
+test('elektrika ndahet në 230 V dhe 400 V; pulsanti dhe teleruptori janë në librari', () => {
+  const civil = SYMBOLS.filter((s) => categoryLibrary(s.category) === 'civil');
+  const v400 = civil.filter((s) => symbolVolt(s) === 400).map((s) => s.id);
+  assert.ok(v400.length >= 20, `${v400.length}`);
+  for (const id of ['pr-trefazore', 'in-cee16', 'in-kuadri3f', 'mb-automat3', 'kd-kontaktor3', 'mt-matesi3']) assert.ok(v400.includes(id), id);
+  for (const id of ['cl-buton', 'kd-teleruptor', 'mb-automat', 'pr-schuko']) assert.equal(symbolVolt(symbolDef(id)!), 230, id);
+  assert.match(symbolDef('cl-buton')!.names.sq, /pulsant/);
+  // çdo kategori elektrike ka të paktën një simbol 230 V
+  for (const c of CATEGORIES.filter((c) => c.id !== 'custom' && categoryLibrary(c.id) === 'civil' && c.id !== 'industri'))
+    assert.ok(civil.some((s) => s.category === c.id && symbolVolt(s) === 230), c.id);
 });

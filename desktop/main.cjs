@@ -1,5 +1,5 @@
 // Dritarja e programit në Windows: hap faqen e programit (app/index.html) si program më vete.
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, shell } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const edition = require('./app/edition.json');
@@ -8,6 +8,9 @@ app.setAppUserModelId(edition.appId);
 if (!app.requestSingleInstanceLock()) app.quit();
 
 let win = null;
+
+/** Adresa e kontaktit të AllSolutionTech, te menyja Contact. */
+const CONTACT_EMAIL = 'info@allsolutiontech.de';
 
 function createWindow() {
   win = new BrowserWindow({
@@ -26,7 +29,7 @@ function createWindow() {
     win.show();
   });
   // lidhjet e jashtme hapen në shfletues, jo brenda programit
-  const external = (url) => /^https?:/i.test(url) && shell.openExternal(url);
+  const external = (url) => /^(https?|mailto):/i.test(url) && shell.openExternal(url);
   win.webContents.setWindowOpenHandler(({ url }) => {
     external(url);
     return { action: 'deny' };
@@ -83,6 +86,13 @@ app.whenReady().then(() => {
       {
         label: 'View',
         submenu: [{ role: 'reload' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }],
+      },
+      {
+        label: 'Contact',
+        submenu: [
+          { label: `E-mail: ${CONTACT_EMAIL}`, click: () => shell.openExternal(`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(edition.name)}`) },
+          { label: 'Copy e-mail', click: () => clipboard.writeText(CONTACT_EMAIL) },
+        ],
       },
     ]),
   );

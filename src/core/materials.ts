@@ -2,7 +2,7 @@ import { calcAll, cableRunLength, cableText } from './circuits';
 import { isCable, isSymbol, type CircuitKind, type Doc, type Vec } from './types';
 import { allSymbols, type SymbolDef } from '../symbols/library';
 import { cableTypeOf, isSystemKind, type SystemKind } from './systems';
-import { cameraModel } from './coverage';
+import { cameraModel, recorderModel } from './coverage';
 import { emModel } from './emergency';
 
 /** Rezerva që i shtohet gjatësisë së kabllove në listën e materialeve. */
@@ -57,7 +57,7 @@ export function usedSymbols(doc: Doc): SymbolLine[] {
   const counts = new Map<string, Map<string, number>>();
   for (const e of doc.entities) {
     if (!isSymbol(e)) continue;
-    const model = cameraModel(e)?.name ?? emModel(e)?.name ?? '';
+    const model = cameraModel(e)?.name ?? recorderModel(e)?.name ?? emModel(e)?.name ?? '';
     const byModel = counts.get(e.symbol) ?? new Map<string, number>();
     byModel.set(model, (byModel.get(model) ?? 0) + 1);
     counts.set(e.symbol, byModel);

@@ -16,6 +16,8 @@ export interface Wall {
   b: Vec;
   /** Trashësia e murit në mm. */
   thickness: number;
+  /** Lartësia e murit në mm (pa të: WALL_HEIGHT). */
+  height?: number;
 }
 
 /** Një simbol i vendosur në plan (prizë, çelës, ndriçues...). */
@@ -99,9 +101,16 @@ export interface Opening {
   sill?: number;
   /** Nga cila anë e murit hapet dera: 1 = majtas nga a te b, -1 = djathtas. */
   side: 1 | -1;
-  /** Ku janë menteshat: te skaji nga a ose nga b. */
+  /** Ku janë menteshat: te skaji nga a ose nga b. Te dera rrëshqitëse: nga cila anë hapet. */
   hinge: 'a' | 'b';
+  /** Lloji i derës: me një kanat (pa të), me dy kanate, rrëshqitëse me një ose dy kanate. */
+  leaf?: DoorLeaf;
+  /** Derë e jashtme (hyrje): kasë e fortë dhe prag. */
+  exterior?: boolean;
 }
+
+export type DoorLeaf = 'single' | 'double' | 'sliding' | 'sliding2';
+export const DOOR_LEAVES: DoorLeaf[] = ['single', 'double', 'sliding', 'sliding2'];
 
 /** Dhomë: emri dhe pika e etiketës; kontura dhe m² llogariten nga muret përreth. */
 export interface Room {
@@ -143,6 +152,8 @@ export const ROOM_LAYER = 'dhomat';
 export const CABLE_LAYER = 'kabllot';
 export const SCALES = [20, 50, 100, 200] as const;
 export const DEFAULT_SCALE = 50;
+/** Lartësia standarde e murit, mm. */
+export const WALL_HEIGHT = 2700;
 
 /** Të gjitha shtresat që njeh programi, në rendin e panelit. */
 const ALL_LAYERS: Layer[] = [

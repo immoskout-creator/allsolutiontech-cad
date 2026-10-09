@@ -221,3 +221,54 @@ export function findRoomCached(walls: Wall[], seed: Vec): RoomShape | null {
   }
   return cache.get(k)!;
 }
+
+/** Largësia e pikës p nga segmenti a-b. */
+function segDist(p: Vec, a: Vec, b: Vec): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const l2 = dx * dx + dy * dy;
+  const k = l2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) : 0;
+  return Math.hypot(p.x - a.x - dx * k, p.y - a.y - dy * k);
+}
+
+/** Zona që etiketa e dhomës duhet t'i shmangë (p.sh. harku i derës): qendra dhe rrezja, mm. */
+export interface Keepout {
+  c: Vec;
+  r: number;
+}
+
+/** A bie pika `p` brenda një zone që duhet shmangur. */
+export const inKeepout = (p: Vec, zones: Keepout[]): boolean => zones.some((z) => Math.hypot(p.x - z.c.x, p.y - z.c.y) < z.r);
+
+/**
+ * Pika më e lirë brenda dhomës për emrin dhe m²: sa më larg mureve dhe harqeve të dyerve,
+ * që etiketa të mos ngatërrohet me derën.
+ */
+export function labelSpot(poly: Vec[], zones: Keepout[]): Vec {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of poly) {
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+  }
+  const N = 24;
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  let best: Vec = { x: cx, y: cy };
+  let bestScore = -Infinity;
+  for (let i = 0; i <= N; i++) {
+    for (let j = 0; j <= N; j++) {
+      const p = { x: minX + ((maxX - minX) * i) / N, y: minY + ((maxY - minY) * j) / N };
+      if (!pointInPolygon(p, poly)) continue;
+      let d = Infinity;
+      for (let k = 0; k < poly.length; k++) d = Math.min(d, segDist(p, poly[k], poly[(k + 1) % poly.length]));
+      for (const z of zones) d = Math.min(d, Math.hypot(p.x - z.c.x, p.y - z.c.y) - z.r);
+      // pak përparësi qendrës, që etiketa të mos shkojë në qoshe kur hapësira është e njëjtë
+      const score = d - 0.05 * Math.hypot(p.x - cx, p.y - cy);
+      if (score > bestScore) {
+        bestScore = score;
+        best = p;
+      }
+    }
+  }
+  return { x: Math.round(best.x), y: Math.round(best.y) };
+}
