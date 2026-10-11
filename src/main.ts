@@ -14,6 +14,9 @@ import { docToDxf } from './io/dxf';
 import { docToPdf } from './io/pdf';
 import { ex } from './io/exportStrings';
 import { mergeSymbols, parseLibrary, serializeLibrary, toSymbolDef } from './symbols/custom';
+import { SUBMIT_EMAIL, communityId, fetchApproved } from './symbols/community';
+import { importPublicKey } from './license/code';
+import { PUBLIC_KEY } from './license/publicKey';
 import { SymbolEditor } from './ui/symbolEditor';
 import { CircuitPanel, symbolCenters } from './ui/circuits';
 import { ReportsDialog } from './ui/reports';
@@ -540,10 +543,10 @@ const symbolEditor = new SymbolEditor(
   (msg, error) => toast(msg, error),
 );
 
-function openSymbolEditor(id?: string): void {
+function openSymbolEditor(id?: string, from?: SymbolDef): void {
   const existing = id ? store.doc.symbols?.find((s) => s.id === id) : undefined;
   togglePanel('btnLibrary', 'library', false);
-  symbolEditor.open(existing);
+  symbolEditor.open(existing, from);
 }
 $('btnNewSymbol').addEventListener('click', () => openSymbolEditor());
 
@@ -555,6 +558,41 @@ $('btnExportLib').addEventListener('click', async () => {
     if (r === 'saved') toast(t('libExported', { n: list.length }));
   } catch (err) {
     toast((err as Error).message, true);
+  }
+});
+
+// simbolet e komunitetit: dërgimi për miratim dhe marrja e atyre që ka miratuar administratori
+$('btnSubmitLib').addEventListener('click', async () => {
+  const list = store.doc.symbols ?? [];
+  if (list.length === 0) return toast(t('libEmpty'), true);
+  const name = `simbole-per-miratim-${new Date().toISOString().slice(0, 10)}.astlib.json`;
+  try {
+    const r = await saveData(name, serializeLibrary(list));
+    if (r !== 'saved') return;
+  } catch (err) {
+    return toast((err as Error).message, true);
+  }
+  const subject = `${productName()}: ${t('submitMailSubject', { n: list.length })}`;
+  const body = t('submitMailBody', { file: name, codes: list.map((s) => s.code).join(', ') });
+  location.href = `mailto:${SUBMIT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  toast(t('submitDone', { file: name }));
+});
+$('btnCommunity').addEventListener('click', async () => {
+  const btn = $<HTMLButtonElement>('btnCommunity');
+  btn.disabled = true;
+  try {
+    const list = await fetchApproved(await importPublicKey(PUBLIC_KEY));
+    if (list === null) return toast(t('communityBad'), true);
+    if (list.length === 0) return toast(t('communityNone'));
+    const incoming = list.map((s) => ({ ...s, id: communityId(s.id) }));
+    const known = new Set((store.doc.symbols ?? []).map((s) => s.id));
+    const fresh = incoming.filter((s) => !known.has(s.id)).length;
+    store.commit((d) => void (d.symbols = mergeSymbols(d.symbols ?? [], incoming)));
+    toast(t('communityDone', { n: incoming.length, fresh }));
+  } catch {
+    toast(t('communityOffline'), true);
+  } finally {
+    btn.disabled = false;
   }
 });
 
@@ -922,9 +960,10 @@ function renderProps(): void {
       ${beamFields(s)}
       ${emergencyFields(s)}
       ${circuitField('propCircuit', s.circuit ?? '')}
-      ${def.category === 'custom' ? `<button class="btn" id="propEditSymbol" type="button">${esc(t('editSymbol'))}</button>` : ''}
+      ${def.category === 'custom' ? `<button class="btn" id="propEditSymbol" type="button">${esc(t('editSymbol'))}</button>` : `<button class="btn" id="propCopySymbol" type="button" title="${esc(t('copySymbolTitle'))}">${esc(t('copySymbol'))}</button>`}
       <button class="btn danger" id="propDelete" type="button">${esc(t('deleteSymbol'))}</button>`;
     $('propEditSymbol')?.addEventListener('click', () => openSymbolEditor(def.id));
+    $('propCopySymbol')?.addEventListener('click', () => openSymbolEditor(undefined, def));
     const onNum = (id: string, fn: (x: SymbolEntity, v: number | undefined) => void) =>
       $(id)?.addEventListener('change', (e) => {
         const raw = (e.target as HTMLInputElement).value;

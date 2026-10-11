@@ -12,7 +12,11 @@ export type Shape =
   | { kind: 'circle'; c: Pt; r: number; fill?: boolean }
   /** Hark nga pika a te pika b rreth qendrës c, në drejtimin e akrepave të orës në ekran (sweep = 1) ose kundër. */
   | { kind: 'arc'; c: Pt; a: Pt; b: Pt; sweep: 0 | 1 }
-  | { kind: 'text'; p: Pt; text: string; size: number };
+  | { kind: 'text'; p: Pt; text: string; size: number }
+  /** Shumëkëndësh i hapur ose i mbyllur (trekëndësh, shigjetë, formë e lirë). */
+  | { kind: 'poly'; pts: Pt[]; closed: boolean; fill?: boolean }
+  /** Pjesë e marrë gati nga një simbol i librarisë (rrugë SVG me komanda absolute). */
+  | { kind: 'path'; d: string; fill?: boolean };
 
 export interface Pt {
   x: number;
@@ -83,7 +87,86 @@ export function shapeToPart(s: Shape): SymbolPart | null {
       if (!text) return null;
       return { d: strokeText(text, s.p.x, s.p.y, s.size) };
     }
+    case 'poly': {
+      if (s.pts.length < 2) return null;
+      const d = s.pts.map((q, i) => `${i ? 'L' : 'M'}${n(q.x)} ${n(q.y)}`).join(' ') + (s.closed ? ' Z' : '');
+      return { d, fill: s.closed && s.fill };
+    }
+    case 'path':
+      return { d: s.d, fill: s.fill };
   }
+}
+
+/** Sa parametra merr secila komandë absolute e rrugës SVG. */
+const PATH_ARGS: Record<string, number> = { M: 2, L: 2, H: 1, V: 1, Q: 4, C: 6, A: 7, Z: 0 };
+const PATH_RE = /^[MLHVQCAZ0-9eE.,\s+-]*$/;
+
+/** Zhvendos një rrugë SVG me komanda absolute (M L H V Q C A Z). */
+export function translatePath(d: string, dx: number, dy: number): string {
+  const tokens = d.match(/[MLHVQCAZ]|-?(?:\d+\.?\d*|\.\d+)(?:e-?\d+)?/gi) ?? [];
+  const out: string[] = [];
+  let cmd = '';
+  let args: number[] = [];
+  const flush = () => {
+    const k = PATH_ARGS[cmd];
+    if (!cmd || k === undefined) return;
+    if (k === 0) return void out.push(cmd);
+    for (let i = 0; i + k <= args.length; i += k) {
+      const a = args.slice(i, i + k);
+      if (cmd === 'H') a[0] += dx;
+      else if (cmd === 'V') a[0] += dy;
+      else if (cmd === 'A') {
+        a[5] += dx;
+        a[6] += dy;
+      } else for (let j = 0; j < k; j += 2) {
+        a[j] += dx;
+        a[j + 1] += dy;
+      }
+      out.push(cmd + a.map(n).join(' '));
+    }
+  };
+  for (const tk of tokens) {
+    if (/^[A-Za-z]$/.test(tk)) {
+      flush();
+      cmd = tk.toUpperCase();
+      args = [];
+    } else args.push(Number(tk));
+  }
+  flush();
+  return out.join(' ');
+}
+
+/** Forma e zhvendosur me (dx, dy). */
+export function translateShape(s: Shape, dx: number, dy: number): Shape {
+  const m = (q: Pt): Pt => ({ x: n(q.x + dx), y: n(q.y + dy) });
+  switch (s.kind) {
+    case 'line':
+    case 'rect':
+      return { ...s, a: m(s.a), b: m(s.b) };
+    case 'circle':
+      return { ...s, c: m(s.c) };
+    case 'arc':
+      return { ...s, c: m(s.c), a: m(s.a), b: m(s.b) };
+    case 'text':
+      return { ...s, p: m(s.p) };
+    case 'poly':
+      return { ...s, pts: s.pts.map(m) };
+    case 'path':
+      return { ...s, d: translatePath(s.d, dx, dy) };
+  }
+}
+
+/** Gjysmërreth i mbyllur me diametrin a–b; harku del nga ana e pikës "side". */
+export function semicircle(a: Pt, b: Pt, side: Pt, fill = false): Shape {
+  const r = Math.hypot(b.x - a.x, b.y - a.y) / 2;
+  const cross = (b.x - a.x) * (side.y - a.y) - (b.y - a.y) * (side.x - a.x);
+  const d = `M${n(a.x)} ${n(a.y)} A${n(r)} ${n(r)} 0 0 ${cross >= 0 ? 0 : 1} ${n(b.x)} ${n(b.y)} Z`;
+  return fill ? { kind: 'path', d, fill: true } : { kind: 'path', d };
+}
+
+/** Pjesët e një simboli të librarisë si forma, që të nisë prej tij një simbol i ri. */
+export function shapesFromDef(def: SymbolDef): Shape[] {
+  return def.parts.map((p) => (p.fill ? { kind: 'path', d: p.d, fill: true } : { kind: 'path', d: p.d }));
 }
 
 /** Emrat për të katër gjuhët bazë; ato që mungojnë marrin emrin e parë të plotësuar. */
@@ -137,6 +220,10 @@ function validShape(s: unknown): s is Shape {
       return isPt(x.c) && isPt(x.a) && isPt(x.b) && (x.sweep === 0 || x.sweep === 1);
     case 'text':
       return isPt(x.p) && typeof x.text === 'string' && isNum(x.size) && x.size > 0;
+    case 'poly':
+      return Array.isArray(x.pts) && x.pts.length >= 2 && x.pts.length <= 500 && x.pts.every(isPt) && typeof x.closed === 'boolean';
+    case 'path':
+      return typeof x.d === 'string' && x.d.length > 0 && x.d.length <= 50000 && PATH_RE.test(x.d);
     default:
       return false;
   }

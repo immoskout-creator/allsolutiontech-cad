@@ -36,6 +36,8 @@ for (const ed of list) {
   await copyFile(join(root, ed.dir, 'index.html'), join(stage, 'app', 'index.html'));
   await copyFile(join(here, 'main.cjs'), join(stage, 'main.cjs'));
   await copyFile(join(here, 'preload.cjs'), join(stage, 'preload.cjs'));
+  await copyFile(join(here, 'update.cjs'), join(stage, 'update.cjs'));
+  await copyFile(join(here, 'version.cjs'), join(stage, 'version.cjs'));
   await copyFile(join(here, 'icon.png'), join(stage, 'app', 'icon.png'));
   await writeFile(join(stage, 'app', 'edition.json'), JSON.stringify({ id: ed.id, name: ed.name, appId }, null, 2));
   await writeFile(

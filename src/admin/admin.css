@@ -33,3 +33,11 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 th { color: var(--muted); font-weight: 500; }
 td button { padding: 4px 10px; font-size: 12px; }
+
+.sym-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+.sym { display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--fg); cursor: pointer; text-align: center; font-size: 12px; }
+.sym.on { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok) inset; }
+.sym svg { width: 72px; height: 72px; background: #F4F5F7; border-radius: 6px; }
+.sym small { color: var(--muted); }
+.sym .tag { font-size: 11px; color: var(--ok); }
+a { color: #9CC5FF; }

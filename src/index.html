@@ -143,6 +143,8 @@
         <button class="btn btn-small" id="btnNewSymbol" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg><span data-i18n="newSymbol"></span></button>
         <button class="btn btn-small" id="btnImportLib" type="button" data-i18n-title="importLibTitle" data-i18n="importLib"></button>
         <button class="btn btn-small" id="btnExportLib" type="button" data-i18n-title="exportLibTitle" data-i18n="exportLib"></button>
+        <button class="btn btn-small" id="btnCommunity" type="button" data-i18n-title="communityTitle" data-i18n="community"></button>
+        <button class="btn btn-small" id="btnSubmitLib" type="button" data-i18n-title="submitLibTitle" data-i18n="submitLib"></button>
         <input type="file" id="libInput" accept=".json,application/json" hidden>
       </div>
       <label class="search" for="symbolSearch">
@@ -226,15 +228,19 @@
       <div class="se-body">
         <div class="se-draw">
           <div class="se-tools" role="toolbar">
+            <button class="chip" type="button" data-shape="select" data-i18n="seSelect" data-i18n-title="seSelectTitle"></button>
             <button class="chip" type="button" data-shape="line" data-i18n="seLine"></button>
             <button class="chip" type="button" data-shape="rect" data-i18n="seRect"></button>
             <button class="chip" type="button" data-shape="circle" data-i18n="seCircle"></button>
+            <button class="chip" type="button" data-shape="semicircle" data-i18n="seSemi"></button>
             <button class="chip" type="button" data-shape="arc" data-i18n="seArc"></button>
+            <button class="chip" type="button" data-shape="poly" data-i18n="sePoly" data-i18n-title="sePolyTitle"></button>
             <button class="chip" type="button" data-shape="text" data-i18n="seText"></button>
             <span class="se-sep" aria-hidden="true"></span>
             <button class="chip" type="button" id="seFill" aria-pressed="false" data-i18n="seFill" data-i18n-title="seFillTitle"></button>
             <button class="chip" type="button" id="seUndo" data-i18n="undo"></button>
             <button class="chip" type="button" id="seClear" data-i18n="seClear"></button>
+            <button class="chip" type="button" id="seDeleteShape" data-i18n="seDeleteShape" hidden></button>
           </div>
           <div class="se-text" id="seTextRow" hidden>
             <label class="field-inline" for="seText"><span data-i18n="seTextValue"></span><input id="seText" type="text" maxlength="8" value="M"></label>
@@ -247,6 +253,7 @@
         </div>
         <div class="se-form">
           <div class="se-preview" id="sePreview"></div>
+          <label class="field" for="seFrom"><span data-i18n="seFrom"></span><select id="seFrom"></select></label>
           <div class="prop-grid">
             <label class="field" for="seCode"><span data-i18n="code"></span><input id="seCode" type="text" maxlength="16"></label>
             <label class="field" for="seMount"><span data-i18n="seMount"></span>
