@@ -1,5 +1,7 @@
 import { LIFETIME, createCode, dayOf, formatDate, expiryFor, importPrivateKey, importPublicKey, readCode, type Duration, type LicenseProgram } from '../license/code';
 import { PUBLIC_KEY } from '../license/publicKey';
+import { CANVAS_BOUNDS, mergeSymbols, parseLibrary, toSymbolDef, type CustomSymbol } from '../symbols/custom';
+import { COMMUNITY_UPLOAD_URL, communityId, fetchApproved, signApproved } from '../symbols/community';
 
 /**
  * Faqja e administratorit: krijon kodet e aktivizimit me çelësin privat.
@@ -194,3 +196,88 @@ const startKey = (typeof __ADMIN_KEY__ !== 'undefined' && __ADMIN_KEY__) || stor
 if (startKey) void useKey(startKey).then((ok) => ($('keyCard').hidden = ok));
 else $('keyCard').hidden = false;
 $('forget').hidden = typeof __ADMIN_KEY__ !== 'undefined' && !!__ADMIN_KEY__;
+
+// ---- simbolet e përdoruesve: miratimi ----
+
+/** Simbolet në listë: të miratuarat e deritanishme dhe ato të dërguara; on = do të jetë në listën e re. */
+let pool: { sym: CustomSymbol; on: boolean; from: string }[] = [];
+
+function symSvg(c: CustomSymbol): string {
+  const b = CANVAS_BOUNDS[c.mount];
+  const parts = toSymbolDef(c).parts.map((p) => `<path d="${esc(p.d)}" fill="${p.fill ? '#1F242B' : 'none'}"/>`).join('');
+  return `<svg viewBox="${b.minX} ${b.minY} ${b.maxX - b.minX} ${b.maxY - b.minY}" stroke="#1F242B" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round">${parts}</svg>`;
+}
+
+function renderPool(): void {
+  $('symGrid').innerHTML = pool
+    .map(({ sym, on, from }, i) => {
+      const name = sym.names.sq || sym.names.en || sym.names.de || sym.names.it || sym.code;
+      return `<button type="button" class="sym${on ? ' on' : ''}" data-i="${i}" aria-pressed="${on}">${symSvg(sym)}<b>${esc(sym.code)}</b><span>${esc(name)}</span><small>${esc(from)}</small><span class="tag">${on ? '✓ i miratuar' : ''}</span></button>`;
+    })
+    .join('');
+  const n = pool.filter((p) => p.on).length;
+  $('communityMsg').className = 'msg';
+  $('communityMsg').textContent = pool.length ? `${n} nga ${pool.length} simbole do të jenë në listën e miratuar.` : '';
+}
+$('symGrid').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-i]');
+  if (!b) return;
+  const p = pool[Number(b.dataset.i)];
+  p.on = !p.on;
+  renderPool();
+});
+
+function addToPool(list: CustomSymbol[], from: string, on: boolean): void {
+  for (const s of list) {
+    const sym = { ...s, id: communityId(s.id) };
+    const i = pool.findIndex((p) => p.sym.id === sym.id);
+    if (i >= 0) pool[i] = { sym, on: pool[i].on || on, from };
+    else pool.push({ sym, on, from });
+  }
+}
+
+async function loadApproved(): Promise<void> {
+  try {
+    const list = await fetchApproved(await publicKey);
+    if (list === null) throw new Error('nënshkrimi nuk është i vlefshëm');
+    addToPool(list, 'i miratuar më parë', true);
+    renderPool();
+  } catch (err) {
+    $('communityMsg').className = 'msg err';
+    $('communityMsg').textContent = `Lista e miratuar nuk u mor: ${(err as Error).message}`;
+  }
+}
+$('loadApproved').addEventListener('click', () => void loadApproved());
+void loadApproved();
+
+$<HTMLInputElement>('subFiles').addEventListener('change', async (e) => {
+  const input = e.target as HTMLInputElement;
+  for (const f of [...(input.files ?? [])]) {
+    try {
+      addToPool(parseLibrary(await f.text()), f.name, false);
+    } catch {
+      $('communityMsg').className = 'msg err';
+      $('communityMsg').textContent = `${f.name} nuk është skedar simbolesh.`;
+    }
+  }
+  input.value = '';
+  renderPool();
+});
+
+$<HTMLAnchorElement>('uploadLink').href = COMMUNITY_UPLOAD_URL;
+$('signApproved').addEventListener('click', async () => {
+  if (!privateKey) {
+    $('keyCard').hidden = false;
+    return;
+  }
+  // kodet e përsëritura marrin kodin e lirë të radhës, si te importi në program
+  const chosen = mergeSymbols([], pool.filter((p) => p.on).map((p) => p.sym));
+  const text = await signApproved(chosen, privateKey);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  a.download = 'symbols.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  $('communityMsg').className = 'msg ok';
+  $('communityMsg').textContent = `symbols.json u shkarkua me ${chosen.length} simbole. Ngarkoje te GitHub në dosjen community (lidhja poshtë).`;
+});

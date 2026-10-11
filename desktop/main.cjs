@@ -3,6 +3,7 @@ const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, shell } = require(
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const edition = require('./app/edition.json');
+const { checkForUpdates, RELEASES_PAGE } = require('./update.cjs');
 
 app.setAppUserModelId(edition.appId);
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -94,9 +95,20 @@ app.whenReady().then(() => {
           { label: 'Copy e-mail', click: () => clipboard.writeText(CONTACT_EMAIL) },
         ],
       },
+      {
+        label: 'Help',
+        submenu: [
+          { label: 'Check for updates…', click: () => checkForUpdates(edition.name, true) },
+          { label: 'Downloads page', click: () => shell.openExternal(RELEASES_PAGE) },
+          { type: 'separator' },
+          { label: `Version ${app.getVersion()}`, enabled: false },
+        ],
+      },
     ]),
   );
   createWindow();
+  // kontroll i heshtur për version të ri pak pas hapjes (vetëm në programin e instaluar)
+  if (app.isPackaged && !process.env.AST_TEST_SAVE_DIR) setTimeout(() => checkForUpdates(edition.name, false), 8000);
 });
 
 app.on('window-all-closed', () => app.quit());

@@ -2,20 +2,23 @@ import type { Store } from '../core/store';
 import { newId } from '../core/types';
 import { layerName, t } from '../i18n/strings';
 import { EDITION } from '../edition';
-import { SYMBOLS } from '../symbols/library';
+import { CATEGORIES, SYMBOLS, allSymbols, categoryName, symbolDef, symbolName, type SymbolDef } from '../symbols/library';
 import {
   CANVAS_BOUNDS,
   cleanText,
   nextCode,
+  semicircle,
   shapeToPart,
+  shapesFromDef,
   toSymbolDef,
+  translateShape,
   type CustomSymbol,
   type Pt,
   type Shape,
 } from '../symbols/custom';
 import { symbolSvg } from '../symbols/library';
 
-type ShapeTool = 'line' | 'rect' | 'circle' | 'arc' | 'text';
+type ShapeTool = 'select' | 'line' | 'rect' | 'circle' | 'semicircle' | 'arc' | 'poly' | 'text';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -38,6 +41,9 @@ export class SymbolEditor {
   private pts: Pt[] = [];
   private cursor: Pt | null = null;
   private editing: CustomSymbol | null = null;
+  /** Forma e zgjedhur me veglën Zgjidh, dhe zhvendosja që po bëhet me tërheqje. */
+  private selected = -1;
+  private drag: { start: Pt; delta: Pt } | null = null;
 
   constructor(
     private store: Store,
@@ -58,12 +64,21 @@ export class SymbolEditor {
       this.redraw();
     });
     $('seMount').addEventListener('change', () => this.redraw());
+    $('seDeleteShape').addEventListener('click', () => this.deleteSelected());
+    $<HTMLSelectElement>('seFrom').addEventListener('change', (e) => {
+      const sel = e.target as HTMLSelectElement;
+      const def = symbolDef(sel.value);
+      sel.value = '';
+      if (def) this.startFrom(def);
+    });
+    this.canvas.addEventListener('pointerup', (e) => this.up(e));
     $('seCancel').addEventListener('click', () => this.close());
     $('seSave').addEventListener('click', () => this.save());
     $('seDelete').addEventListener('click', () => this.remove());
     this.canvas.addEventListener('pointerdown', (e) => this.down(e));
     this.canvas.addEventListener('pointermove', (e) => {
       this.cursor = this.toLocal(e);
+      if (this.drag) this.drag.delta = { x: this.cursor.x - this.drag.start.x, y: this.cursor.y - this.drag.start.y };
       this.redraw();
     });
     this.canvas.addEventListener('pointerleave', () => {
@@ -72,6 +87,7 @@ export class SymbolEditor {
     });
     this.canvas.addEventListener('contextmenu', (e) => {
       e.preventDefault();
+      this.finishPoly(false);
       this.pts = [];
       this.redraw();
     });
@@ -79,9 +95,24 @@ export class SymbolEditor {
       if (e.key === 'Escape') {
         e.stopPropagation();
         if (this.pts.length) {
+          this.finishPoly(false);
           this.pts = [];
           this.redraw();
+        } else if (this.selected >= 0) {
+          this.selected = -1;
+          this.redraw();
         } else this.close();
+      }
+      if (e.key === 'Enter' && this.tool === 'poly' && this.pts.length) {
+        e.preventDefault();
+        this.finishPoly(false);
+        this.redraw();
+      }
+      const typing = (e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT';
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && this.selected >= 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.deleteSelected();
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -95,10 +126,14 @@ export class SymbolEditor {
     return !this.modal.hidden;
   }
 
-  open(existing?: CustomSymbol): void {
+  /** Hap dritaren: për një simbol tim ekzistues, ose bosh; "from" nis simbolin e ri nga një simbol i librarisë. */
+  open(existing?: CustomSymbol, from?: SymbolDef): void {
     this.editing = existing ?? null;
     this.shapes = existing ? structuredClone(existing.shapes) : [];
     this.pts = [];
+    this.selected = -1;
+    this.drag = null;
+    this.fillFromList();
     this.fill = false;
     $('seFill').setAttribute('aria-pressed', 'false');
     const symbols = this.store.doc.symbols ?? [];
@@ -116,6 +151,84 @@ export class SymbolEditor {
     this.modal.hidden = false;
     this.resize();
     $<HTMLInputElement>('seName_sq').focus();
+    if (from) this.startFrom(from);
+  }
+
+  /** Lista "Nis nga simboli": të gjitha simbolet e librarisë, sipas kategorive. */
+  private fillFromList(): void {
+    const all = allSymbols();
+    const groups = CATEGORIES.map((cat) => {
+      const defs = all.filter((d) => d.category === cat.id);
+      if (!defs.length) return '';
+      const opts = defs.map((d) => `<option value="${escapeHtml(d.id)}">${escapeHtml(`${d.code} · ${symbolName(d)}`)}</option>`).join('');
+      return `<optgroup label="${escapeHtml(categoryName(cat))}">${opts}</optgroup>`;
+    });
+    $('seFrom').innerHTML = `<option value="">${escapeHtml(t('seFromPick'))}</option>${groups.join('')}`;
+  }
+
+  /** Merr format e një simboli gati: mund të zhvendosen, fshihen ose të shtohen të reja. */
+  private startFrom(def: SymbolDef): void {
+    if (this.shapes.length && !confirm(t('seFromReplace'))) return;
+    this.shapes = shapesFromDef(def);
+    this.selected = -1;
+    $<HTMLSelectElement>('seMount').value = def.mount === 'wall' ? 'wall' : 'center';
+    const layerSel = $<HTMLSelectElement>('seLayer');
+    if ([...layerSel.options].some((o) => o.value === def.layer)) layerSel.value = def.layer;
+    for (const l of ['sq', 'en', 'it', 'de'] as const) {
+      const input = $<HTMLInputElement>(`seName_${l}`);
+      if (!input.value.trim()) input.value = def.names[l];
+    }
+    if (def.height !== undefined && $<HTMLInputElement>('seHeight').value === '') $<HTMLInputElement>('seHeight').value = String(def.height);
+    if (def.power !== undefined && $<HTMLInputElement>('sePower').value === '') $<HTMLInputElement>('sePower').value = String(def.power);
+    this.setTool('select');
+    this.toast(t('seFromDone', { code: def.code }));
+  }
+
+  private deleteSelected(): void {
+    if (this.selected < 0) return;
+    this.shapes.splice(this.selected, 1);
+    this.selected = -1;
+    this.redraw();
+  }
+
+  /** Mbyll shumëkëndëshin që po vizatohet; me më pak se dy pika nuk shtohet. */
+  private finishPoly(closed: boolean): void {
+    if (this.tool !== 'poly') return;
+    const pts = this.pts.filter((q, i, a) => i === 0 || q.x !== a[i - 1].x || q.y !== a[i - 1].y);
+    if (pts.length >= (closed ? 3 : 2)) this.shapes.push({ kind: 'poly', pts, closed, ...(closed && this.fill ? { fill: true } : {}) });
+    this.pts = [];
+  }
+
+  /** Forma më e sipërme nën pikën e ekranit, ose -1. */
+  private hit(e: PointerEvent): number {
+    const r = this.canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const b = this.bounds;
+    const k = this.k;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.setTransform(dpr * k, 0, 0, dpr * k, -b.minX * k * dpr, -b.minY * k * dpr);
+    ctx.lineWidth = 10 / k;
+    const x = (e.clientX - r.left) * dpr;
+    const y = (e.clientY - r.top) * dpr;
+    let found = -1;
+    for (let i = this.shapes.length - 1; i >= 0 && found < 0; i--) {
+      const part = shapeToPart(this.shapes[i]);
+      if (!part) continue;
+      const path = new Path2D(part.d);
+      if (ctx.isPointInStroke(path, x, y) || (part.fill && ctx.isPointInPath(path, x, y))) found = i;
+    }
+    ctx.restore();
+    return found;
+  }
+
+  private up(_e: PointerEvent): void {
+    const d = this.drag;
+    this.drag = null;
+    if (d && this.selected >= 0 && (d.delta.x || d.delta.y)) {
+      this.shapes[this.selected] = translateShape(this.shapes[this.selected], d.delta.x, d.delta.y);
+    }
+    this.redraw();
   }
 
   close(): void {
@@ -125,6 +238,8 @@ export class SymbolEditor {
   private setTool(tool: ShapeTool): void {
     this.tool = tool;
     this.pts = [];
+    if (tool !== 'select') this.selected = -1;
+    $('seDeleteShape').hidden = tool !== 'select';
     this.modal.querySelectorAll<HTMLButtonElement>('[data-shape]').forEach((b) =>
       b.setAttribute('aria-pressed', String(b.dataset.shape === tool)),
     );
@@ -177,9 +292,32 @@ export class SymbolEditor {
   private down(e: PointerEvent): void {
     if (e.button !== 0) return;
     const p = this.toLocal(e);
+    if (this.tool === 'select') {
+      this.selected = this.hit(e);
+      if (this.selected >= 0) {
+        this.drag = { start: p, delta: { x: 0, y: 0 } };
+        this.canvas.setPointerCapture(e.pointerId);
+      }
+      this.redraw();
+      return;
+    }
+    if (this.tool === 'poly' && this.pts.length >= 3 && this.pts[0].x === p.x && this.pts[0].y === p.y) {
+      // klik mbi pikën e parë: shumëkëndëshi mbyllet
+      this.finishPoly(true);
+      this.redraw();
+      return;
+    }
     this.pts.push(p);
     const [a, b, c] = this.pts;
     switch (this.tool) {
+      case 'poly':
+        break;
+      case 'semicircle':
+        if (c) {
+          if (a.x !== b.x || a.y !== b.y) this.shapes.push(semicircle(a, b, c, this.fill));
+          this.pts = [];
+        }
+        break;
       case 'line':
         if (b) {
           if (a.x !== b.x || a.y !== b.y) this.shapes.push({ kind: 'line', a, b });
@@ -231,6 +369,10 @@ export class SymbolEditor {
     }
     const [a, b] = this.pts;
     switch (this.tool) {
+      case 'poly':
+        return { kind: 'poly', pts: [...this.pts, c], closed: false };
+      case 'semicircle':
+        return b ? semicircle(a, b, c, this.fill) : { kind: 'line', a, b: c };
       case 'line':
         return { kind: 'line', a, b: c };
       case 'rect':
@@ -305,7 +447,11 @@ export class SymbolEditor {
       if (part.fill) ctx.fill(path);
       else ctx.stroke(path);
     };
-    for (const s of this.shapes) paint(s, '#1F242B');
+    this.shapes.forEach((s, i) => {
+      if (i !== this.selected) return paint(s, '#1F242B');
+      const d = this.drag?.delta;
+      paint(d ? translateShape(s, d.x, d.y) : s, '#E8780C');
+    });
     const p = this.pending();
     if (p) paint(p, '#2F6FD6');
     ctx.restore();
@@ -391,6 +537,9 @@ function arcSweep(c: Pt, a: Pt, b: Pt): 0 | 1 {
 }
 
 const HINTS = {
+  select: ['seHintSelect'],
+  semicircle: ['seHintSemi0', 'seHintSemi1', 'seHintSemi2'],
+  poly: ['seHintPoly0', 'seHintPoly1'],
   line: ['seHintLine0', 'seHintLine1'],
   rect: ['seHintRect0', 'seHintRect1'],
   circle: ['seHintCircle0', 'seHintCircle1'],

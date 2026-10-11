@@ -2,6 +2,7 @@
 
 import type { CustomSymbol } from '../symbols/custom';
 import { EDITION } from '../edition';
+import type { DrawShape, StairParams } from './drawings';
 
 export interface Vec {
   x: number;
@@ -121,7 +122,22 @@ export interface Room {
   pos: Vec;
 }
 
-export type Entity = Wall | SymbolEntity | Opening | Room | Cable;
+/** Vizatim i lirë (vijë, katror, drejtkëndësh, rreth, gjysmërreth) ose shkallë; gjeometria te core/drawings.ts. */
+export interface Drawing {
+  id: string;
+  kind: 'draw';
+  layer: string;
+  shape: DrawShape;
+  /** Fillimi / qendra. */
+  a: Vec;
+  /** Fundi / pika në rreth (te shkallët: drejtimi dhe fundi i krahut të parë). */
+  b: Vec;
+  /** Mbushur me ngjyrën e shtresës. */
+  fill?: boolean;
+  stair?: StairParams;
+}
+
+export type Entity = Wall | SymbolEntity | Opening | Room | Cable | Drawing;
 
 export interface Layer {
   id: string;
@@ -159,6 +175,7 @@ export const DIM_LAYER = 'kuotat';
 export const OPENING_LAYER = 'hapjet';
 export const ROOM_LAYER = 'dhomat';
 export const CABLE_LAYER = 'kabllot';
+export const DRAW_LAYER = 'vizatime';
 export const SCALES = [20, 50, 100, 200] as const;
 export const DEFAULT_SCALE = 50;
 /** Lartësia standarde e murit, mm. */
@@ -176,13 +193,14 @@ const ALL_LAYERS: Layer[] = [
   { id: 'rrjeti', name: 'Rrjeti / AP', color: '#16A34A', visible: true, locked: false },
   { id: 'zjarri', name: 'Zjarri', color: '#DC2626', visible: true, locked: false },
   { id: 'emergjenca', name: 'Emergjenca', color: '#059669', visible: true, locked: false },
+  { id: 'vizatime', name: 'Shkallë dhe vizatime', color: '#475569', visible: true, locked: false },
   { id: 'kabllot', name: 'Kabllot', color: '#6B7380', visible: true, locked: false },
   { id: 'kuotat', name: 'Kuotat', color: '#4B5563', visible: true, locked: false },
   { id: 'tekstet', name: 'Tekstet', color: '#9AA3AF', visible: true, locked: false },
 ];
 
 /** Shtresat e ndërtimit dhe të vizatimit, që i ka çdo program. */
-const BASE_LAYERS = [WALL_LAYER, OPENING_LAYER, ROOM_LAYER, CABLE_LAYER, DIM_LAYER, 'tekstet'];
+const BASE_LAYERS = [WALL_LAYER, OPENING_LAYER, ROOM_LAYER, DRAW_LAYER, CABLE_LAYER, DIM_LAYER, 'tekstet'];
 
 /** Shtresat e një projekti të ri: ato të ndërtimit plus shtresat e simboleve të programit. */
 export function defaultLayers(symbolLayers: string[] = EDITION.layers): Layer[] {
@@ -205,6 +223,7 @@ export const isSymbol = (e: Entity): e is SymbolEntity => e.kind === 'symbol';
 export const isOpening = (e: Entity): e is Opening => e.kind === 'opening';
 export const isRoom = (e: Entity): e is Room => e.kind === 'room';
 export const isCable = (e: Entity): e is Cable => e.kind === 'cable';
+export const isDrawing = (e: Entity): e is Drawing => e.kind === 'draw';
 
 let counter = 0;
 export function newId(prefix = 'e'): string {

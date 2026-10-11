@@ -1,5 +1,6 @@
 import { DEFAULT_SCALE, DOOR_LEAVES, defaultLayers, knownLayer, type Circuit, type CircuitKind, type Doc, type Entity, type Layer, type ProjectLogo } from '../core/types';
 import { setCustomSymbols, symbolDef } from '../symbols/library';
+import { DRAW_SHAPES, STAIR_TYPES, type DrawShape } from '../core/drawings';
 import { EDITION } from '../edition';
 import { parseCustomSymbols, toSymbolDef } from '../symbols/custom';
 
@@ -35,6 +36,24 @@ export function parse(text: string): Doc {
     if (e.kind === 'symbol') return typeof e.symbol === 'string' && !!symbolDef(e.symbol) && isVec(e.pos) && isNum(e.angle);
     if (e.kind === 'room') return typeof e.name === 'string' && isVec(e.pos);
     if (e.kind === 'cable') return Array.isArray(e.points) && e.points.length >= 2 && e.points.every(isVec);
+    if (e.kind === 'draw') {
+      const st = e.stair;
+      return (
+        DRAW_SHAPES.includes(e.shape as DrawShape) &&
+        isVec(e.a) &&
+        isVec(e.b) &&
+        (e.fill === undefined || typeof e.fill === 'boolean') &&
+        (st === undefined ||
+          (typeof st === 'object' &&
+            STAIR_TYPES.includes(st.type) &&
+            isNum(st.width) &&
+            st.width > 0 &&
+            isNum(st.steps) &&
+            st.steps > 0 &&
+            (st.turn === 1 || st.turn === -1) &&
+            (st.run2 === undefined || (isNum(st.run2) && st.run2 > 0))))
+      );
+    }
     if (e.kind === 'opening') {
       return (
         (e.type === 'door' || e.type === 'window') &&

@@ -1,6 +1,7 @@
 import { importDxf } from './io/dxfImport';
 import { Store } from './core/store';
-import { DOOR_LEAVES, SCALES, WALL_HEIGHT, emptyDoc, isCable, isOpening, isRoom, isSymbol, isWall, type Cable, type DoorLeaf, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
+import { DEFAULT_STAIR, DRAW_SHAPES, STAIR_LIMITS, STAIR_TYPES, drawingPoints, type DrawShape, type StairType } from './core/drawings';
+import { DOOR_LEAVES, SCALES, WALL_HEIGHT, emptyDoc, isCable, isDrawing, isOpening, isRoom, isSymbol, isWall, type Cable, type DoorLeaf, type Drawing, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
 import { DEFAULT_SILL, DOOR_HEIGHTS, SIZE_LIMITS, SWINGS, WINDOW_HEIGHTS, WINDOW_WIDTHS, applySwing, doorWidths, insideSide, openingFrame, openingHeight, swingOf, widthForLeaf, type Swing } from './core/openings';
 import { areaText, findRoom } from './core/rooms';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
@@ -13,6 +14,9 @@ import { docToDxf } from './io/dxf';
 import { docToPdf } from './io/pdf';
 import { ex } from './io/exportStrings';
 import { mergeSymbols, parseLibrary, serializeLibrary, toSymbolDef } from './symbols/custom';
+import { SUBMIT_EMAIL, communityId, fetchApproved } from './symbols/community';
+import { importPublicKey } from './license/code';
+import { PUBLIC_KEY } from './license/publicKey';
 import { SymbolEditor } from './ui/symbolEditor';
 import { CircuitPanel, symbolCenters } from './ui/circuits';
 import { ReportsDialog } from './ui/reports';
@@ -57,7 +61,7 @@ const vp = new Viewport();
 const editor = new Editor(
   store,
   vp,
-  { snap: true, grid: true, ortho: false, gridStep: 100, wallThickness: 250, doorWidth: 900, windowWidth: 1200, doorHeight: 2100, windowHeight: 1400, doorLeaf: 'single', doorExterior: false, wallHeight: WALL_HEIGHT },
+  { snap: true, grid: true, ortho: false, gridStep: 100, wallThickness: 250, doorWidth: 900, windowWidth: 1200, doorHeight: 2100, windowHeight: 1400, doorLeaf: 'single', doorExterior: false, wallHeight: WALL_HEIGHT, drawShape: 'rect', drawFill: false, stair: { ...DEFAULT_STAIR } },
   () => scheduleRender(),
   (m) => toast(t(m === 'roomNotClosed' ? 'toastRoomNotClosed' : m === 'roomExists' ? 'toastRoomExists' : 'toastNoWall'), true),
 );
@@ -151,7 +155,7 @@ function resize(): void {
 }
 
 function fitAll(): void {
-  const pts = store.doc.entities.flatMap((e) => (isWall(e) ? [e.a, e.b] : isOpening(e) ? [] : isCable(e) ? e.points : [e.pos]));
+  const pts = store.doc.entities.flatMap((e) => (isWall(e) ? [e.a, e.b] : isOpening(e) ? [] : isCable(e) ? e.points : isDrawing(e) ? drawingPoints(e) : [e.pos]));
   if (pts.length === 0) {
     vp.fit({ minX: 0, minY: 0, maxX: 12000, maxY: 8000 });
   } else {
@@ -231,7 +235,8 @@ let sizeFor = '';
 function syncWidthField(): void {
   const placing = editor.tool === 'door' || editor.tool === 'window';
   $('openingWidthField').hidden = !placing;
-  $('wallThicknessField').hidden = placing;
+  $('wallThicknessField').hidden = placing || editor.tool === 'draw';
+  syncDrawField();
   if (!placing) return;
   const door = editor.tool === 'door';
   $('doorTypeField').hidden = !door;
@@ -292,7 +297,54 @@ $('chipExterior').addEventListener('click', () => {
   syncWidthField();
   scheduleRender();
 });
-for (const input of [widthInput, heightInput]) {
+/** Shiriti i veglës Vizato: forma, mbushja dhe (për shkallët) modeli, gjerësia dhe numri i shkallëve. */
+const drawShapeSel = $<HTMLSelectElement>('drawShape');
+const stairTypeSel = $<HTMLSelectElement>('stairType');
+const stairWidthInput = $<HTMLInputElement>('stairWidth');
+const stairStepsInput = $<HTMLInputElement>('stairSteps');
+function syncDrawField(): void {
+  const on = editor.tool === 'draw';
+  $('drawField').hidden = !on;
+  if (!on) return;
+  const s = editor.settings;
+  if (drawShapeSel.dataset.lang !== getLang()) {
+    drawShapeSel.dataset.lang = getLang();
+    drawShapeSel.innerHTML = DRAW_SHAPES.map((v) => `<option value="${v}">${esc(t(`shape_${v}`))}</option>`).join('');
+    stairTypeSel.innerHTML = STAIR_TYPES.map((v) => `<option value="${v}">${esc(t(`stair_${v}`))}</option>`).join('');
+  }
+  drawShapeSel.value = s.drawShape;
+  stairTypeSel.value = s.stair.type;
+  const stair = s.drawShape === 'stair';
+  $('stairFields').hidden = !stair;
+  $('chipFill').hidden = stair || s.drawShape === 'line';
+  $('chipFill').setAttribute('aria-pressed', String(s.drawFill));
+  if (document.activeElement !== stairWidthInput) stairWidthInput.value = String(s.stair.width / 10);
+  if (document.activeElement !== stairStepsInput) stairStepsInput.value = String(s.stair.steps);
+}
+drawShapeSel.addEventListener('change', () => {
+  editor.settings.drawShape = drawShapeSel.value as DrawShape;
+  syncUi();
+});
+stairTypeSel.addEventListener('change', () => {
+  editor.settings.stair = { ...editor.settings.stair, type: stairTypeSel.value as StairType };
+  syncUi();
+});
+$('chipFill').addEventListener('click', () => {
+  editor.settings.drawFill = !editor.settings.drawFill;
+  syncDrawField();
+});
+const clampInt = (v: number, [lo, hi]: readonly [number, number]) => Math.min(hi, Math.max(lo, Math.round(v)));
+stairWidthInput.addEventListener('change', () => {
+  const cm = Number(stairWidthInput.value.replace(',', '.'));
+  if (cm > 0) editor.settings.stair = { ...editor.settings.stair, width: clampInt(cm * 10, STAIR_LIMITS.width) };
+  syncDrawField();
+});
+stairStepsInput.addEventListener('change', () => {
+  const n = Number(stairStepsInput.value);
+  if (n > 0) editor.settings.stair = { ...editor.settings.stair, steps: clampInt(n, STAIR_LIMITS.steps) };
+  syncDrawField();
+});
+for (const input of [widthInput, heightInput, stairWidthInput, stairStepsInput]) {
   // Enter e kthen fokusin te plani, që të vazhdosh menjëherë me vendosjen
   input.addEventListener('keydown', (e) => e.key === 'Enter' && canvas.focus());
 }
@@ -491,10 +543,10 @@ const symbolEditor = new SymbolEditor(
   (msg, error) => toast(msg, error),
 );
 
-function openSymbolEditor(id?: string): void {
+function openSymbolEditor(id?: string, from?: SymbolDef): void {
   const existing = id ? store.doc.symbols?.find((s) => s.id === id) : undefined;
   togglePanel('btnLibrary', 'library', false);
-  symbolEditor.open(existing);
+  symbolEditor.open(existing, from);
 }
 $('btnNewSymbol').addEventListener('click', () => openSymbolEditor());
 
@@ -506,6 +558,41 @@ $('btnExportLib').addEventListener('click', async () => {
     if (r === 'saved') toast(t('libExported', { n: list.length }));
   } catch (err) {
     toast((err as Error).message, true);
+  }
+});
+
+// simbolet e komunitetit: dërgimi për miratim dhe marrja e atyre që ka miratuar administratori
+$('btnSubmitLib').addEventListener('click', async () => {
+  const list = store.doc.symbols ?? [];
+  if (list.length === 0) return toast(t('libEmpty'), true);
+  const name = `simbole-per-miratim-${new Date().toISOString().slice(0, 10)}.astlib.json`;
+  try {
+    const r = await saveData(name, serializeLibrary(list));
+    if (r !== 'saved') return;
+  } catch (err) {
+    return toast((err as Error).message, true);
+  }
+  const subject = `${productName()}: ${t('submitMailSubject', { n: list.length })}`;
+  const body = t('submitMailBody', { file: name, codes: list.map((s) => s.code).join(', ') });
+  location.href = `mailto:${SUBMIT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  toast(t('submitDone', { file: name }));
+});
+$('btnCommunity').addEventListener('click', async () => {
+  const btn = $<HTMLButtonElement>('btnCommunity');
+  btn.disabled = true;
+  try {
+    const list = await fetchApproved(await importPublicKey(PUBLIC_KEY));
+    if (list === null) return toast(t('communityBad'), true);
+    if (list.length === 0) return toast(t('communityNone'));
+    const incoming = list.map((s) => ({ ...s, id: communityId(s.id) }));
+    const known = new Set((store.doc.symbols ?? []).map((s) => s.id));
+    const fresh = incoming.filter((s) => !known.has(s.id)).length;
+    store.commit((d) => void (d.symbols = mergeSymbols(d.symbols ?? [], incoming)));
+    toast(t('communityDone', { n: incoming.length, fresh }));
+  } catch {
+    toast(t('communityOffline'), true);
+  } finally {
+    btn.disabled = false;
   }
 });
 
@@ -654,6 +741,7 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'n') setTool('window');
   else if (k === 'm') setTool('room');
   else if (k === 'k') setTool('cable');
+  else if (k === 'g') setTool('draw');
   else if (k === 'v') setTool('select');
   else if (k === 'h') setTool('pan');
   else if (k === 'f') fitAll();
@@ -872,9 +960,10 @@ function renderProps(): void {
       ${beamFields(s)}
       ${emergencyFields(s)}
       ${circuitField('propCircuit', s.circuit ?? '')}
-      ${def.category === 'custom' ? `<button class="btn" id="propEditSymbol" type="button">${esc(t('editSymbol'))}</button>` : ''}
+      ${def.category === 'custom' ? `<button class="btn" id="propEditSymbol" type="button">${esc(t('editSymbol'))}</button>` : `<button class="btn" id="propCopySymbol" type="button" title="${esc(t('copySymbolTitle'))}">${esc(t('copySymbol'))}</button>`}
       <button class="btn danger" id="propDelete" type="button">${esc(t('deleteSymbol'))}</button>`;
     $('propEditSymbol')?.addEventListener('click', () => openSymbolEditor(def.id));
+    $('propCopySymbol')?.addEventListener('click', () => openSymbolEditor(undefined, def));
     const onNum = (id: string, fn: (x: SymbolEntity, v: number | undefined) => void) =>
       $(id)?.addEventListener('change', (e) => {
         const raw = (e.target as HTMLInputElement).value;
@@ -934,6 +1023,11 @@ function renderProps(): void {
 
   if (sel.length === 1 && isCable(sel[0])) {
     renderCableProps(el, sel[0]);
+    return;
+  }
+
+  if (sel.length === 1 && isDrawing(sel[0])) {
+    renderDrawingProps(el, sel[0]);
     return;
   }
 
@@ -1032,6 +1126,88 @@ function renderCableProps(el: HTMLElement, k: Cable): void {
     </div>
     <button class="btn danger" id="propDelete" type="button">${esc(t('deleteCable'))}</button>`;
   onCircuit('propCircuit', [k.id]);
+  $('propDelete').addEventListener('click', () => editor.deleteSelection());
+}
+
+const DRAW_ICON =
+  '<svg viewBox="0 0 24 24" class="ic" style="color:#CBD5E1;width:30px;height:30px"><circle cx="8" cy="9" r="5"></circle><rect x="11" y="11" width="10" height="9"></rect></svg>';
+
+/** Vetitë e një vizatimi: forma, masat në cm, mbushja; te shkallët modeli, gjerësia, numri, krahu i dytë dhe ana e kthimit. */
+function renderDrawingProps(el: HTMLElement, d: Drawing): void {
+  const sel = (id: string, items: [string, string][], cur: string) =>
+    `<select id="${id}">${items.map(([v, l]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  const L = dist(d.a, d.b);
+  const cm = (mm: number) => Math.round(mm / 10);
+  const st = d.stair ?? DEFAULT_STAIR;
+  const stair = d.shape === 'stair';
+  const closed = d.shape !== 'line' && !stair;
+  let size = '';
+  if (stair) {
+    size = st.type === 'spiral'
+      ? numField('propDrawLen', t('diameterCm'), cm(2 * L))
+      : numField('propDrawLen', t('lengthCm'), cm(L));
+    size += numField('propStairW', t('stairWidth'), cm(st.width));
+    size += numField('propStairN', t('stairSteps'), st.steps);
+    if (st.type === 'L' || st.type === 'winder') size += numField('propStairRun2', t('stairRun2'), cm(st.run2 ?? L));
+  } else if (d.shape === 'rect') {
+    size = numField('propDrawW', t('widthCm'), cm(Math.abs(d.b.x - d.a.x))) + numField('propDrawH', t('depthCm'), cm(Math.abs(d.b.y - d.a.y)));
+  } else if (d.shape === 'square') {
+    size = numField('propDrawLen', t('sideCm'), cm(Math.max(Math.abs(d.b.x - d.a.x), Math.abs(d.b.y - d.a.y))));
+  } else if (d.shape === 'circle') {
+    size = numField('propDrawLen', t('diameterCm'), cm(2 * L));
+  } else {
+    size = numField('propDrawLen', d.shape === 'semicircle' ? t('diameterCm') : t('lengthCm'), cm(L));
+  }
+  el.innerHTML = `
+    <div class="prop-head">${DRAW_ICON}<div><b>${esc(t(`shape_${d.shape}`))}</b><span>${esc(t('layer'))}: ${esc(layerName(d.layer, d.layer))}</span></div></div>
+    ${stair
+      ? `<label class="field" for="propStairType">${esc(t('stairType'))}${sel('propStairType', STAIR_TYPES.map((v) => [v, t(`stair_${v}`)]), st.type)}</label>`
+      : `<label class="field" for="propShape">${esc(t('drawShape'))}${sel('propShape', DRAW_SHAPES.filter((v) => v !== 'stair').map((v) => [v, t(`shape_${v}`)]), d.shape)}</label>`}
+    <div class="prop-grid">${size}</div>
+    ${closed ? `<label class="check" for="propFill"><input id="propFill" type="checkbox"${d.fill ? ' checked' : ''}> ${esc(t('drawFillCheck'))}</label>` : ''}
+    ${stair && st.type !== 'straight' ? `<button class="btn" id="propStairFlip" type="button">${esc(t('stairFlip'))}</button>` : ''}
+    <button class="btn danger" id="propDelete" type="button">${esc(t('deleteDrawing'))}</button>`;
+  const onCm = (id: string, fn: (x: Drawing, mm: number) => void) =>
+    $(id)?.addEventListener('change', (e) => {
+      const v = Number((e.target as HTMLInputElement).value.replace(',', '.'));
+      if (v > 0) update<Drawing>(d.id, (x) => fn(x, v * 10));
+    });
+  // a mbetet në vend; b zhvendoset sipas masës së re
+  const setLen = (x: Drawing, mm: number) => {
+    const u = sub(x.b, x.a);
+    const l = len(u);
+    x.b = l ? add(x.a, scale(u, mm / l)) : { x: x.a.x + mm, y: x.a.y };
+  };
+  const sgn = (v: number) => (v < 0 ? -1 : 1);
+  onCm('propDrawLen', (x, mm) => {
+    if (x.shape === 'square') x.b = { x: x.a.x + sgn(x.b.x - x.a.x) * mm, y: x.a.y + sgn(x.b.y - x.a.y) * mm };
+    else setLen(x, x.shape === 'circle' || (x.shape === 'stair' && x.stair?.type === 'spiral') ? mm / 2 : mm);
+  });
+  onCm('propDrawW', (x, mm) => void (x.b = { ...x.b, x: x.a.x + sgn(x.b.x - x.a.x) * mm }));
+  onCm('propDrawH', (x, mm) => void (x.b = { ...x.b, y: x.a.y + sgn(x.b.y - x.a.y) * mm }));
+  const stairOf = (x: Drawing) => (x.stair = { ...(x.stair ?? DEFAULT_STAIR) });
+  onCm('propStairW', (x, mm) => void (stairOf(x).width = clampInt(mm, STAIR_LIMITS.width)));
+  onCm('propStairRun2', (x, mm) => void (stairOf(x).run2 = Math.round(mm)));
+  $('propStairN')?.addEventListener('change', (e) => {
+    const n = Number((e.target as HTMLInputElement).value);
+    if (n > 0) update<Drawing>(d.id, (x) => void (stairOf(x).steps = clampInt(n, STAIR_LIMITS.steps)));
+  });
+  $('propStairType')?.addEventListener('change', (e) => {
+    const v = (e.target as HTMLSelectElement).value as StairType;
+    update<Drawing>(d.id, (x) => void (stairOf(x).type = v));
+  });
+  $('propShape')?.addEventListener('change', (e) => {
+    const v = (e.target as HTMLSelectElement).value as DrawShape;
+    update<Drawing>(d.id, (x) => {
+      x.shape = v;
+      if (v === 'line') delete x.fill;
+    });
+  });
+  $('propFill')?.addEventListener('change', (e) => {
+    const on = (e.target as HTMLInputElement).checked;
+    update<Drawing>(d.id, (x) => void (on ? (x.fill = true) : delete x.fill));
+  });
+  $('propStairFlip')?.addEventListener('click', () => update<Drawing>(d.id, (x) => void (stairOf(x).turn = x.stair!.turn === 1 ? -1 : 1)));
   $('propDelete').addEventListener('click', () => editor.deleteSelection());
 }
 
@@ -1264,7 +1440,7 @@ function updateStatus(): void {
   $('stCoords').textContent = `X ${(p.x / 1000).toFixed(2)} m · Y ${(p.y / 1000).toFixed(2)} m`;
   const sk = editor.snapKind;
   $('stSnap').textContent =
-    (editor.tool === 'wall' || editor.tool === 'symbol' || editor.tool === 'cable' || editor.isPlacingOpening) && sk !== 'none' ? t(SNAP_KEYS[sk]) : '';
+    (editor.tool === 'wall' || editor.tool === 'symbol' || editor.tool === 'cable' || editor.tool === 'draw' || editor.isPlacingOpening) && sk !== 'none' ? t(SNAP_KEYS[sk]) : '';
   $('stZoom').textContent = `1 m = ${Math.round(vp.scale * 1000)} px`;
 
   const def = editor.activeSymbol ? symbolDef(editor.activeSymbol) : undefined;
@@ -1280,6 +1456,7 @@ function updateStatus(): void {
               window: 'infoWindow',
               room: 'infoRoom',
               cable: 'infoCable',
+              draw: 'infoDraw',
               select: 'infoSelect',
               symbol: 'infoSelect',
             } as const
@@ -1295,6 +1472,13 @@ function updateStatus(): void {
     const c = store.doc.circuits?.find((x) => x.id === editor.activeCircuit);
     hint.hidden = false;
     hint.innerHTML = c ? t('hintCable', { name: esc(`${c.name} ${c.label}`.trim()) }) : t('hintCableNone');
+  } else if (editor.tool === 'draw') {
+    hint.hidden = false;
+    const sh = editor.settings.drawShape;
+    const stairType = editor.settings.stair.type;
+    hint.innerHTML = editor.drawStart
+      ? t(sh === 'stair' ? (stairType === 'spiral' ? 'hintDrawRadius' : 'hintStairNext') : sh === 'circle' ? 'hintDrawRadius' : 'hintDrawNext')
+      : t(sh === 'stair' ? (stairType === 'spiral' ? 'hintDrawCenter' : 'hintStairStart') : sh === 'circle' ? 'hintDrawCenter' : 'hintDrawStart');
   } else if (editor.tool === 'symbol' && def) {
     hint.hidden = false;
     hint.innerHTML = t('hintSymbol', { code: def.code, name: esc(symName(def)) });

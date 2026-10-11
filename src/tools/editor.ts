@@ -2,7 +2,9 @@ import type { Store } from '../core/store';
 import { cableLayer } from '../core/systems';
 import {
   CABLE_LAYER,
+  DRAW_LAYER,
   isCable,
+  isDrawing,
   isOpening,
   isRoom,
   isSymbol,
@@ -13,6 +15,7 @@ import {
   WALL_LAYER,
   type Cable,
   type DoorLeaf,
+  type Drawing,
   type Opening,
   type Room,
   type SymbolEntity,
@@ -21,7 +24,8 @@ import {
 } from '../core/types';
 import { moveEntity, wallMap } from '../core/move';
 import { DEFAULT_SILL, doorKeepouts, openingFrame, placeOnWall } from '../core/openings';
-import { findRoom, labelSpot } from '../core/rooms';
+import { findRoom, labelSpot, pointInPolygon } from '../core/rooms';
+import { drawingGeometry, drawingPoints, type DrawShape, type StairParams } from '../core/drawings';
 import { t } from '../i18n/strings';
 import {
   add,
@@ -45,7 +49,7 @@ import { AIM_HANDLE_PX } from '../view/renderer';
 import type { Overlay, SnapKind } from '../view/renderer';
 import type { Viewport } from '../view/viewport';
 
-export type ToolId = 'select' | 'wall' | 'pan' | 'symbol' | 'door' | 'window' | 'room' | 'cable';
+export type ToolId = 'select' | 'wall' | 'pan' | 'symbol' | 'door' | 'window' | 'room' | 'cable' | 'draw';
 
 export interface Settings {
   snap: boolean;
@@ -66,6 +70,10 @@ export interface Settings {
   doorExterior: boolean;
   /** Lartësia e mureve të reja, mm. */
   wallHeight: number;
+  /** Forma e vizatimit të ri dhe parametrat e shkallëve të reja. */
+  drawShape: DrawShape;
+  drawFill: boolean;
+  stair: StairParams;
 }
 
 /** Mesazhet që editori i tregon përdoruesit. */
@@ -109,6 +117,8 @@ export class Editor {
   activeCircuit: string | null = null;
   /** Pikat e kabllos që po vizatohet. */
   cablePts: Vec[] = [];
+  /** Pika e parë e vizatimit / shkallës që po vendoset. */
+  drawStart: Vec | null = null;
   /** Menteshat e derës që po vendoset (R i ndryshon). */
   private placeHinge: 'a' | 'b' = 'a';
 
@@ -144,6 +154,8 @@ export class Editor {
   }
 
   endChain(): void {
+    this.drawStart = null;
+    this.overlay.drawPreview = undefined;
     this.cablePts = [];
     this.overlay.cablePreview = undefined;
     this.chainStart = null;
@@ -232,6 +244,14 @@ export class Editor {
       else if (isCable(e)) {
         d = Infinity;
         for (let i = 1; i < e.points.length; i++) d = Math.min(d, distToSegment(p, e.points[i - 1], e.points[i]));
+      } else if (isDrawing(e)) {
+        d = Infinity;
+        for (const path of drawingGeometry(e).paths) {
+          const pts = path.closed ? [...path.pts, path.pts[0]] : path.pts;
+          for (let i = 1; i < pts.length; i++) d = Math.min(d, distToSegment(p, pts[i - 1], pts[i]));
+          // format e mbushura kapen edhe nga brenda
+          if (path.fill && path.closed && pointInPolygon(p, path.pts)) d = 0;
+        }
       } else {
         const w = walls.get(e.wall);
         const f = w && openingFrame(e, w);
@@ -277,10 +297,25 @@ export class Editor {
         else this.setTool('select');
         return;
       }
+      if (this.tool === 'draw') {
+        if (this.drawStart) this.endChain();
+        else this.setTool('select');
+        return;
+      }
       if (this.tool === 'symbol' || this.isPlacingOpening || this.tool === 'room') this.setTool('select');
       return;
     }
     if (button !== 0) return;
+
+    if (this.tool === 'draw') {
+      const { p } = this.snapPoint(screen, this.drawStart);
+      if (!this.drawStart) {
+        this.drawStart = p;
+        this.overlay.drawPreview = this.drawSpec(p, p);
+        this.onChange();
+      } else if (!same(this.drawStart, p)) this.addDrawing(this.drawStart, p);
+      return;
+    }
 
     if (this.isPlacingOpening) {
       this.placeOpening(screen);
@@ -373,7 +408,13 @@ export class Editor {
 
     this.overlay.snap = undefined;
     this.snapKind = 'none';
-    if (this.tool === 'cable' && d?.kind !== 'pan') {
+    if (this.tool === 'draw' && d?.kind !== 'pan') {
+      const s = this.snapPoint(screen, this.drawStart);
+      this.cursorWorld = s.p;
+      this.snapKind = s.kind;
+      this.overlay.snap = s;
+      if (this.drawStart) this.overlay.drawPreview = this.drawSpec(this.drawStart, s.p);
+    } else if (this.tool === 'cable' && d?.kind !== 'pan') {
       const last = this.cablePts[this.cablePts.length - 1] ?? null;
       const s = this.snapPoint(screen, last);
       this.cursorWorld = s.p;
@@ -424,6 +465,10 @@ export class Editor {
             if (isCable(e)) {
               const segs = e.points.slice(1).map((b, i) => [e.points[i], b] as const);
               return crossing ? segs.some(([a, b]) => segmentTouchesRect(a, b, r)) : e.points.every((q) => inRect(q, r));
+            }
+            if (isDrawing(e)) {
+              const pts = drawingPoints(e);
+              return crossing ? pts.some((q) => inRect(q, r)) : pts.every((q) => inRect(q, r));
             }
             if (isOpening(e)) {
               const w = this.walls().find((x) => x.id === e.wall);
@@ -479,6 +524,23 @@ export class Editor {
   doubleClick(): void {
     if (this.tool === 'wall') this.endChain();
     if (this.tool === 'cable' && this.cablePts.length) this.finishCable();
+  }
+
+  // ---- vizatimet dhe shkallët ----
+
+  private drawSpec(a: Vec, b: Vec): Pick<Drawing, 'shape' | 'a' | 'b' | 'fill' | 'stair'> {
+    const shape = this.settings.drawShape;
+    return shape === 'stair' ? { shape, a, b, stair: { ...this.settings.stair } } : { shape, a, b, fill: this.settings.drawFill || undefined };
+  }
+
+  private addDrawing(a: Vec, b: Vec): void {
+    const e: Drawing = { id: newId('v'), kind: 'draw', layer: DRAW_LAYER, ...this.drawSpec(a, b) };
+    if (!e.fill) delete e.fill;
+    this.store.commit((doc) => {
+      doc.entities.push(e);
+    });
+    this.endChain();
+    this.store.setSelection([e.id]);
   }
 
   // ---- kabllot ----
@@ -711,8 +773,8 @@ export class Editor {
       return true;
     }
     if (e.key === 'Escape') {
-      if (this.chainStart || this.cablePts.length) this.endChain();
-      else if (this.tool === 'symbol' || this.isPlacingOpening || this.tool === 'room' || this.tool === 'cable') this.setTool('select');
+      if (this.chainStart || this.cablePts.length || this.drawStart) this.endChain();
+      else if (this.tool === 'symbol' || this.isPlacingOpening || this.tool === 'room' || this.tool === 'cable' || this.tool === 'draw') this.setTool('select');
       else this.store.setSelection([]);
       return true;
     }

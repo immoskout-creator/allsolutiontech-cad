@@ -59,6 +59,9 @@
       <button class="tool" data-tool="cable" type="button" data-i18n-title="cableTitle">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="4.5" cy="18" r="1.8"></circle><circle cx="19.5" cy="6" r="1.8"></circle><path d="M6.3 18H11V6h6.7"></path></svg><span data-i18n="cable"></span>
       </button>
+      <button class="tool" data-tool="draw" type="button" data-i18n-title="drawTitle">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="8" cy="9" r="5"></circle><rect x="11" y="11" width="10" height="9"></rect></svg><span data-i18n="draw"></span>
+      </button>
       <button class="tool" data-tool="pan" type="button" data-i18n-title="panTitle">
         <svg class="ic" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12"></path><path d="M11 11.5v-7a1.5 1.5 0 0 1 3 0V12"></path><path d="M14 6.5a1.5 1.5 0 0 1 3 0V13"></path><path d="M17 9.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-5-2.7L4.3 14a1.6 1.6 0 0 1 2.6-1.8L8 13.5"></path></svg><span data-i18n="pan"></span>
       </button>
@@ -99,6 +102,18 @@
         <datalist id="openingWidthList"></datalist>
         <datalist id="openingHeightList"></datalist>
       </div>
+      <div class="field-inline" id="drawField" hidden>
+        <select id="drawShape" data-i18n-title="drawShape"></select>
+        <button class="chip" id="chipFill" type="button" aria-pressed="false" data-i18n="drawFillChip" data-i18n-title="drawFillCheck"></button>
+        <span class="field-inline" id="stairFields" hidden>
+          <select id="stairType" data-i18n-title="stairType"></select>
+          <label for="stairWidth"><span data-i18n="stairWidthShort"></span></label>
+          <input id="stairWidth" class="num" type="number" min="50" max="400" step="5" value="100">
+          <span class="unit">cm</span>
+          <label for="stairSteps"><span data-i18n="stairStepsShort"></span></label>
+          <input id="stairSteps" class="num" type="number" min="3" max="60" step="1" value="16">
+        </span>
+      </div>
       <span class="field-inline" id="wallThicknessField">
         <label for="wallThickness"><span data-i18n="thickness"></span></label>
         <input id="wallThickness" class="num" type="number" min="1" max="200" step="1" value="25" list="wallThicknessList">
@@ -128,6 +143,8 @@
         <button class="btn btn-small" id="btnNewSymbol" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg><span data-i18n="newSymbol"></span></button>
         <button class="btn btn-small" id="btnImportLib" type="button" data-i18n-title="importLibTitle" data-i18n="importLib"></button>
         <button class="btn btn-small" id="btnExportLib" type="button" data-i18n-title="exportLibTitle" data-i18n="exportLib"></button>
+        <button class="btn btn-small" id="btnCommunity" type="button" data-i18n-title="communityTitle" data-i18n="community"></button>
+        <button class="btn btn-small" id="btnSubmitLib" type="button" data-i18n-title="submitLibTitle" data-i18n="submitLib"></button>
         <input type="file" id="libInput" accept=".json,application/json" hidden>
       </div>
       <label class="search" for="symbolSearch">
@@ -211,15 +228,19 @@
       <div class="se-body">
         <div class="se-draw">
           <div class="se-tools" role="toolbar">
+            <button class="chip" type="button" data-shape="select" data-i18n="seSelect" data-i18n-title="seSelectTitle"></button>
             <button class="chip" type="button" data-shape="line" data-i18n="seLine"></button>
             <button class="chip" type="button" data-shape="rect" data-i18n="seRect"></button>
             <button class="chip" type="button" data-shape="circle" data-i18n="seCircle"></button>
+            <button class="chip" type="button" data-shape="semicircle" data-i18n="seSemi"></button>
             <button class="chip" type="button" data-shape="arc" data-i18n="seArc"></button>
+            <button class="chip" type="button" data-shape="poly" data-i18n="sePoly" data-i18n-title="sePolyTitle"></button>
             <button class="chip" type="button" data-shape="text" data-i18n="seText"></button>
             <span class="se-sep" aria-hidden="true"></span>
             <button class="chip" type="button" id="seFill" aria-pressed="false" data-i18n="seFill" data-i18n-title="seFillTitle"></button>
             <button class="chip" type="button" id="seUndo" data-i18n="undo"></button>
             <button class="chip" type="button" id="seClear" data-i18n="seClear"></button>
+            <button class="chip" type="button" id="seDeleteShape" data-i18n="seDeleteShape" hidden></button>
           </div>
           <div class="se-text" id="seTextRow" hidden>
             <label class="field-inline" for="seText"><span data-i18n="seTextValue"></span><input id="seText" type="text" maxlength="8" value="M"></label>
@@ -232,6 +253,7 @@
         </div>
         <div class="se-form">
           <div class="se-preview" id="sePreview"></div>
+          <label class="field" for="seFrom"><span data-i18n="seFrom"></span><select id="seFrom"></select></label>
           <div class="prop-grid">
             <label class="field" for="seCode"><span data-i18n="code"></span><input id="seCode" type="text" maxlength="16"></label>
             <label class="field" for="seMount"><span data-i18n="seMount"></span>
