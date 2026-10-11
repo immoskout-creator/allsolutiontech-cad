@@ -1,7 +1,7 @@
 import { importDxf } from './io/dxfImport';
 import { Store } from './core/store';
 import { DEFAULT_STAIR, DRAW_SHAPES, STAIR_LIMITS, STAIR_TYPES, drawingPoints, type DrawShape, type StairType } from './core/drawings';
-import { DOOR_LEAVES, SCALES, WALL_HEIGHT, emptyDoc, isCable, isDrawing, isOpening, isRoom, isSymbol, isWall, type Cable, type DoorLeaf, type Drawing, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
+import { DOOR_LEAVES, SCALES, WALL_HEIGHT, emptyDoc, isCable, isDrawing, isOpening, isRoom, isSymbol, isWall, type Cable, type Doc, type DoorLeaf, type Drawing, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
 import { DEFAULT_SILL, DOOR_HEIGHTS, SIZE_LIMITS, SWINGS, WINDOW_HEIGHTS, WINDOW_WIDTHS, applySwing, doorWidths, insideSide, openingFrame, openingHeight, swingOf, widthForLeaf, type Swing } from './core/openings';
 import { areaText, findRoom } from './core/rooms';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
@@ -13,7 +13,8 @@ import { fileName, loadAutosave, readFile, saveData, saveFile, serialize, writeA
 import { docToSvg } from './io/svg';
 import { docToPng } from './io/png';
 import { docToDxf } from './io/dxf';
-import { docToPdf } from './io/pdf';
+import { docToPdf, type LegendItem } from './io/pdf';
+import { usedSymbols } from './core/materials';
 import { ex } from './io/exportStrings';
 import { mergeSymbols, parseLibrary, serializeLibrary, toSymbolDef } from './symbols/custom';
 import { SUBMIT_EMAIL, communityId, fetchApproved } from './symbols/community';
@@ -681,8 +682,22 @@ async function exportData(fmt: SaveFormat): Promise<string | Uint8Array<ArrayBuf
     title: doc.name,
     product: productName(),
     date: new Date().toLocaleDateString('sq-AL', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-    labels: { project: ex('project'), scale: ex('scale'), date: ex('date'), sheet: ex('sheet') },
+    labels: { project: ex('project'), scale: ex('scale'), date: ex('date'), sheet: ex('sheet'), legend: t('tabLegend') },
+    legend: pdfLegend(doc),
   });
+}
+
+/** Legjenda e PDF-së: çdo simbol i përdorur në shtresat e dukshme, me figurën, kodin, emrin dhe sasinë. */
+function pdfLegend(doc: Doc): LegendItem[] {
+  const hidden = new Set(doc.layers.filter((l) => !l.visible).map((l) => l.id));
+  const color = new Map(doc.layers.map((l) => [l.id, l.color]));
+  return usedSymbols({ ...doc, entities: doc.entities.filter((e) => !hidden.has(e.layer)) }).map((u) => ({
+    parts: u.def.parts,
+    code: u.def.code,
+    name: u.model ? `${symName(u.def)} · ${u.model}` : symName(u.def),
+    qty: u.qty,
+    color: color.get(u.def.layer) ?? '#1F242B',
+  }));
 }
 
 /** Ruan projektin ose planin në formatin e zgjedhur; emri pa prapashtesë. */
