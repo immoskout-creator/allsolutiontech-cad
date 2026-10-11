@@ -124,6 +124,30 @@ export const CAMERA_MODELS: CameraModel[] = [
   cam('td8-28', 'cc-dome-ahd', 'Dome', 'TVI', 8, '2.8', 30, 110),
   cam('cd2-28', 'cc-dome-ahd', 'Dome', 'CVI', 2, '2.8', 20),
   cam('cd5-28', 'cc-dome-ahd', 'Dome', 'CVI', 5, '2.8', 20),
+  // termike (bi-spektrale): këndi nga sensori termik 384×288 / 640×512
+  { id: 'th384-7', name: 'Termike 384×288 · 7 mm + 4MP', symbol: 'cc-thermal', fov: 36, range: 60, tech: 'IP AI', mp: 4 },
+  { id: 'th384-15', name: 'Termike 384×288 · 15 mm + 4MP', symbol: 'cc-thermal', fov: 17, range: 150, tech: 'IP AI', mp: 4 },
+  { id: 'th640-25', name: 'Termike 640×512 · 25 mm + 8MP', symbol: 'cc-thermal', fov: 25, range: 300, tech: 'IP AI', mp: 8 },
+  // targa, 4G, Wi-Fi, mini
+  cam('lpr2-v', 'cc-lpr', 'LPR/ANPR', 'IP AI', 2, '2.8–12', 25, 30),
+  cam('lpr4-v', 'cc-lpr', 'LPR/ANPR', 'IP AI', 4, '8–32', 40, 15),
+  cam('g4-28', 'cc-4g', '4G Solar', 'IP', 4, '2.8', 25),
+  cam('g4-4', 'cc-4g', '4G Solar', 'IP AI', 4, '4', 30),
+  cam('w2-28', 'cc-wifi', 'Wi-Fi', 'IP', 2, '2.8', 10),
+  cam('w4-28', 'cc-wifi', 'Wi-Fi', 'IP AI', 4, '2.8', 10),
+  cam('m2-28', 'cc-mini', 'Mini', 'IP', 2, '2.8', 5),
+  cam('ma2-36', 'cc-mini', 'Mini', 'AHD', 2, '3.6', 5),
+  // multisensor, speed dome, njohje fytyre, ATEX, numërim njerëzish
+  { id: 'ms4x4', name: 'Multisensor IP 4×4MP · 360°', symbol: 'cc-multisensor', fov: 360, range: 30, tech: 'IP', mp: 16 },
+  { id: 'ms4x8', name: 'Multisensor IP AI 4×8MP · 360°', symbol: 'cc-multisensor', fov: 360, range: 40, tech: 'IP AI', mp: 32 },
+  { id: 'sd2-25x', name: 'Speed dome IP 2MP · 25×', symbol: 'cc-speed-dome', fov: 60, range: 100, tech: 'IP', mp: 2 },
+  { id: 'sd4-32x', name: 'Speed dome IP AI 4MP · 32×', symbol: 'cc-speed-dome', fov: 58, range: 150, tech: 'IP AI', mp: 4 },
+  { id: 'sda2-25x', name: 'Speed dome AHD 2MP · 25×', symbol: 'cc-speed-dome', fov: 60, range: 100, tech: 'AHD', mp: 2 },
+  cam('fr2-4', 'cc-ai', 'Face Recognition', 'IP AI', 2, '4', 8),
+  cam('fr4-28', 'cc-ai', 'Face Recognition', 'IP AI', 4, '2.8', 6),
+  cam('ex2-v', 'cc-atex', 'ATEX', 'IP', 2, '2.8–12', 40, 60),
+  cam('ex4-v', 'cc-atex', 'ATEX', 'IP', 4, '2.7–13.5', 50, 60),
+  cam('pc2', 'cc-counter', 'People Counting', 'IP AI', 2, '2.1', 5, 90),
 ];
 
 /** Regjistruesit: NVR (IP), DVR (analog) dhe XVR (hibrid), me kanalet dhe rezolucionin. */

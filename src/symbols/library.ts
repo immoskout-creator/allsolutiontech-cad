@@ -52,7 +52,7 @@ export interface SymbolDef {
   sign?: { size: number };
 }
 
-export type CategoryId = 'custom' | 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'mbrojtje' | 'komandim' | 'matje' | 'sinjalizim' | 'sensore' | 'komunikim' | 'industri' | 'cctv' | 'rrjet' | 'zjarr' | 'emergjence';
+export type CategoryId = 'custom' | 'priza' | 'celesa' | 'ndricim' | 'pajisje' | 'mbrojtje' | 'komandim' | 'matje' | 'sinjalizim' | 'sensore' | 'komunikim' | 'industri' | 'cctv' | 'siguri' | 'rrjet' | 'zjarr' | 'emergjence';
 
 /** Libraritë që zgjidhen veç e veç në panelin e majtë. */
 export type LibraryId = 'civil' | 'cctv' | 'network' | 'fire' | 'emergency';
@@ -72,6 +72,7 @@ export const CATEGORIES: { id: CategoryId; lib?: LibraryId; names: Names }[] = [
   { id: 'komunikim', names: { sq: 'TV dhe komunikim', en: 'TV and communication', it: 'TV e comunicazione', de: 'TV und Kommunikation' } },
   { id: 'industri', names: { sq: 'Industriale', en: 'Industrial', it: 'Industriale', de: 'Industrie' } },
   { id: 'cctv', lib: 'cctv', names: { sq: 'Kamera dhe regjistrim', en: 'Cameras and recording', it: 'Telecamere e registrazione', de: 'Kameras und Aufzeichnung' } },
+  { id: 'siguri', lib: 'cctv', names: { sq: 'Alarm dhe kontroll aksesi', en: 'Intruder alarm and access control', it: 'Antifurto e controllo accessi', de: 'Einbruchmeldung und Zutrittskontrolle' } },
   { id: 'rrjet', lib: 'network', names: { sq: 'Access point dhe rrjet', en: 'Access points and network', it: 'Access point e rete', de: 'Access Points und Netzwerk' } },
   { id: 'zjarr', lib: 'fire', names: { sq: 'Sinjalizim zjarri', en: 'Fire alarm', it: 'Rivelazione incendi', de: 'Brandmeldeanlage' } },
   { id: 'emergjence', lib: 'emergency', names: { sq: 'Ndriçim emergjence', en: 'Emergency lighting', it: 'Illuminazione di emergenza', de: 'Notbeleuchtung' } },
@@ -600,6 +601,31 @@ export const SYMBOLS: SymbolDef[] = [
     names: { sq: 'Prizë fibre optike', en: 'Fibre optic outlet', it: 'Presa fibra ottica', de: 'Glasfaserdose' },
     parts: [{ d: 'M0 0 V6' }, { d: rect(-9, 6, 9, 20) }, { d: strokeText('FO', 0, 13, 6) }],
   },
+  {
+    id: 'km-hdmi', code: 'AST-KM-07', category: 'komunikim', layer: 'prizat', mount: 'wall', height: 30,
+    names: { sq: 'Prizë HDMI / multimedia', en: 'HDMI / multimedia outlet', it: 'Presa HDMI / multimediale', de: 'HDMI-/Multimediadose' },
+    parts: [{ d: 'M0 0 V6' }, { d: rect(-10, 6, 10, 18) }, { d: 'M-6 10 H6 L4 14 H-4 Z' }],
+  },
+  {
+    id: 'km-altoparlant', code: 'AST-KM-08', category: 'komunikim', layer: 'pajisje', mount: 'center', power: 10,
+    names: { sq: 'Altoparlant tavani (audio)', en: 'Ceiling loudspeaker (audio)', it: 'Diffusore audio a soffitto', de: 'Deckenlautsprecher (Audio)' },
+    parts: [{ d: circle(0, 0, 10) }, { d: 'M-4 -2.5 H-1.5 L3 -6 V6 L-1.5 2.5 H-4 Z' }],
+  },
+  {
+    id: 'km-audio', code: 'AST-KM-09', category: 'komunikim', layer: 'pajisje', mount: 'wall', height: 180, power: 100,
+    names: { sq: 'Amplifikator audio / sistem zëri', en: 'Audio amplifier / PA system', it: 'Amplificatore audio / diffusione sonora', de: 'Audioverstärker / Beschallung' },
+    parts: [{ d: rect(-11, 0, 11, 14) }, { d: 'M-5 3 L5 7 L-5 11 Z' }, { d: 'M5 7 H8' }],
+  },
+  {
+    id: 'km-tv', code: 'AST-KM-10', category: 'komunikim', layer: 'pajisje', mount: 'wall', height: 120, power: 150,
+    names: { sq: 'Televizor në mur', en: 'Wall-mounted TV', it: 'TV a parete', de: 'Wand-TV' },
+    parts: [{ d: 'M0 0 V2' }, { d: rect(-14, 2, 14, 6) }, { d: strokeText('TV', 0, 11.5, 5) }],
+  },
+  {
+    id: 'km-projektor', code: 'AST-KM-11', category: 'komunikim', layer: 'pajisje', mount: 'center', power: 300,
+    names: { sq: 'Videoprojektor tavani', en: 'Ceiling video projector', it: 'Videoproiettore a soffitto', de: 'Deckenbeamer' },
+    parts: [{ d: rect(-10, -6, 10, 6) }, { d: circle(5, 0, 3) }, { d: 'M-7 -3 H-1 M-7 0 H-1 M-7 3 H-1' }],
+  },
   // ---- Kamera (CCTV) ----
   {
     id: 'cc-bullet', code: 'AST-CC-01', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 250, power: 6, cover: { fov: 85, range: 20 },
@@ -676,6 +702,148 @@ export const SYMBOLS: SymbolDef[] = [
     names: { sq: 'Videocitofon / zile me kamerë', en: 'Video intercom / video doorbell', it: 'Videocitofono / campanello con telecamera', de: 'Videosprechanlage / Videotürklingel' },
     parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 19) }, { d: circle(0, 7.5, 2) }, { d: circle(0, 14.5, 2), fill: true }],
   },
+  {
+    id: 'cc-thermal', code: 'AST-CC-16', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 300, power: 12, cover: { fov: 25, range: 100 },
+    names: { sq: 'Kamerë termike (bi-spektrale)', en: 'Thermal camera (bi-spectrum)', it: 'Telecamera termica (bispettrale)', de: 'Wärmebildkamera (bispektral)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 15) }, { d: strokeText('TH', 0, 9, 4.5) }, { d: 'M-6 15 L-8.5 20 H8.5 L6 15' }, { d: 'M-6 23.5 Q-4 21.5 -2 23.5 Q0 25.5 2 23.5 Q4 21.5 6 23.5' }],
+  },
+  {
+    id: 'cc-lpr', code: 'AST-CC-17', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 300, power: 10, cover: { fov: 30, range: 25 },
+    names: { sq: 'Kamerë leximi targash (ANPR / LPR)', en: 'Licence plate recognition camera (ANPR / LPR)', it: 'Telecamera lettura targhe (ANPR / LPR)', de: 'Kennzeichenerkennungskamera (ANPR / LPR)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-9, 3, 9, 13) }, { d: strokeText('LPR', 0, 8, 4.5) }, { d: 'M-5 13 L-8 19 H8 L5 13' }],
+  },
+  {
+    id: 'cc-4g', code: 'AST-CC-18', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 300, power: 8, cover: { fov: 90, range: 30 },
+    names: { sq: 'Kamerë 4G me panel diellor', en: '4G camera with solar panel', it: 'Telecamera 4G con pannello solare', de: '4G-Kamera mit Solarpanel' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 15) }, { d: strokeText('4G', 0, 9, 4.5) }, { d: 'M-6 15 L-8.5 21 H8.5 L6 15' }, { d: circle(11, 5, 2.2) }, { d: 'M11 1 V1.8 M11 8.2 V9 M15 5 H14.2 M7.8 5 H7' }],
+  },
+  {
+    id: 'cc-wifi', code: 'AST-CC-19', category: 'cctv', layer: 'kamerat', mount: 'center', power: 5, cover: { fov: 100, range: 10 },
+    names: { sq: 'Kamerë Wi-Fi (shtëpi, me kartë SD)', en: 'Wi-Fi camera (home, SD card)', it: 'Telecamera Wi-Fi (casa, scheda SD)', de: 'WLAN-Kamera (Heim, SD-Karte)' },
+    parts: [{ d: rect(-8, -9, 8, 9) }, { d: circle(0, -2, 4.5) }, { d: circle(0, -2, 1.6), fill: true }, { d: 'M-3.5 7 A4.5 4.5 0 0 1 3.5 7' }],
+  },
+  {
+    id: 'cc-mini', code: 'AST-CC-20', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 220, power: 3, cover: { fov: 90, range: 6 },
+    names: { sq: 'Kamerë mini / pinhole', en: 'Mini / pinhole camera', it: 'Microcamera / pinhole', de: 'Mini-/Pinhole-Kamera' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-4, 3, 4, 9) }, { d: circle(0, 11.5, 2.5) }, { d: circle(0, 11.5, 0.9), fill: true }],
+  },
+  {
+    id: 'cc-multisensor', code: 'AST-CC-21', category: 'cctv', layer: 'kamerat', mount: 'center', power: 25, cover: { fov: 360, range: 30 },
+    names: { sq: 'Kamerë multisensor me 4 objektivë (360°)', en: 'Multi-sensor camera, 4 lenses (360°)', it: 'Telecamera multisensore a 4 ottiche (360°)', de: 'Multisensorkamera mit 4 Objektiven (360°)' },
+    parts: [{ d: circle(0, 0, 10.5) }, { d: circle(0, -5.5, 2.2) }, { d: circle(5.5, 0, 2.2) }, { d: circle(0, 5.5, 2.2) }, { d: circle(-5.5, 0, 2.2) }, { d: circle(0, 0, 1.2), fill: true }],
+  },
+  {
+    id: 'cc-speed-dome', code: 'AST-CC-22', category: 'cctv', layer: 'kamerat', mount: 'center', power: 30, cover: { fov: 60, range: 120 },
+    names: { sq: 'Speed dome PTZ tavani', en: 'Ceiling PTZ speed dome', it: 'Speed dome PTZ a soffitto', de: 'PTZ-Speed-Dome Decke' },
+    parts: [{ d: circle(0, 0, 9.5) }, { d: 'M-9.5 0 H9.5' }, { d: circle(0, 3.8, 2.6), fill: true }, { d: 'M-11.5 -5 Q-14 0 -11.5 5 M11.5 -5 Q14 0 11.5 5 M-11.5 5 L-13.5 3.5 M11.5 5 L13.5 3.5' }],
+  },
+  {
+    id: 'cc-ai', code: 'AST-CC-23', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 220, power: 8, cover: { fov: 90, range: 10 },
+    names: { sq: 'Kamerë me njohje fytyre (AI)', en: 'Face recognition camera (AI)', it: 'Telecamera con riconoscimento facciale (AI)', de: 'Kamera mit Gesichtserkennung (KI)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 15) }, { d: strokeText('AI', 0, 9, 4.5) }, { d: 'M-6 15 L-8.5 21 H8.5 L6 15' }],
+  },
+  {
+    id: 'cc-atex', code: 'AST-CC-24', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 300, power: 15, cover: { fov: 60, range: 40 },
+    names: { sq: 'Kamerë kundër shpërthimit (ATEX)', en: 'Explosion-proof camera (ATEX)', it: 'Telecamera antideflagrante (ATEX)', de: 'Explosionsgeschützte Kamera (ATEX)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-7, 3, 7, 17) }, { d: rect(-5, 17, 5, 21) }, { d: strokeText('EX', 0, 10, 5) }],
+  },
+  {
+    id: 'cc-counter', code: 'AST-CC-25', category: 'cctv', layer: 'kamerat', mount: 'center', power: 5, cover: { fov: 90, range: 5 },
+    names: { sq: 'Kamerë numërimi njerëzish (stereo)', en: 'People counting camera (stereo)', it: 'Telecamera conta persone (stereo)', de: 'Personenzählkamera (Stereo)' },
+    parts: [{ d: rect(-10, -6, 10, 6) }, { d: circle(-4.5, 0, 2.8) }, { d: circle(4.5, 0, 2.8) }, { d: 'M-1 0 H1' }],
+  },
+  {
+    id: 'cc-videowall', code: 'AST-CC-26', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 180, power: 300,
+    names: { sq: 'Video wall (monitorë të bashkuar)', en: 'Video wall (tiled monitors)', it: 'Videowall (monitor affiancati)', de: 'Videowand (gekachelte Monitore)' },
+    parts: [{ d: 'M0 0 V2' }, { d: rect(-13, 2, 13, 20) }, { d: 'M0 2 V20 M-13 11 H13' }],
+  },
+  {
+    id: 'cc-psu', code: 'AST-CC-27', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 180, power: 60,
+    names: { sq: 'Ushqyes 12 V me bateri për kamerat', en: '12 V power supply with battery for cameras', it: 'Alimentatore 12 V con batteria per telecamere', de: '12-V-Netzteil mit Akku für Kameras' },
+    parts: [{ d: rect(-11, 0, 11, 16) }, { d: strokeText('12V', 0, 8, 5.5) }],
+  },
+  {
+    id: 'cc-balun', code: 'AST-CC-28', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 250,
+    names: { sq: 'Video balun (sinjal mbi kabllo UTP)', en: 'Video balun (signal over UTP)', it: 'Video balun (segnale su cavo UTP)', de: 'Video-Balun (Signal über UTP)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 13) }, { d: strokeText('B', 0, 8, 5) }, { d: 'M-3 13 V16 M3 13 V16' }],
+  },
+  {
+    id: 'cc-joystick', code: 'AST-CC-29', category: 'cctv', layer: 'kamerat', mount: 'wall', height: 100,
+    names: { sq: 'Tastierë kontrolli PTZ me joystick', en: 'PTZ control keyboard with joystick', it: 'Tastiera di controllo PTZ con joystick', de: 'PTZ-Bedientastatur mit Joystick' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-12, 3, 12, 17) }, { d: circle(6, 10, 3) }, { d: 'M6 10 V5.5' }, { d: 'M-9 7 H-5 V9 H-9 Z M-3 7 H1 V9 H-3 Z M-9 11 H-5 V13 H-9 Z M-3 11 H1 V13 H-3 Z', fill: true }],
+  },
+
+  // ---- Alarm kundër vjedhjes dhe kontroll aksesi (te programi CCTV) ----
+  {
+    id: 'ak-pir', code: 'AST-AK-01', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 230,
+    names: { sq: 'Sensor lëvizjeje PIR (alarm)', en: 'PIR motion detector (intruder alarm)', it: 'Rivelatore di movimento PIR (antifurto)', de: 'PIR-Bewegungsmelder (Einbruchmeldeanlage)' },
+    parts: [{ d: 'M0 0 V3' }, { d: 'M-9 3 H9 A9 9 0 0 1 -9 3 Z' }, { d: strokeText('PIR', 0, 7, 3.6) }],
+  },
+  {
+    id: 'ak-dual', code: 'AST-AK-02', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 230,
+    names: { sq: 'Sensor i dyfishtë PIR + mikrovalë', en: 'Dual technology detector (PIR + microwave)', it: 'Rivelatore a doppia tecnologia (PIR + microonde)', de: 'Dual-Bewegungsmelder (PIR + Mikrowelle)' },
+    parts: [{ d: 'M0 0 V3' }, { d: 'M-9 3 H9 A9 9 0 0 1 -9 3 Z' }, { d: strokeText('DT', 0, 7, 4) }],
+  },
+  {
+    id: 'ak-contact', code: 'AST-AK-03', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 200,
+    names: { sq: 'Kontakt magnetik alarmi (derë / dritare)', en: 'Alarm magnetic contact (door / window)', it: 'Contatto magnetico antifurto (porta / finestra)', de: 'Magnetkontakt Alarm (Tür / Fenster)' },
+    parts: [{ d: rect(-8, 0, -1, 7) }, { d: rect(1, 0, 8, 7), fill: true }],
+  },
+  {
+    id: 'ak-glass', code: 'AST-AK-04', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 220,
+    names: { sq: 'Sensor thyerjeje xhami', en: 'Glass break detector', it: 'Rivelatore rottura vetri', de: 'Glasbruchmelder' },
+    parts: [{ d: 'M0 0 V3' }, { d: circle(0, 11, 8) }, { d: 'M-4 6 L-1 10 L-3 12 L1 16 M1 10 L4 8' }],
+  },
+  {
+    id: 'ak-panel', code: 'AST-AK-05', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 150, power: 15,
+    names: { sq: 'Qendër alarmi kundër vjedhjes', en: 'Intruder alarm control panel', it: 'Centrale antifurto', de: 'Einbruchmelderzentrale' },
+    parts: [{ d: rect(-13, 0, 13, 16) }, { d: strokeText('ALM', 0, 8, 5.5) }],
+  },
+  {
+    id: 'ak-keypad', code: 'AST-AK-06', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 150,
+    names: { sq: 'Tastierë alarmi', en: 'Alarm keypad', it: 'Tastiera antifurto', de: 'Alarm-Bedienteil' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-8, 3, 8, 21) }, { d: rect(-5.5, 5.5, 5.5, 9.5) }, { d: 'M-4.5 12 H-2.9 V13.6 H-4.5 Z M-0.8 12 H0.8 V13.6 H-0.8 Z M2.9 12 H4.5 V13.6 H2.9 Z M-4.5 15 H-2.9 V16.6 H-4.5 Z M-0.8 15 H0.8 V16.6 H-0.8 Z M2.9 15 H4.5 V16.6 H2.9 Z M-4.5 18 H-2.9 V19.6 H-4.5 Z M-0.8 18 H0.8 V19.6 H-0.8 Z M2.9 18 H4.5 V19.6 H2.9 Z', fill: true }],
+  },
+  {
+    id: 'ak-siren', code: 'AST-AK-07', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 300, power: 5,
+    names: { sq: 'Sirenë alarmi e jashtme me flash', en: 'Outdoor alarm siren with strobe', it: 'Sirena antifurto da esterno con lampeggiante', de: 'Außensirene mit Blitzleuchte' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-9, 3, 9, 19) }, { d: 'M-5 7 H5 L7 15 H-7 Z' }, { d: 'M-6 22 Q0 25 6 22' }],
+  },
+  {
+    id: 'ak-reader', code: 'AST-AK-08', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 120, power: 3,
+    names: { sq: 'Lexues kartash (kontroll aksesi)', en: 'Card reader (access control)', it: 'Lettore di badge (controllo accessi)', de: 'Kartenleser (Zutrittskontrolle)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 20) }, { d: 'M-3.5 9 A4 4 0 0 1 3.5 9 M-2 10.5 A2.2 2.2 0 0 1 2 10.5' }, { d: rect(-3.5, 13, 3.5, 17.5) }],
+  },
+  {
+    id: 'ak-maglock', code: 'AST-AK-09', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 210, power: 6,
+    names: { sq: 'Bravë elektromagnetike dere', en: 'Electromagnetic door lock', it: 'Elettroserratura magnetica', de: 'Elektromagnetische Türverriegelung' },
+    parts: [{ d: rect(-11, 0, 11, 7) }, { d: strokeText('ML', 0, 3.5, 4.2) }, { d: 'M-11 9.5 H11' }],
+  },
+  {
+    id: 'ak-rex', code: 'AST-AK-10', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 120,
+    names: { sq: 'Buton daljeje (REX)', en: 'Request-to-exit button (REX)', it: 'Pulsante di uscita (REX)', de: 'Austrittstaster (REX)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 15) }, { d: circle(0, 9, 3.5) }, { d: 'M-2 9 H2 M0.5 7.5 L2 9 L0.5 10.5' }],
+  },
+  {
+    id: 'ak-vibration', code: 'AST-AK-11', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 100,
+    names: { sq: 'Sensor vibrimi / sizmik (kasafortë)', en: 'Seismic / vibration detector (safe)', it: 'Rivelatore sismico / di vibrazioni (cassaforte)', de: 'Körperschallmelder (Tresor)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-7, 3, 7, 15) }, { d: 'M-5 9 L-3 6 L-1 12 L1 6 L3 12 L5 9' }],
+  },
+  {
+    id: 'ak-panic', code: 'AST-AK-12', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 90,
+    names: { sq: 'Buton paniku', en: 'Panic button', it: 'Pulsante antipanico', de: 'Paniktaster' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-7, 3, 7, 17) }, { d: circle(0, 10, 4.5) }, { d: strokeText('P', 0, 10, 4.5) }],
+  },
+  {
+    id: 'ak-bio', code: 'AST-AK-13', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 140, power: 5,
+    names: { sq: 'Lexues biometrik (gisht / fytyrë)', en: 'Biometric reader (fingerprint / face)', it: 'Lettore biometrico (impronta / volto)', de: 'Biometrischer Leser (Fingerabdruck / Gesicht)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 21) }, { d: 'M-3 17 Q-3 8 0 8 Q3 8 3 17 M-1.3 17 Q-1.3 11 0 11 Q1.3 11 1.3 17' }],
+  },
+  {
+    id: 'ak-barrier', code: 'AST-AK-14', category: 'siguri', layer: 'kamerat', mount: 'wall', height: 100, power: 250,
+    names: { sq: 'Barrierë automatike parkimi', en: 'Automatic parking barrier', it: 'Barriera automatica per parcheggio', de: 'Automatische Parkschranke' },
+    parts: [{ d: rect(-4, 0, 4, 10) }, { d: 'M4 3 H18 V6 H4 M9 3 V6 M14 3 V6' }],
+  },
 
   // ---- Access point dhe rrjet ----
   {
@@ -732,6 +900,71 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'rj-rj45', code: 'AST-RJ-11', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 30,
     names: { sq: 'Prizë rrjeti RJ45 e thjeshtë', en: 'Single RJ45 data outlet', it: 'Presa dati RJ45 singola', de: 'Datendose RJ45 einfach' },
     parts: [{ d: 'M0 0 V5' }, { d: 'M-7 5 H7 L0 16 Z' }],
+  },
+  {
+    id: 'rj-ptp', code: 'AST-RJ-12', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 400, power: 8,
+    names: { sq: 'Urë radio pikë-pikë (PtP)', en: 'Point-to-point wireless bridge (PtP)', it: 'Ponte radio punto-punto (PtP)', de: 'Richtfunkbrücke (PtP)' },
+    parts: [{ d: 'M0 0 V3' }, { d: 'M-9 3 Q0 17 9 3 Z' }, { d: 'M0 10 V17 M-2.5 17 H2.5' }],
+  },
+  {
+    id: 'rj-sector', code: 'AST-RJ-13', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 500, power: 10,
+    names: { sq: 'Antenë sektoriale (pikë-shumëpikë)', en: 'Sector antenna (point-to-multipoint)', it: 'Antenna settoriale (punto-multipunto)', de: 'Sektorantenne (Punkt-zu-Mehrpunkt)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-3, 3, 3, 15) }, { d: 'M-3 15 L-10 22 M3 15 L10 22 M-6 21 Q0 24 6 21' }],
+  },
+  {
+    id: 'rj-firewall', code: 'AST-RJ-14', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 180, power: 25,
+    names: { sq: 'Firewall / gateway sigurie', en: 'Firewall / security gateway', it: 'Firewall / gateway di sicurezza', de: 'Firewall / Sicherheits-Gateway' },
+    parts: [{ d: rect(-12, 0, 12, 16) }, { d: 'M-12 5.3 H12 M-12 10.6 H12 M-4 0 V5.3 M4 5.3 V10.6 M-4 10.6 V16' }],
+  },
+  {
+    id: 'rj-injector', code: 'AST-RJ-15', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 180,
+    names: { sq: 'Injektor PoE', en: 'PoE injector', it: 'Iniettore PoE', de: 'PoE-Injektor' },
+    parts: [{ d: rect(-9, 0, 9, 13) }, { d: strokeText('INJ', 0, 6.5, 4.5) }],
+  },
+  {
+    id: 'rj-ups', code: 'AST-RJ-16', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 0,
+    names: { sq: 'UPS për rrjetin / rack-un', en: 'UPS for network / rack', it: 'UPS per rete / rack', de: 'USV für Netzwerk / Rack' },
+    parts: [{ d: rect(-11, 0, 11, 16) }, { d: strokeText('UPS', 0, 8, 5.5) }],
+  },
+  {
+    id: 'rj-nas', code: 'AST-RJ-17', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 180, power: 60,
+    names: { sq: 'Server / NAS', en: 'Server / NAS', it: 'Server / NAS', de: 'Server / NAS' },
+    parts: [{ d: rect(-9, 0, 9, 20) }, { d: 'M-9 5 H9 M-9 10 H9 M-9 15 H9' }, { d: `${circle(5.5, 2.5, 0.9)} ${circle(5.5, 7.5, 0.9)} ${circle(5.5, 12.5, 0.9)} ${circle(5.5, 17.5, 0.9)}`, fill: true }],
+  },
+  {
+    id: 'rj-mc', code: 'AST-RJ-18', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 180, power: 5,
+    names: { sq: 'Konvertues media (fibër - RJ45)', en: 'Media converter (fibre - RJ45)', it: 'Media converter (fibra - RJ45)', de: 'Medienkonverter (Glasfaser - RJ45)' },
+    parts: [{ d: rect(-10, 0, 10, 12) }, { d: strokeText('MC', 0, 6, 5) }],
+  },
+  {
+    id: 'rj-odf', code: 'AST-RJ-19', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 180,
+    names: { sq: 'Kuti shpërndarjeje fibre (ODF)', en: 'Optical distribution frame (ODF)', it: 'Cassetto ottico di distribuzione (ODF)', de: 'LWL-Spleißbox (ODF)' },
+    parts: [{ d: rect(-11, 0, 11, 14) }, { d: strokeText('ODF', 0, 7, 5) }],
+  },
+  {
+    id: 'rj-ap-inwall', code: 'AST-RJ-20', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 30, power: 8,
+    names: { sq: 'Access point në prizë (in-wall)', en: 'In-wall access point', it: 'Access point da incasso a parete', de: 'Unterputz-Access-Point' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-9, 3, 9, 21) }, { d: 'M-3 5.5 H3 V8 H-3 Z' }, { d: 'M-5.5 14 A7.5 7.5 0 0 1 5.5 14 M-3 16.5 A4 4 0 0 1 3 16.5' }, { d: circle(0, 18.8, 1.1), fill: true }],
+  },
+  {
+    id: 'rj-floor', code: 'AST-RJ-21', category: 'rrjet', layer: 'rrjeti', mount: 'center',
+    names: { sq: 'Kuti dyshemeje me priza RJ45', en: 'Floor box with RJ45 outlets', it: 'Torretta a pavimento con prese RJ45', de: 'Bodentank mit RJ45-Dosen' },
+    parts: [{ d: rect(-9, -9, 9, 9) }, { d: 'M-6 -2 H-1 L-3.5 3 Z M1 -2 H6 L3.5 3 Z' }],
+  },
+  {
+    id: 'rj-voip', code: 'AST-RJ-22', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 110, power: 5,
+    names: { sq: 'Telefon IP (VoIP)', en: 'IP phone (VoIP)', it: 'Telefono IP (VoIP)', de: 'IP-Telefon (VoIP)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-9, 3, 9, 17) }, { d: 'M-6 6.5 H6' }, { d: strokeText('IP', 0, 12, 4.5) }],
+  },
+  {
+    id: 'rj-iot', code: 'AST-RJ-23', category: 'rrjet', layer: 'rrjeti', mount: 'wall', height: 220, power: 5,
+    names: { sq: 'Gateway IoT (LoRa / Zigbee / BLE)', en: 'IoT gateway (LoRa / Zigbee / BLE)', it: 'Gateway IoT (LoRa / Zigbee / BLE)', de: 'IoT-Gateway (LoRa / Zigbee / BLE)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-8, 3, 8, 15) }, { d: strokeText('IOT', 0, 9, 4.5) }, { d: 'M6 15 V22' }],
+  },
+  {
+    id: 'rj-cp', code: 'AST-RJ-24', category: 'rrjet', layer: 'rrjeti', mount: 'center',
+    names: { sq: 'Pikë konsolidimi (kuti tavani për kabllot)', en: 'Consolidation point (ceiling cable box)', it: 'Punto di consolidamento (scatola a soffitto)', de: 'Sammelpunkt (Deckenverteiler)' },
+    parts: [{ d: rect(-8, -8, 8, 8) }, { d: strokeText('CP', 0, 0, 6) }],
   },
 
   // ---- Sinjalizim zjarri ----
@@ -804,6 +1037,86 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'zj-hidrant', code: 'AST-ZJ-14', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 150,
     names: { sq: 'Hidrant / kuti zjarrfikëse me zorrë', en: 'Fire hose cabinet', it: 'Idrante a muro / naspo', de: 'Wandhydrant' },
     parts: [{ d: 'M0 0 V3' }, { d: rect(-10, 3, 10, 19) }, { d: circle(0, 11, 5) }, { d: circle(0, 11, 1.5), fill: true }],
+  },
+  {
+    id: 'zj-flake', code: 'AST-ZJ-15', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 300,
+    names: { sq: 'Detektor flake (UV / IR)', en: 'Flame detector (UV / IR)', it: 'Rivelatore di fiamma (UV / IR)', de: 'Flammenmelder (UV / IR)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-8, 3, 8, 13) }, { d: 'M0 24 Q-6 20 -3 15.5 Q-2 18.5 0 15.5 Q2 18.5 3 15.5 Q6 20 0 24 Z' }],
+  },
+  {
+    id: 'zj-asd', code: 'AST-ZJ-16', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 150, power: 20,
+    names: { sq: 'Detektor tymi me thithje ajri (ASD)', en: 'Aspirating smoke detector (ASD)', it: 'Rivelatore di fumo ad aspirazione (ASD)', de: 'Ansaugrauchmelder (RAS)' },
+    parts: [{ d: rect(-11, 0, 11, 14) }, { d: strokeText('ASD', 0, 7, 5) }, { d: 'M0 14 V20 M-8 20 H8 M-8 20 V22.5 M0 20 V22.5 M8 20 V22.5' }],
+  },
+  {
+    id: 'zj-kanal', code: 'AST-ZJ-17', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 250,
+    names: { sq: 'Detektor tymi në kanal ajri', en: 'Duct smoke detector', it: 'Rivelatore di fumo per condotte', de: 'Kanalrauchmelder' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-10, 3, 10, 17) }, { d: circle(0, 10, 4.5) }, { d: strokeText('D', 0, 10, 4.5) }],
+  },
+  {
+    id: 'zj-tregues', code: 'AST-ZJ-18', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 220,
+    names: { sq: 'Tregues paralel (LED)', en: 'Remote indicator (LED)', it: 'Ripetitore ottico (LED)', de: 'Parallelanzeige (LED)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-7, 3, 7, 13) }, { d: circle(0, 8, 2.5), fill: true }, { d: 'M-4 16 L-5.5 18.5 M0 16.5 V19.5 M4 16 L5.5 18.5' }],
+  },
+  {
+    id: 'zj-repeater', code: 'AST-ZJ-19', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 150, power: 5,
+    names: { sq: 'Panel përsëritës i qendrës', en: 'Fire repeater panel', it: 'Pannello ripetitore', de: 'Feuerwehr-Anzeigetableau' },
+    parts: [{ d: rect(-12, 0, 12, 16) }, { d: strokeText('REP', 0, 8, 5) }],
+  },
+  {
+    id: 'zj-sirene-tavan', code: 'AST-ZJ-20', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    names: { sq: 'Sirenë tavani (bazë me sirenë)', en: 'Ceiling sounder (sounder base)', it: 'Sirena a soffitto (base con sirena)', de: 'Deckensirene (Sockelsirene)' },
+    parts: [{ d: circle(0, 0, 10) }, { d: 'M-3 -4 H3 L6.5 4 H-6.5 Z' }],
+  },
+  {
+    id: 'zj-evac', code: 'AST-ZJ-21', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    names: { sq: 'Altoparlant evakuimi (EVAC)', en: 'Voice alarm loudspeaker (EVAC)', it: 'Diffusore di evacuazione (EVAC)', de: 'Lautsprecher Sprachalarm (SAA)' },
+    parts: [{ d: circle(0, 0, 10) }, { d: 'M-6 -2.5 H-3 L2 -6.5 V6.5 L-3 2.5 H-6 Z' }, { d: 'M4.5 -3 Q6.5 0 4.5 3' }],
+  },
+  {
+    id: 'zj-shuarje', code: 'AST-ZJ-22', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 140,
+    names: { sq: 'Buton lëshimi i shuarjes', en: 'Extinguishing release button', it: 'Pulsante di scarica estinguente', de: 'Löschauslösetaster' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-9, 3, 9, 21) }, { d: circle(0, 12, 4.5) }, { d: strokeText('E', 0, 12, 4) }],
+  },
+  {
+    id: 'zj-ndalim', code: 'AST-ZJ-23', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 140,
+    names: { sq: 'Buton ndalimi i shuarjes', en: 'Extinguishing hold / abort button', it: 'Pulsante di blocco scarica', de: 'Löschung-Stopp-Taster' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-9, 3, 9, 21) }, { d: circle(0, 12, 4.5) }, { d: 'M-2.5 9.5 L2.5 14.5 M2.5 9.5 L-2.5 14.5' }],
+  },
+  {
+    id: 'zj-cilinder', code: 'AST-ZJ-24', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 0,
+    names: { sq: 'Cilindër shuarjeje me gaz', en: 'Gas extinguishing cylinder', it: 'Bombola di spegnimento a gas', de: 'Löschgasflasche' },
+    parts: [{ d: 'M0 0 V3' }, { d: 'M-5 7 Q-5 3 0 3 Q5 3 5 7 V22 H-5 Z' }, { d: strokeText('G', 0, 14, 5) }],
+  },
+  {
+    id: 'zj-izolator', code: 'AST-ZJ-25', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    names: { sq: 'Izolator qarku të shkurtër', en: 'Short-circuit isolator', it: 'Isolatore di cortocircuito', de: 'Kurzschlussisolator' },
+    parts: [{ d: rect(-9, -6, 9, 6) }, { d: 'M-9 0 H-3 M3 0 H9 M-3 -3 V3 M3 -3 V3' }],
+  },
+  {
+    id: 'zj-klape', code: 'AST-ZJ-26', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    names: { sq: 'Klapë zjarri në kanal ajri', en: 'Fire damper', it: 'Serranda tagliafuoco', de: 'Brandschutzklappe' },
+    parts: [{ d: rect(-10, -6, 10, 6) }, { d: 'M-10 6 L10 -6' }, { d: circle(0, 0, 1.5), fill: true }],
+  },
+  {
+    id: 'zj-rwa', code: 'AST-ZJ-27', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 140,
+    names: { sq: 'Buton për hapjen e nxjerrjes së tymit', en: 'Smoke vent control button', it: 'Pulsante evacuazione fumo e calore', de: 'RWA-Taster (Rauchabzug)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-9, 3, 9, 21) }, { d: 'M0 18 V7 M-3 10 L0 7 L3 10' }],
+  },
+  {
+    id: 'zj-flow', code: 'AST-ZJ-28', category: 'zjarr', layer: 'zjarri', mount: 'center',
+    names: { sq: 'Çelës rrjedhjeje sprinkleri', en: 'Sprinkler flow switch', it: 'Flussostato sprinkler', de: 'Strömungsmelder Sprinkler' },
+    parts: [{ d: circle(0, 0, 8) }, { d: 'M-12 0 H-8 M8 0 H12' }, { d: strokeText('FS', 0, 0, 5) }],
+  },
+  {
+    id: 'zj-sprinkler-mur', code: 'AST-ZJ-29', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 230,
+    names: { sq: 'Sprinkler muri (sidewall)', en: 'Sidewall sprinkler', it: 'Sprinkler a parete (sidewall)', de: 'Seitenwandsprinkler' },
+    parts: [{ d: 'M0 0 V4' }, { d: circle(0, 9, 5) }, { d: 'M-8 12 L-4.5 10.5 M8 12 L4.5 10.5 M0 14 V18 M-5 16.5 L-3 13.5 M5 16.5 L3 13.5' }],
+  },
+  {
+    id: 'zj-kuti-celesash', code: 'AST-ZJ-30', category: 'zjarr', layer: 'zjarri', mount: 'wall', height: 150,
+    names: { sq: 'Kuti çelësash për zjarrfikësit', en: 'Fire brigade key box', it: 'Cassetta chiavi per vigili del fuoco', de: 'Feuerwehr-Schlüsseldepot' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-8, 3, 8, 19) }, { d: circle(0, 9, 2.5) }, { d: 'M0 11.5 V16 H2.5 M0 14 H2' }],
   },
 
   // ---- Industriale (400 V) ----
@@ -1307,6 +1620,16 @@ export const SYMBOLS: SymbolDef[] = [
     names: { sq: 'Kontakt magnetik dere / dritareje', en: 'Magnetic door / window contact', it: 'Contatto magnetico porta / finestra', de: 'Magnetkontakt Tür / Fenster' },
     parts: [{ d: 'M0 0 V4' }, { d: `${rect(-8, 4, -1, 12)} ${rect(1, 4, 8, 12)}` }, { d: rect(-8, 4, -1, 12), fill: true }],
   },
+  {
+    id: 'sn-co2', code: 'AST-SN-13', category: 'sensore', layer: 'pajisje', mount: 'wall', height: 150,
+    names: { sq: 'Sensor CO2 / cilësie ajri', en: 'CO2 / air quality sensor', it: 'Sensore CO2 / qualità dell’aria', de: 'CO2-/Luftqualitätssensor' },
+    parts: [{ d: 'M0 0 V3' }, { d: circle(0, 12, 8.5) }, { d: strokeText('CO2', 0, 12, 4.5) }],
+  },
+  {
+    id: 'sn-lageshtie', code: 'AST-SN-14', category: 'sensore', layer: 'pajisje', mount: 'wall', height: 150,
+    names: { sq: 'Sensor lagështie', en: 'Humidity sensor', it: 'Sensore di umidità', de: 'Feuchtesensor' },
+    parts: [{ d: 'M0 0 V3' }, { d: circle(0, 12, 8.5) }, { d: 'M0 6.5 Q-4 11.5 -3.5 13.5 Q-3 17 0 17 Q3 17 3.5 13.5 Q4 11.5 0 6.5 Z' }],
+  },
 
   // ---- Aparate mbrojtëse (plotësim 2) ----
   {
@@ -1503,6 +1826,71 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'em-bateri', code: 'AST-EM-07', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 150, power: 100,
     names: { sq: 'Bateri qendrore emergjence', en: 'Central battery system', it: 'Soccorritore centralizzato', de: 'Zentralbatterieanlage' },
     parts: [{ d: rect(-13, 0, 13, 18) }, { d: strokeText('CB', 0, 9, 7) }],
+  },
+  {
+    id: 'em-exit-majtas', code: 'AST-EM-08', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 230, sign: { size: 150 },
+    names: { sq: 'Tabelë EXIT me shigjetë majtas', en: 'Exit sign, arrow left', it: 'Segnaletica di uscita, freccia a sinistra', de: 'Rettungszeichenleuchte, Pfeil links' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-15, 3, 15, 15) }, { d: 'M-12 9 H-6 M-12 9 L-9.5 6.5 M-12 9 L-9.5 11.5' }, { d: strokeText('EXIT', 3, 9, 4.5) }],
+  },
+  {
+    id: 'em-exit-djathtas', code: 'AST-EM-09', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 230, sign: { size: 150 },
+    names: { sq: 'Tabelë EXIT me shigjetë djathtas', en: 'Exit sign, arrow right', it: 'Segnaletica di uscita, freccia a destra', de: 'Rettungszeichenleuchte, Pfeil rechts' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-15, 3, 15, 15) }, { d: 'M12 9 H6 M12 9 L9.5 6.5 M12 9 L9.5 11.5' }, { d: strokeText('EXIT', -3, 9, 4.5) }],
+  },
+  {
+    id: 'em-exit-poshte', code: 'AST-EM-10', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 230, sign: { size: 150 },
+    names: { sq: 'Tabelë EXIT me shigjetë poshtë (drejt)', en: 'Exit sign, arrow down (straight ahead)', it: 'Segnaletica di uscita, freccia in basso (dritto)', de: 'Rettungszeichenleuchte, Pfeil nach unten (geradeaus)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-15, 3, 15, 15) }, { d: 'M-10 6 V12 M-10 12 L-12.5 9.5 M-10 12 L-7.5 9.5' }, { d: strokeText('EXIT', 3, 9, 4.5) }],
+  },
+  {
+    id: 'em-exit-ip65', code: 'AST-EM-11', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 230, sign: { size: 200 },
+    names: { sq: 'Tabelë EXIT IP65 (e jashtme / me lagështi)', en: 'Exit sign IP65 (outdoor / damp areas)', it: 'Segnaletica di uscita IP65 (esterno / ambienti umidi)', de: 'Rettungszeichenleuchte IP65 (außen / Feuchtraum)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-15, 3, 15, 17) }, { d: rect(-13, 5, 13, 15) }, { d: strokeText('EXIT', 0, 10, 5) }],
+  },
+  {
+    id: 'em-inkasato', code: 'AST-EM-12', category: 'emergjence', layer: 'emergjenca', mount: 'center', emergency: { lumens: 250 },
+    names: { sq: 'Ndriçues emergjence i futur në tavan', en: 'Recessed emergency luminaire', it: 'Lampada di emergenza da incasso', de: 'Einbau-Notleuchte' },
+    parts: [{ d: circle(0, 0, 10.5) }, { d: circle(0, 0, 8) }, { d: 'M-5.6 -5.6 L5.6 5.6 M-5.6 5.6 L5.6 -5.6' }],
+  },
+  {
+    id: 'em-highbay', code: 'AST-EM-13', category: 'emergjence', layer: 'emergjenca', mount: 'center', height: 800, emergency: { lumens: 1500 },
+    names: { sq: 'Ndriçues emergjence për salla të larta (high-bay)', en: 'High-bay emergency luminaire', it: 'Lampada di emergenza per grandi altezze', de: 'Hallen-Notleuchte (High-Bay)' },
+    parts: [{ d: 'M-11 -7 H11 L7 7 H-7 Z' }, { d: 'M-9 -7 L7 7 M9 -7 L-7 7' }, { d: circle(0, 0, 2.5), fill: true }],
+  },
+  {
+    id: 'em-kit', code: 'AST-EM-14', category: 'emergjence', layer: 'emergjenca', mount: 'center', emergency: { lumens: 400 },
+    names: { sq: 'Kit emergjence për ndriçues LED ekzistues', en: 'Emergency conversion kit for LED luminaire', it: 'Kit di emergenza per apparecchio LED', de: 'Notlicht-Umrüstsatz für LED-Leuchte' },
+    parts: [{ d: rect(-14, -5, 14, 5) }, { d: 'M-14 -5 L14 5 M-14 5 L14 -5' }, { d: rect(-4, 7, 4, 11), fill: true }],
+  },
+  {
+    id: 'em-ip65-mur', code: 'AST-EM-15', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 250, emergency: { lumens: 300 },
+    names: { sq: 'Ndriçues emergjence IP65 muri (i jashtëm)', en: 'Wall emergency bulkhead IP65 (outdoor)', it: 'Plafoniera di emergenza IP65 a parete (esterno)', de: 'Notleuchte IP65 Wand (außen)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-12, 3, 12, 17) }, { d: rect(-10, 5, 10, 15) }, { d: 'M-10 5 L10 15 M-10 15 L10 5' }, { d: circle(0, 10, 2), fill: true }],
+  },
+  {
+    id: 'em-shkalle', code: 'AST-EM-16', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 100, emergency: { lumens: 60 },
+    names: { sq: 'Ndriçues emergjence për shkallë (poshtë në mur)', en: 'Low-level emergency step light', it: 'Segnapasso di emergenza', de: 'Not-Orientierungsleuchte (Stufen)' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-6, 3, 6, 9) }, { d: 'M-6 3 L6 9 M-6 9 L6 3' }, { d: 'M-4 12 L-5 14 M0 12 V14.5 M4 12 L5 14' }],
+  },
+  {
+    id: 'em-fotolum', code: 'AST-EM-17', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 200,
+    names: { sq: 'Tabelë fotolumineshente (pa ushqim)', en: 'Photoluminescent safety sign (unpowered)', it: 'Cartello fotoluminescente (non alimentato)', de: 'Langnachleuchtendes Rettungszeichen (ohne Strom)' },
+    parts: [{ d: rect(-14, 0, 14, 10) }, { d: strokeText('EXIT', 0, 5, 4.5) }, { d: 'M-14 12.5 H14' }],
+  },
+  {
+    id: 'em-test', code: 'AST-EM-18', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 150, power: 5,
+    names: { sq: 'Modul testimi automatik (DALI)', en: 'Automatic test module (DALI)', it: 'Modulo di autodiagnosi (DALI)', de: 'Prüfsteuergerät (DALI)' },
+    parts: [{ d: rect(-11, 0, 11, 14) }, { d: strokeText('DALI', 0, 7, 4.5) }],
+  },
+  {
+    id: 'em-grumbullim', code: 'AST-EM-19', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 250,
+    names: { sq: 'Tabelë e pikës së grumbullimit', en: 'Assembly point sign', it: 'Cartello punto di raccolta', de: 'Sammelstellenschild' },
+    parts: [{ d: 'M0 0 V3' }, { d: rect(-10, 3, 10, 21) }, { d: 'M-7 6 L-3 10 M7 6 L3 10 M-7 18 L-3 14 M7 18 L3 14' }, { d: circle(0, 12, 2), fill: true }],
+  },
+  {
+    id: 'em-tabele-zjarr', code: 'AST-EM-20', category: 'emergjence', layer: 'emergjenca', mount: 'wall', height: 200,
+    names: { sq: 'Tabelë e pajisjes kundër zjarrit (zjarrfikës / hidrant)', en: 'Fire equipment sign (extinguisher / hydrant)', it: 'Cartello attrezzatura antincendio (estintore / idrante)', de: 'Brandschutzzeichen (Feuerlöscher / Wandhydrant)' },
+    parts: [{ d: rect(-10, 0, 10, 16) }, { d: 'M-3 4 H3 V13 H-3 Z' }, { d: 'M-1 4 V2 H3' }],
   },
 ];
 
