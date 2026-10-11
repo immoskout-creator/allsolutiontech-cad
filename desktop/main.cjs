@@ -75,6 +75,29 @@ ipcMain.handle('ast:save-file', async (event, { filename, data }) => {
   return 'saved';
 });
 
+// "Ruaj si": një dritare e vetme e Windows-it, ku zgjidhet edhe lloji i skedarit (PDF, DXF, ...).
+// Faqja mund të shkruajë vetëm te shtegu që sapo zgjodhi përdoruesi në këtë dritare.
+const chosenPaths = new Set();
+ipcMain.handle('ast:save-as', async (event, { defaultName, filters }) => {
+  const owner = BrowserWindow.fromWebContents(event.sender) ?? undefined;
+  const list = (Array.isArray(filters) ? filters : [])
+    .filter((f) => f && typeof f.name === 'string' && Array.isArray(f.extensions))
+    .map((f) => ({ name: f.name, extensions: f.extensions.map(String) }));
+  const res = await dialog.showSaveDialog(owner, {
+    defaultPath: path.join(app.getPath('documents'), path.basename(String(defaultName || 'projekt'))),
+    filters: list,
+  });
+  if (res.canceled || !res.filePath) return null;
+  chosenPaths.add(res.filePath);
+  return res.filePath;
+});
+ipcMain.handle('ast:write-file', async (event, { filePath, data }) => {
+  if (!chosenPaths.has(filePath)) throw new Error('path not chosen');
+  chosenPaths.delete(filePath);
+  await fs.writeFile(filePath, typeof data === 'string' ? Buffer.from(data, 'utf8') : Buffer.from(data));
+  return 'saved';
+});
+
 app.on('second-instance', () => {
   if (!win) return;
   if (win.isMinimized()) win.restore();

@@ -171,7 +171,12 @@ declare global {
   interface Window {
     claude?: { use(name: string): Promise<unknown> };
     /** Programi i instaluar në Windows (desktop/preload.cjs): ruajtja me dritaren "Ruaj si". */
-    astDesktop?: { saveFile(filename: string, data: string | Uint8Array): Promise<'saved' | 'declined'> };
+    astDesktop?: {
+      saveFile(filename: string, data: string | Uint8Array): Promise<'saved' | 'declined'>;
+      /** Vetëm në versionet e reja: dritarja "Ruaj si" e Windows-it me llojet e skedarit. */
+      saveAs?(defaultName: string, filters: { name: string; extensions: string[] }[]): Promise<string | null>;
+      writeFile?(filePath: string, data: string | Uint8Array): Promise<'saved'>;
+    };
   }
 }
 

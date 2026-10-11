@@ -692,12 +692,45 @@ async function saveAs(fmt: SaveFormat, base: string): Promise<void> {
   try {
     const name = `${base.replace(/[\\/:*?"<>|]+/g, '').trim() || fileName(store.doc, '').slice(0, -1)}.${f.ext}`;
     const r = await saveData(name, await exportData(fmt), f.mime);
-    if (r !== 'saved') return;
-    if (fmt === 'project') {
-      lastSaved = JSON.stringify(store.doc);
-      syncUi();
-    }
-    toast(t('saveAsDone', { file: name }));
+    if (r === 'saved') savedAs(fmt, name);
+  } catch (err) {
+    toast((err as Error).message, true);
+  }
+}
+
+function savedAs(fmt: SaveFormat, name: string): void {
+  if (fmt === 'project') {
+    lastSaved = JSON.stringify(store.doc);
+    syncUi();
+  }
+  try {
+    localStorage.setItem(SAVE_FMT_KEY, fmt);
+  } catch {
+    // pa ruajtje lokale
+  }
+  toast(t('saveAsDone', { file: name }));
+}
+
+/**
+ * Programi i instaluar: vetëm dritarja "Ruaj si" e Windows-it, ku lloji i skedarit zgjidhet poshtë emrit
+ * (si në çdo program). Formati merret nga prapashtesa e skedarit që zgjodhi përdoruesi.
+ */
+async function nativeSaveAs(): Promise<void> {
+  const api = window.astDesktop!;
+  const cur = lastFormat();
+  const order = [...SAVE_FORMATS.filter((f) => f.id === cur), ...SAVE_FORMATS.filter((f) => f.id !== cur)];
+  const ext = (f: (typeof SAVE_FORMATS)[number]) => (f.id === 'project' ? 'json' : f.ext);
+  const filters = order.map((f) => ({ name: `${f.label}: ${t(`saveFmt_${f.id}`)}`, extensions: [ext(f)] }));
+  const base = fileName(store.doc, '').slice(0, -1);
+  const first = order[0];
+  try {
+    const path = await api.saveAs!(`${base}.${first.ext}`, filters);
+    if (!path) return;
+    const lower = path.toLowerCase();
+    const f = SAVE_FORMATS.find((x) => lower.endsWith(`.${ext(x)}`)) ?? first;
+    if (f.id !== 'project' && !store.doc.entities.length) return toast(ex('empty'), true);
+    await api.writeFile!(path, await exportData(f.id));
+    savedAs(f.id, path.split(/[\\/]/).pop() ?? path);
   } catch (err) {
     toast((err as Error).message, true);
   }
@@ -721,7 +754,8 @@ function openSaveAs(): void {
   saveAsName.select();
 }
 $('saveFormats').addEventListener('change', syncSaveExt);
-$('btnSaveAs').addEventListener('click', openSaveAs);
+const openSaveAsAny = () => (window.astDesktop?.saveAs ? void nativeSaveAs() : openSaveAs());
+$('btnSaveAs').addEventListener('click', openSaveAsAny);
 $('saveAsCancel').addEventListener('click', () => (saveAsModal.hidden = true));
 saveAsModal.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
@@ -732,11 +766,6 @@ saveAsModal.addEventListener('keydown', (e) => {
 $('saveAsForm').addEventListener('submit', (e) => {
   e.preventDefault();
   const fmt = checkedFormat();
-  try {
-    localStorage.setItem(SAVE_FMT_KEY, fmt);
-  } catch {
-    // pa ruajtje lokale
-  }
   saveAsModal.hidden = true;
   void saveAs(fmt, saveAsName.value);
 });
@@ -787,7 +816,7 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (ctrl && k === 'z' && !e.shiftKey) return void (e.preventDefault(), store.undo());
   if (ctrl && (k === 'y' || (k === 'z' && e.shiftKey))) return void (e.preventDefault(), store.redo());
-  if (ctrl && k === 's') return void (e.preventDefault(), e.shiftKey ? openSaveAs() : save());
+  if (ctrl && k === 's') return void (e.preventDefault(), e.shiftKey ? openSaveAsAny() : save());
   if (ctrl && k === 'o') return void (e.preventDefault(), fileInput.click());
   if (ctrl && k === 'a') {
     e.preventDefault();
