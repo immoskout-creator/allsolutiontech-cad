@@ -1,7 +1,7 @@
 import type { Doc, ProjectLogo, Vec } from '../core/types';
 import { recordDrawing, type Drawing } from './export';
 import { latin1 } from './dxf';
-import { PX_PER_PAPER_MM, parseColor, type Shape } from './recorder';
+import { PX_PER_PAPER_MM, Recorder, parseColor, type Shape } from './recorder';
 
 /**
  * PDF vektorial për printim: plani në shkallë të vërtetë (p.sh. 1:50) në fletën më të vogël A4–A0 ku nxë,
@@ -27,19 +27,58 @@ export interface Sheet {
   scale: number;
 }
 
+// legjenda e simboleve: kolona djathtas, mbi tabelën e titullit
+const LEG_W = 58;
+const LEG_ROW = 6.5;
+const LEG_HEAD = 8;
+
+/** Gjerësia e legjendës në një fletë me lartësi h për n rreshta (0 kur s'ka legjendë). */
+export function legendWidth(n: number, h: number): number {
+  if (!n) return 0;
+  const perCol = Math.max(1, Math.floor((h - 2 * MARGIN - 2 * PAD - TITLE_H - LEG_HEAD) / LEG_ROW));
+  return Math.ceil(n / perCol) * LEG_W + PAD;
+}
+
 /** Fleta dhe shkalla: shkalla e projektit nëse nxë në A4–A0, përndryshe shkalla standarde më e afërt që nxë. */
-export function chooseSheet(w: number, h: number, docScale: number): Sheet {
+export function chooseSheet(w: number, h: number, docScale: number, legendRows = 0): Sheet {
   const scales = [docScale, ...STD_SCALES.filter((s) => s > docScale)];
+  const room = (paper: (typeof PAPERS)[number]) => ({
+    fw: paper.w - 2 * MARGIN - 2 * PAD - legendWidth(legendRows, paper.h),
+    fh: paper.h - 2 * MARGIN - 2 * PAD - TITLE_H,
+  });
   for (const scale of scales)
     for (const paper of PAPERS) {
-      const fw = paper.w - 2 * MARGIN - 2 * PAD;
-      const fh = paper.h - 2 * MARGIN - 2 * PAD - TITLE_H;
+      const { fw, fh } = room(paper);
       if (w / scale <= fw && h / scale <= fh) return { paper, scale };
     }
   const paper = PAPERS[PAPERS.length - 1];
-  const fw = paper.w - 2 * MARGIN - 2 * PAD;
-  const fh = paper.h - 2 * MARGIN - 2 * PAD - TITLE_H;
-  return { paper, scale: Math.ceil(Math.max(w / fw, h / fh)) };
+  const { fw, fh } = room(paper);
+  return { paper, scale: Math.ceil(Math.max(w / Math.max(fw, 50), h / fh)) };
+}
+
+/** Një rresht i legjendës: figura e simbolit (rrugë SVG në njësitë e tij), kodi, emri dhe sasia. */
+export interface LegendItem {
+  parts: { d: string; fill?: boolean }[];
+  code: string;
+  name: string;
+  qty: number;
+  color?: string;
+}
+
+/** Figura e simbolit si forma në mm letre (Y poshtë), e futur në katrorin size × size me qendër (cx, cy). */
+function legendIcon(parts: LegendItem['parts'], cx: number, cy: number, size: number): Shape[] {
+  const rec = new Recorder((p) => p, 1);
+  for (const part of parts) rec.svgPath(part.d, !!part.fill);
+  const pts = rec.shapes.flatMap((s) => (s.t === 'path' ? s.pts : s.t === 'circle' ? [{ x: s.c.x - s.r, y: s.c.y - s.r }, { x: s.c.x + s.r, y: s.c.y + s.r }] : []));
+  if (!pts.length) return [];
+  const minX = Math.min(...pts.map((p) => p.x)), maxX = Math.max(...pts.map((p) => p.x));
+  const minY = Math.min(...pts.map((p) => p.y)), maxY = Math.max(...pts.map((p) => p.y));
+  const k = size / Math.max(maxX - minX, maxY - minY, 1e-6);
+  const ox = cx - ((minX + maxX) / 2) * k, oy = cy - ((minY + maxY) / 2) * k;
+  const map = (p: Vec): Vec => ({ x: ox + p.x * k, y: oy + p.y * k });
+  return rec.shapes.flatMap((s): Shape[] =>
+    s.t === 'path' ? [{ ...s, pts: s.pts.map(map) }] : s.t === 'circle' ? [{ ...s, c: map(s.c), r: s.r * k }] : [],
+  );
 }
 
 const n = (v: number) => (Math.abs(v) < 1e-6 ? '0' : v.toFixed(2).replace(/\.?0+$/, ''));
@@ -64,7 +103,9 @@ interface PageInput {
   title: string;
   product: string;
   date: string;
-  labels: { project: string; scale: string; date: string; sheet: string };
+  labels: { project: string; scale: string; date: string; sheet: string; legend?: string };
+  /** Simbolet e përdorura në plan, për legjendën automatike. */
+  legend?: LegendItem[];
   /** Logoja e përdoruesit (JPEG); pa të vizatohet logoja AST. */
   logo?: ProjectLogo;
 }
@@ -72,13 +113,15 @@ interface PageInput {
 /** Përmbajtja e faqes (operatorët PDF) dhe madhësia e fletës. */
 export function drawingToPdf(drawing: Drawing, docScale: number, page: PageInput): string {
   const b = drawing.bounds ?? { minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
-  const { paper, scale } = chooseSheet(b.maxX - b.minX, b.maxY - b.minY, docScale);
+  const legend = page.legend ?? [];
+  const { paper, scale } = chooseSheet(b.maxX - b.minX, b.maxY - b.minY, docScale, legend.length);
   const W = paper.w, H = paper.h;
   const ops: string[] = [];
+  const legW = legendWidth(legend.length, H);
 
-  // vizatimi në qendër të hapësirës mbi tabelën e titullit
+  // vizatimi në qendër të hapësirës mbi tabelën e titullit, majtas legjendës
   const areaX = MARGIN + PAD, areaY = MARGIN + PAD + TITLE_H;
-  const areaW = W - 2 * MARGIN - 2 * PAD, areaH = H - 2 * MARGIN - 2 * PAD - TITLE_H;
+  const areaW = W - 2 * MARGIN - 2 * PAD - legW, areaH = H - 2 * MARGIN - 2 * PAD - TITLE_H;
   const offX = areaX + (areaW - (b.maxX - b.minX) / scale) / 2;
   const offY = areaY + (areaH - (b.maxY - b.minY) / scale) / 2;
   const k = (1 / scale) * PT; // mm bote → pt
@@ -127,8 +170,40 @@ export function drawingToPdf(drawing: Drawing, docScale: number, page: PageInput
     }
   }
 
-  // korniza dhe tabela e titullit
   const P = (mm: number) => n(mm * PT);
+
+  // legjenda: simbolet e planit me figurën, kodin, emrin dhe sasinë, kolonë pas kolone
+  if (legend.length) {
+    const top = H - MARGIN - PAD; // mm nga poshtë
+    const x0 = W - MARGIN - legW + PAD / 2;
+    const perCol = Math.max(1, Math.floor((top - (MARGIN + TITLE_H + PAD) - LEG_HEAD) / LEG_ROW));
+    const short = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}...` : s);
+    ops.push('[] 0 d 0 0 0 RG');
+    ops.push(`${P(0.2)} w ${P(x0 - PAD / 2)} ${P(MARGIN + TITLE_H)} m ${P(x0 - PAD / 2)} ${P(H - MARGIN)} l S`);
+    ops.push(`BT 0 0 0 rg /F2 ${P(3.2)} Tf ${P(x0 + 1)} ${P(top - 4.5)} Td ${pdfString(page.labels.legend ?? 'Legend')} Tj ET`);
+    legend.forEach((it, i) => {
+      const col = Math.floor(i / perCol), row = i % perCol;
+      const x = x0 + col * LEG_W;
+      const yMid = top - LEG_HEAD - row * LEG_ROW - LEG_ROW / 2; // mm nga poshtë
+      // figura: koordinatat e ikonës janë me Y poshtë rreth (0, 0)
+      const IX = (p: Vec) => n((x + 4 + p.x) * PT), IY = (p: Vec) => n((yMid - p.y) * PT);
+      for (const s of legendIcon(it.parts, 0, 0, 4.6)) {
+        if (s.t === 'circle') {
+          const cx = (x + 4 + s.c.x) * PT, cy = (yMid - s.c.y) * PT, r = s.r * PT, m = 0.5523 * r;
+          ops.push(`${n(cx + r)} ${n(cy)} m ${n(cx + r)} ${n(cy + m)} ${n(cx + m)} ${n(cy + r)} ${n(cx)} ${n(cy + r)} c ${n(cx - m)} ${n(cy + r)} ${n(cx - r)} ${n(cy + m)} ${n(cx - r)} ${n(cy)} c ${n(cx - r)} ${n(cy - m)} ${n(cx - m)} ${n(cy - r)} ${n(cx)} ${n(cy - r)} c ${n(cx + m)} ${n(cy - r)} ${n(cx + r)} ${n(cy - m)} ${n(cx + r)} ${n(cy)} c h`);
+        } else if (s.t === 'path') {
+          s.pts.forEach((p, j) => ops.push(`${IX(p)} ${IY(p)} ${j ? 'l' : 'm'}`));
+          if (s.closed) ops.push('h');
+        } else continue;
+        ops.push(s.fill ? `${rgb(it.color, 1)} rg f` : `${P(0.22)} w ${rgb(it.color, 1)} RG S`);
+      }
+      ops.push(`BT 0.35 0.35 0.35 rg /F1 ${P(1.7)} Tf ${P(x + 9)} ${P(yMid + 0.9)} Td ${pdfString(it.code)} Tj ET`);
+      ops.push(`BT 0 0 0 rg /F1 ${P(2.2)} Tf ${P(x + 9)} ${P(yMid - 1.9)} Td ${pdfString(short(it.name, 34))} Tj ET`);
+      ops.push(`BT 0 0 0 rg /F2 ${P(2.4)} Tf ${P(x + LEG_W - 7)} ${P(yMid - 0.8)} Td ${pdfString(`${it.qty}x`)} Tj ET`);
+    });
+  }
+
+  // korniza dhe tabela e titullit
   ops.push('[] 0 d 0 0 0 RG 0 0 0 rg');
   ops.push(`${P(0.5)} w ${P(MARGIN)} ${P(MARGIN)} ${P(W - 2 * MARGIN)} ${P(H - 2 * MARGIN)} re S`);
   const tbW = Math.min(190, W - 2 * MARGIN);

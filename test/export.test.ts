@@ -90,3 +90,14 @@ test('PDF: struktura, xref dhe tabela e titullit', () => {
   assert.equal(pdf.slice(start + len, start + len + 10), '\nendstream');
   assert.ok(pdf.includes('(AST) Tj') && pdf.includes('(1:50) Tj') && pdf.includes('(Sht\xebpi) Tj'));
 });
+
+test('PDF: legjenda e simboleve të përdorura vendoset vetë', () => {
+  const legend = [
+    { parts: [{ d: 'M -5 -5 L 5 5 M -5 5 L 5 -5' }], code: 'E-01', name: 'Prizë', qty: 7 },
+    { parts: [{ d: 'M 0 -5 A 5 5 0 1 0 0 5 A 5 5 0 1 0 0 -5', fill: true }], code: 'E-02', name: 'Llambë', qty: 3, color: '#DC2626' },
+  ];
+  const pdf = text(docToPdf(sampleDoc('civil'), { ...PAGE, labels: { ...PAGE.labels, legend: 'Simbolet' }, legend }));
+  assert.ok(pdf.includes('(Simbolet) Tj') && pdf.includes('(E-01) Tj') && pdf.includes('(7x) Tj') && pdf.includes('(Llamb\xeb) Tj'));
+  // legjenda e vogël nuk e zmadhon fletën
+  assert.equal(chooseSheet(12000, 8000, 50, 2).paper.name, 'A3');
+});
