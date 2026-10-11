@@ -59,6 +59,9 @@
       <button class="tool" data-tool="cable" type="button" data-i18n-title="cableTitle">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="4.5" cy="18" r="1.8"></circle><circle cx="19.5" cy="6" r="1.8"></circle><path d="M6.3 18H11V6h6.7"></path></svg><span data-i18n="cable"></span>
       </button>
+      <button class="tool" data-tool="draw" type="button" data-i18n-title="drawTitle">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="8" cy="9" r="5"></circle><rect x="11" y="11" width="10" height="9"></rect></svg><span data-i18n="draw"></span>
+      </button>
       <button class="tool" data-tool="pan" type="button" data-i18n-title="panTitle">
         <svg class="ic" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12"></path><path d="M11 11.5v-7a1.5 1.5 0 0 1 3 0V12"></path><path d="M14 6.5a1.5 1.5 0 0 1 3 0V13"></path><path d="M17 9.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-5-2.7L4.3 14a1.6 1.6 0 0 1 2.6-1.8L8 13.5"></path></svg><span data-i18n="pan"></span>
       </button>
@@ -98,6 +101,18 @@
         <span class="unit">cm</span>
         <datalist id="openingWidthList"></datalist>
         <datalist id="openingHeightList"></datalist>
+      </div>
+      <div class="field-inline" id="drawField" hidden>
+        <select id="drawShape" data-i18n-title="drawShape"></select>
+        <button class="chip" id="chipFill" type="button" aria-pressed="false" data-i18n="drawFillChip" data-i18n-title="drawFillCheck"></button>
+        <span class="field-inline" id="stairFields" hidden>
+          <select id="stairType" data-i18n-title="stairType"></select>
+          <label for="stairWidth"><span data-i18n="stairWidthShort"></span></label>
+          <input id="stairWidth" class="num" type="number" min="50" max="400" step="5" value="100">
+          <span class="unit">cm</span>
+          <label for="stairSteps"><span data-i18n="stairStepsShort"></span></label>
+          <input id="stairSteps" class="num" type="number" min="3" max="60" step="1" value="16">
+        </span>
       </div>
       <span class="field-inline" id="wallThicknessField">
         <label for="wallThickness"><span data-i18n="thickness"></span></label>

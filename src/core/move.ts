@@ -9,6 +9,7 @@ import { isWall, type Entity, type Vec, type Wall } from './types';
 export function moveEntity(e: Entity, delta: Vec, moving: Set<string>, walls: Map<string, Wall>): Entity {
   switch (e.kind) {
     case 'wall':
+    case 'draw':
       return { ...e, a: add(e.a, delta), b: add(e.b, delta) };
     case 'cable':
       return { ...e, points: e.points.map((p) => add(p, delta)) };

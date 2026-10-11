@@ -4,11 +4,13 @@ import { coveragePolygon, symbolCoverage, type Coverage } from '../core/coverage
 import {
   DIM_LAYER,
   isCable,
+  isDrawing,
   isOpening,
   isRoom,
   isSymbol,
   isWall,
   type Doc,
+  type Drawing,
   type Entity,
   type Opening,
   type Room,
@@ -17,6 +19,7 @@ import {
   type Wall,
 } from '../core/types';
 import { moveEntity, wallMap } from '../core/move';
+import { drawingGeometry } from '../core/drawings';
 import { doorKeepouts, openingFrame, sizeText, wallLength, wallPieces } from '../core/openings';
 import { areaText, findRoomCached, inKeepout, labelSpot, pointInPolygon, type Keepout } from '../core/rooms';
 import { dist, formatMeters, mid, sub } from '../core/geometry';
@@ -41,6 +44,8 @@ export interface Overlay {
   wallPreview?: { a: Vec; b: Vec; thickness: number };
   /** Kabllo që po vizatohet, me pikën e kursorit në fund. */
   cablePreview?: Vec[];
+  /** Vizatimi ose shkalla që po vendoset (nga pika e parë te kursori). */
+  drawPreview?: Pick<Drawing, 'shape' | 'a' | 'b' | 'fill' | 'stair'>;
   /** Kutia e përzgjedhjes në ekran; crossing = nga e djathta në të majtë. */
   box?: { a: Vec; b: Vec; crossing: boolean };
   snap?: { p: Vec; kind: SnapKind };
@@ -155,6 +160,16 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
       drawOpeningLabel(ctx, vp, ghost, w, COLORS.selected, paperPx);
     }
   }
+
+  // vizatimet e lira dhe shkallët
+  for (const e of visible) {
+    if (!isDrawing(e)) continue;
+    let color = colorOf.get(e.layer) ?? COLORS.wall;
+    if (st.selection.has(e.id)) color = COLORS.selected;
+    else if (ov.hoverId === e.id) color = COLORS.wallHover;
+    drawDrawing(ctx, vp, e, color, paperPx, false);
+  }
+  if (ov.drawPreview) drawDrawing(ctx, vp, ov.drawPreview, COLORS.selected, paperPx, true);
 
   if (!hidden.has(DIM_LAYER) && (st.only === undefined || st.only === DIM_LAYER)) {
     drawDimensions(ctx, vp, shown.filter(isWall), st.doc.scale, colorOf.get(DIM_LAYER) ?? COLORS.label);
@@ -573,6 +588,61 @@ function drawSymbol(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity
     const p = path(part.d);
     if (part.fill) ctx.fill(p);
     else ctx.stroke(p);
+  }
+  ctx.restore();
+}
+
+/** Trashësia e vijave të vizatimeve, mm letre. */
+const DRAW_LINE_MM = 0.35;
+
+function drawDrawing(ctx: CanvasRenderingContext2D, vp: Viewport, e: Pick<Drawing, 'shape' | 'a' | 'b' | 'fill' | 'stair'>, color: string, paperPx: number, preview: boolean): void {
+  const g = drawingGeometry(e);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(1, DRAW_LINE_MM * paperPx);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  if (preview) ctx.setLineDash([6, 4]);
+  for (const path of g.paths) {
+    if (path.pts.length < 2) continue;
+    ctx.beginPath();
+    path.pts.forEach((p, i) => {
+      const s = vp.toScreen(p);
+      if (i === 0) ctx.moveTo(s.x, s.y);
+      else ctx.lineTo(s.x, s.y);
+    });
+    if (path.closed) ctx.closePath();
+    if (path.fill) {
+      ctx.globalAlpha = 0.18;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.stroke();
+  }
+  // shigjeta e ngjitjes së shkallës: rreth në fillim, majë në fund
+  const ar = g.arrow;
+  if (ar && ar.length >= 2) {
+    ctx.setLineDash([]);
+    ctx.lineWidth = Math.max(1, DRAW_LINE_MM * 0.7 * paperPx);
+    const pts = ar.map((p) => vp.toScreen(p));
+    ctx.beginPath();
+    pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+    ctx.stroke();
+    const head = Math.max(5, 2.5 * paperPx);
+    const p0 = pts[0];
+    ctx.beginPath();
+    ctx.arc(p0.x, p0.y, head * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    const tip = pts[pts.length - 1];
+    const prev = pts[pts.length - 2];
+    const ang = Math.atan2(tip.y - prev.y, tip.x - prev.x);
+    ctx.beginPath();
+    ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(tip.x - Math.cos(ang - 0.4) * head, tip.y - Math.sin(ang - 0.4) * head);
+    ctx.lineTo(tip.x - Math.cos(ang + 0.4) * head, tip.y - Math.sin(ang + 0.4) * head);
+    ctx.closePath();
+    ctx.fill();
   }
   ctx.restore();
 }
