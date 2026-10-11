@@ -19,6 +19,8 @@ node build-apk.mjs --edition all --prepare && npx cap open android   # projekti 
 
 - Prekja: një gisht punon si miu (trokit = klik, tërhiq = tërheqje), gishti i mbajtur = klik i djathtë (mbyll murin
   ose kabllon), dy gishta zhvendosin dhe zmadhojnë pamjen (`src/tools/touch.ts`).
+- Butoni **Përditëso** lart (dhe një kontroll vetë pak pas hapjes) gjen versionin e ri te `android-latest` dhe hap
+  APK-në në shfletues; Android e instalon mbi të vjetrin (`src/io/androidUpdate.ts`).
 - Ruaj, PDF, DXF, CSV hapin dritaren "Ruaj si" të Android (`native/AstFilesPlugin.java` ← `src/io/files.ts`).
 - Nënshkrimi: tani me çelësin e provës `test-signing.keystore` (fjalëkalimi në `build-apk.mjs`), që versionet e reja të
   instalohen mbi të vjetrat. Para shpërndarjes ose Google Play duhet një çelës i vërtetë, i dhënë me `AST_KEYSTORE`,

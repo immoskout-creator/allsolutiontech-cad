@@ -2,6 +2,7 @@ package __PACKAGE__;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.net.Uri;
 import android.util.Base64;
 import androidx.activity.result.ActivityResult;
@@ -31,6 +32,33 @@ public class AstFilesPlugin extends Plugin {
         intent.setType(call.getString("mime", "application/octet-stream"));
         intent.putExtra(Intent.EXTRA_TITLE, call.getString("filename", "projekt.json"));
         startActivityForResult(call, intent, "saveResult");
+    }
+
+    /** Versioni i instaluar (versionName), për përditësimin (src/io/androidUpdate.ts). */
+    @PluginMethod
+    public void info(PluginCall call) {
+        JSObject ret = new JSObject();
+        try {
+            PackageInfo p = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+            ret.put("version", p.versionName);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Versioni nuk u lexua", e);
+        }
+    }
+
+    /** Hap një lidhje https në shfletues (shkarkimi i APK-së së re). */
+    @PluginMethod
+    public void openUrl(PluginCall call) {
+        String url = call.getString("url", "");
+        if (!url.startsWith("https://")) {
+            call.reject("Lidhje e pavlefshme");
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(intent);
+        call.resolve();
     }
 
     @ActivityCallback

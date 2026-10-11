@@ -10,6 +10,7 @@ import { Viewport } from './view/viewport';
 import { render } from './view/renderer';
 import { Editor, type ToolId } from './tools/editor';
 import { TouchGestures } from './tools/touch';
+import { setupAndroidUpdate } from './io/androidUpdate';
 import { fileName, loadAutosave, readFile, saveData, saveFile, writeAutosave } from './io/files';
 import { docToDxf } from './io/dxf';
 import { docToPdf } from './io/pdf';
@@ -1599,4 +1600,5 @@ function toast(msg: string, error = false): void {
 }
 
 applyLang(storedLang());
+setupAndroidUpdate(toast);
 resize();
