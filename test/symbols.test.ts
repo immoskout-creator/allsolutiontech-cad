@@ -102,3 +102,34 @@ test('elektrika ndahet në 230 V dhe 400 V; pulsanti dhe teleruptori janë në l
   for (const c of CATEGORIES.filter((c) => c.id !== 'custom' && categoryLibrary(c.id) === 'civil' && c.id !== 'industri'))
     assert.ok(civil.some((s) => s.category === c.id && symbolVolt(s) === 230), c.id);
 });
+
+test('libraritë e pasuruara: çdo program ka simbolet e reja, me modele që ekzistojnë', async () => {
+  const { CAMERA_MODELS, RECORDER_MODELS } = await import('../src/core/coverage');
+  const { EM_MODELS } = await import('../src/core/emergency');
+  const count = (lib: string) => SYMBOLS.filter((s) => categoryLibrary(s.category) === lib).length;
+  assert.ok(count('cctv') >= 43, `cctv ${count('cctv')}`);
+  assert.ok(count('network') >= 24, `network ${count('network')}`);
+  assert.ok(count('fire') >= 30, `fire ${count('fire')}`);
+  assert.ok(count('emergency') >= 20, `emergency ${count('emergency')}`);
+  // alarmi dhe kontrolli i aksesit janë te programi CCTV, me kodet AST-AK dhe shtresën e kamerave
+  for (const s of SYMBOLS.filter((s) => s.category === 'siguri')) {
+    assert.equal(categoryLibrary(s.category), 'cctv');
+    assert.match(s.code, /^AST-AK-/);
+    assert.equal(s.layer, 'kamerat');
+  }
+  // çdo kamerë e re ka të paktën një model; çdo model i referohet një simboli me të dhënat e duhura
+  for (const id of ['cc-thermal', 'cc-lpr', 'cc-4g', 'cc-wifi', 'cc-mini', 'cc-multisensor', 'cc-speed-dome', 'cc-ai', 'cc-atex', 'cc-counter'])
+    assert.ok(CAMERA_MODELS.some((m) => m.symbol === id), id);
+  for (const m of CAMERA_MODELS) assert.ok(symbolDef(m.symbol)?.cover, m.id);
+  for (const m of RECORDER_MODELS) assert.ok(symbolDef(m.symbol), m.id);
+  for (const m of EM_MODELS) assert.ok(m.lumens ? symbolDef(m.symbol)?.emergency : symbolDef(m.symbol)?.sign, m.id);
+  assert.equal(new Set(CAMERA_MODELS.map((m) => m.id)).size, CAMERA_MODELS.length);
+  assert.equal(new Set(EM_MODELS.map((m) => m.id)).size, EM_MODELS.length);
+});
+
+test('simbolet qëndrojnë brenda ikonës së librarisë', () => {
+  for (const s of SYMBOLS) {
+    const nums = s.parts.flatMap((p) => [...p.d.matchAll(/-?\d+(\.\d+)?/g)].map((m) => Number(m[0])));
+    for (const v of nums) assert.ok(Math.abs(v) <= 30, `${s.id}: ${v}`);
+  }
+});

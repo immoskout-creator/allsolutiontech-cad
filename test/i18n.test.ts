@@ -32,3 +32,8 @@ test('zgjedhësi ka 31 gjuhë dhe secila përkthen ndërfaqen dhe simbolet', () 
 test('serbishtja me cirilicë ruan shkurtimet dhe vlerat', () => {
   assert.equal(toCyrillic('Utičnica sa prekidačem IP44 {n} <b>LED</b> (W) 30 cm, ljuljaška Džep'), 'Утичница са прекидачем IP44 {n} <b>LED</b> (W) 30 cm, љуљашка Џеп');
 });
+
+test('serbishtja me latinisht nuk ka shkronja cirilike', async () => {
+  const { default: sr } = await import('../src/i18n/extra/sr');
+  for (const v of [...Object.values(sr.ui), ...Object.values(sr.symbols), ...Object.values(sr.categories)]) assert.doesNotMatch(v, /[Ѐ-ӿ]/, v);
+});

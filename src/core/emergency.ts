@@ -48,6 +48,15 @@ export const EM_MODELS: EmergencyModel[] = [
   { id: 'em-spot-2000', name: 'Twin spot 2×1000 lm · 3 h', symbol: 'em-spot', lumens: 2000 },
   ...signs('em-exit-mur', [100, 150, 200]),
   ...signs('em-exit-tavan', [150, 200, 250]),
+  ...signs('em-exit-majtas', [100, 150, 200]),
+  ...signs('em-exit-djathtas', [100, 150, 200]),
+  ...signs('em-exit-poshte', [100, 150, 200]),
+  ...signs('em-exit-ip65', [150, 200, 250]),
+  ...lamps('em-inkasato', [[150, '1 h'], [250, '1 h'], [400, '3 h']]),
+  ...lamps('em-highbay', [[1000, '1 h'], [1500, '3 h'], [3000, '3 h']]),
+  ...lamps('em-kit', [[200, '1 h'], [400, '3 h'], [800, '3 h']]),
+  ...lamps('em-ip65-mur', [[200, '1 h'], [300, '3 h'], [600, '3 h']]),
+  ...lamps('em-shkalle', [[40, '1 h'], [60, '3 h']]),
 ];
 
 export const emModelsFor = (symbol: string) => EM_MODELS.filter((m) => m.symbol === symbol);

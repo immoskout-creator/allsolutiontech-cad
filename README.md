@@ -9,7 +9,7 @@ Program 2D për projektimin e instalimeve elektrike në shtëpi. Vetëm 2D.
 - Shtresat (shfaq/fshih, blloko), zhbëj/ribëj, ruaj/hap skedar `.astcad.json`, ruajtje automatike.
 
 ## Simbolet elektrike
-- 79 simbole civile sipas IEC 60617: priza, çelësa, ndriçim, kuadro dhe pajisje, sensorë dhe automatizim, TV dhe komunikim.
+- 210 simbole elektrike sipas IEC 60617 (përfshirë 24 industriale): priza, çelësa, ndriçim, kuadro dhe pajisje, aparate mbrojtëse, rele, matës, sinjalizim, sensorë dhe automatizim, TV, audio dhe komunikim.
 - Çdo simbol ka kodin e vet AllSolutionTech (p.sh. `AST-PR-02`) dhe emrin në shqip, anglisht, italisht dhe gjermanisht.
 - Simbolet e murit ngjiten vetë te faqja e murit; `R` i rrotullon.
 - Lista "Simbolet në plan" numëron çdo simbol me kod.
@@ -36,10 +36,10 @@ Butoni **Raportet** lart hap tre raporte, secili gati për printim (A4), për ru
 ## Pesë programe: elektrik, CCTV, AP, FIRE dhe EMERGENCY
 Nga i njëjti kod ndërtohen pesë programe të veçanta, secili me emrin, linkun, simbolet dhe projektet e veta (ruajtja automatike nuk përzihet). Planimetria (muret, dyert, dritaret, dhomat, kuotat) është e njëjtë te të gjithë.
 - **AllSolutionTech CAD Electrical**: instalimet elektrike civile (`dist/`).
-- **AllSolutionTech CAD CCTV**: kamerat e sigurisë, 8 simbole AST-CC, shtresa Kamerat (`dist/cctv/`).
-- **AllSolutionTech CAD AP**: rrjeti dhe access point, 7 simbole AST-RJ, shtresa Rrjeti / AP (`dist/ap/`).
-- **AllSolutionTech CAD Fire**: sinjalizimi i zjarrit, 10 simbole AST-ZJ, shtresa Zjarri (`dist/fire/`).
-- **AllSolutionTech CAD Emergency**: ndriçimi i emergjencës, 7 simbole AST-EM, shtresa Emergjenca (`dist/em/`).
+- **AllSolutionTech CAD CCTV**: kamerat e sigurisë, 29 simbole AST-CC (IP, analoge HD, termike, targa ANPR, 4G me panel diellor, Wi-Fi, multisensor, speed dome, ATEX, regjistrues, ushqyes) dhe 14 simbole AST-AK për alarmin kundër vjedhjes dhe kontrollin e aksesit, shtresa Kamerat (`dist/cctv/`).
+- **AllSolutionTech CAD AP**: rrjeti dhe access point, 24 simbole AST-RJ (AP, ura radio PtP, antena sektoriale, firewall, NAS, fibër ODF, VoIP, IoT), shtresa Rrjeti / AP (`dist/ap/`).
+- **AllSolutionTech CAD Fire**: sinjalizimi i zjarrit, 30 simbole AST-ZJ (detektorë, flakë, ASD, kanal ajri, sirena, EVAC, shuarje me gaz, sprinkler), shtresa Zjarri (`dist/fire/`).
+- **AllSolutionTech CAD Emergency**: ndriçimi i emergjencës, 20 simbole AST-EM (ndriçues, tabela EXIT me shigjeta, fotolumineshente, high-bay, kit, testim DALI), shtresa Emergjenca (`dist/em/`).
 
 Te programi CCTV, çdo kamerë ka **modelin** (bullet, dome, PTZ, fisheye me objektivin dhe distancën IR), **lartësinë e montimit**, **këndin e shikimit** (me objektivat 2.8 / 4 / 6 / 8 / 12 mm si sugjerim), **distancën**, **drejtimin** dhe **pjerrësinë poshtë**; nga lartësia dhe pjerrësia del zona e verbër poshtë kamerës dhe deri ku arrin pamja në dysheme (sa më lart, aq më larg). Plani tregon zonën e mbulimit në shkallë, me këndin dhe distancën të shkruara.
 
