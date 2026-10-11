@@ -177,6 +177,29 @@ declare global {
       saveAs?(defaultName: string, filters: { name: string; extensions: string[] }[]): Promise<string | null>;
       writeFile?(filePath: string, data: string | Uint8Array): Promise<'saved'>;
     };
+    /** Programi në Android (mobile/): ura e Capacitor drejt shtojcës AstFiles (dritarja "Ruaj si" e Android). */
+    Capacitor?: {
+      isNativePlatform?(): boolean;
+      nativePromise?(plugin: string, method: string, options: unknown): Promise<unknown>;
+    };
+  }
+}
+
+/** Bajtët si base64, në copa që të mos tejkalohet kufiri i argumenteve të String.fromCharCode. */
+export function toBase64(data: string | Uint8Array): string {
+  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+/** Në Android ruan me dritaren e sistemit për zgjedhjen e dosjes (shtojca AstFiles te mobile/native). */
+async function saveAndroid(filename: string, data: string | Uint8Array, type: string): Promise<'saved' | 'declined'> {
+  try {
+    const res = (await window.Capacitor!.nativePromise!('AstFiles', 'save', { filename, mime: type, data: toBase64(data) })) as { saved?: boolean };
+    return res?.saved ? 'saved' : 'declined';
+  } catch {
+    throw new Error('Skedari nuk u ruajt: kontrollo dosjen dhe provo përsëri.');
   }
 }
 
@@ -195,6 +218,7 @@ function getDownloads(): Promise<DownloadsApi | null> {
  * konfirmimi i shkarkimit; në shfletues (skedar lokal) shkarkon direkt.
  */
 export async function saveData(filename: string, data: string | Uint8Array<ArrayBuffer>, type = 'application/json'): Promise<'saved' | 'declined'> {
+  if (window.Capacitor?.isNativePlatform?.() && window.Capacitor.nativePromise) return saveAndroid(filename, data, type);
   if (window.astDesktop) {
     try {
       return await window.astDesktop.saveFile(filename, data);
