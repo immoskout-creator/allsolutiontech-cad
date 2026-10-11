@@ -1,7 +1,7 @@
 import { importDxf } from './io/dxfImport';
 import { Store } from './core/store';
 import { DEFAULT_STAIR, DRAW_SHAPES, STAIR_LIMITS, STAIR_TYPES, drawingPoints, type DrawShape, type StairType } from './core/drawings';
-import { DOOR_LEAVES, SCALES, WALL_HEIGHT, emptyDoc, isCable, isDrawing, isOpening, isRoom, isSymbol, isWall, type Cable, type DoorLeaf, type Drawing, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
+import { DOOR_LEAVES, SCALES, WALL_HEIGHT, emptyDoc, isCable, isDrawing, isOpening, isRoom, isSymbol, isWall, type Cable, type Doc, type DoorLeaf, type Drawing, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
 import { DEFAULT_SILL, DOOR_HEIGHTS, SIZE_LIMITS, SWINGS, WINDOW_HEIGHTS, WINDOW_WIDTHS, applySwing, doorWidths, insideSide, openingFrame, openingHeight, swingOf, widthForLeaf, type Swing } from './core/openings';
 import { areaText, findRoom } from './core/rooms';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
@@ -11,9 +11,12 @@ import { render } from './view/renderer';
 import { Editor, type ToolId } from './tools/editor';
 import { TouchGestures } from './tools/touch';
 import { setupAndroidUpdate } from './io/androidUpdate';
-import { fileName, loadAutosave, readFile, saveData, saveFile, writeAutosave } from './io/files';
+import { fileName, loadAutosave, readFile, saveData, saveFile, serialize, writeAutosave } from './io/files';
+import { docToSvg } from './io/svg';
+import { docToPng } from './io/png';
 import { docToDxf } from './io/dxf';
-import { docToPdf } from './io/pdf';
+import { docToPdf, type LegendItem } from './io/pdf';
+import { usedSymbols } from './core/materials';
 import { ex } from './io/exportStrings';
 import { mergeSymbols, parseLibrary, serializeLibrary, toSymbolDef } from './symbols/custom';
 import { SUBMIT_EMAIL, communityId, fetchApproved } from './symbols/community';
@@ -96,8 +99,6 @@ function applyLang(lang: Lang): void {
   langSelect.value = lang;
   document.documentElement.lang = lang;
   applyStatic(document);
-  $('btnPdf').title = ex('pdfTitle');
-  $('btnDxf').title = ex('dxfTitle');
   if (EDITION.id === 'all') brandSub.textContent = lic('allSub');
   licenseGate.refresh();
   try {
@@ -672,30 +673,140 @@ async function save(): Promise<void> {
     toast((err as Error).message, true);
   }
 }
-$('btnSave').addEventListener('click', save);
 
-// ---- eksporti: PDF për printim, DXF për AutoCAD/ActCAD ----
+// ---- Ruaj si: projekti, PDF për printim, DXF për programet CAD, SVG dhe PNG ----
 
-async function exportPlan(kind: 'pdf' | 'dxf'): Promise<void> {
-  if (!store.doc.entities.length) return toast(ex('empty'), true);
+type SaveFormat = 'project' | 'pdf' | 'dxf' | 'svg' | 'png';
+const SAVE_FORMATS: { id: SaveFormat; ext: string; label: string; mime: string }[] = [
+  { id: 'project', ext: 'astcad.json', label: 'ASTCAD', mime: 'application/json' },
+  { id: 'pdf', ext: 'pdf', label: 'PDF', mime: 'application/pdf' },
+  { id: 'dxf', ext: 'dxf', label: 'DXF', mime: 'application/dxf' },
+  { id: 'svg', ext: 'svg', label: 'SVG', mime: 'image/svg+xml' },
+  { id: 'png', ext: 'png', label: 'PNG', mime: 'image/png' },
+];
+const SAVE_FMT_KEY = 'astcad.saveFormat';
+function lastFormat(): SaveFormat {
   try {
-    const data =
-      kind === 'dxf'
-        ? docToDxf(store.doc)
-        : docToPdf(store.doc, {
-            title: store.doc.name,
-            product: productName(),
-            date: new Date().toLocaleDateString('sq-AL', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-            labels: { project: ex('project'), scale: ex('scale'), date: ex('date'), sheet: ex('sheet') },
-          });
-    const r = await saveData(fileName(store.doc, kind), data, kind === 'pdf' ? 'application/pdf' : 'application/dxf');
-    if (r === 'saved') toast(ex(kind === 'pdf' ? 'pdfSaved' : 'dxfSaved'));
+    const v = localStorage.getItem(SAVE_FMT_KEY);
+    if (SAVE_FORMATS.some((f) => f.id === v)) return v as SaveFormat;
+  } catch {
+    // pa ruajtje lokale: formati standard
+  }
+  return 'project';
+}
+
+async function exportData(fmt: SaveFormat): Promise<string | Uint8Array<ArrayBuffer>> {
+  const doc = store.doc;
+  if (fmt === 'project') return serialize(doc);
+  if (fmt === 'dxf') return docToDxf(doc);
+  if (fmt === 'svg') return docToSvg(doc);
+  if (fmt === 'png') return docToPng(doc);
+  return docToPdf(doc, {
+    title: doc.name,
+    product: productName(),
+    date: new Date().toLocaleDateString('sq-AL', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+    labels: { project: ex('project'), scale: ex('scale'), date: ex('date'), sheet: ex('sheet'), legend: t('tabLegend') },
+    legend: pdfLegend(doc),
+  });
+}
+
+/** Legjenda e PDF-së: çdo simbol i përdorur në shtresat e dukshme, me figurën, kodin, emrin dhe sasinë. */
+function pdfLegend(doc: Doc): LegendItem[] {
+  const hidden = new Set(doc.layers.filter((l) => !l.visible).map((l) => l.id));
+  const color = new Map(doc.layers.map((l) => [l.id, l.color]));
+  return usedSymbols({ ...doc, entities: doc.entities.filter((e) => !hidden.has(e.layer)) }).map((u) => ({
+    parts: u.def.parts,
+    code: u.def.code,
+    name: u.model ? `${symName(u.def)} · ${u.model}` : symName(u.def),
+    qty: u.qty,
+    color: color.get(u.def.layer) ?? '#1F242B',
+  }));
+}
+
+/** Ruan projektin ose planin në formatin e zgjedhur; emri pa prapashtesë. */
+async function saveAs(fmt: SaveFormat, base: string): Promise<void> {
+  const f = SAVE_FORMATS.find((x) => x.id === fmt)!;
+  if (fmt !== 'project' && !store.doc.entities.length) return toast(ex('empty'), true);
+  try {
+    const name = `${base.replace(/[\\/:*?"<>|]+/g, '').trim() || fileName(store.doc, '').slice(0, -1)}.${f.ext}`;
+    const r = await saveData(name, await exportData(fmt), f.mime);
+    if (r === 'saved') savedAs(fmt, name);
   } catch (err) {
     toast((err as Error).message, true);
   }
 }
-$('btnPdf').addEventListener('click', () => void exportPlan('pdf'));
-$('btnDxf').addEventListener('click', () => void exportPlan('dxf'));
+
+function savedAs(fmt: SaveFormat, name: string): void {
+  if (fmt === 'project') {
+    lastSaved = JSON.stringify(store.doc);
+    syncUi();
+  }
+  try {
+    localStorage.setItem(SAVE_FMT_KEY, fmt);
+  } catch {
+    // pa ruajtje lokale
+  }
+  toast(t('saveAsDone', { file: name }));
+}
+
+/**
+ * Programi i instaluar: vetëm dritarja "Ruaj si" e Windows-it, ku lloji i skedarit zgjidhet poshtë emrit
+ * (si në çdo program). Formati merret nga prapashtesa e skedarit që zgjodhi përdoruesi.
+ */
+async function nativeSaveAs(): Promise<void> {
+  const api = window.astDesktop!;
+  const cur = lastFormat();
+  const order = [...SAVE_FORMATS.filter((f) => f.id === cur), ...SAVE_FORMATS.filter((f) => f.id !== cur)];
+  const ext = (f: (typeof SAVE_FORMATS)[number]) => (f.id === 'project' ? 'json' : f.ext);
+  const filters = order.map((f) => ({ name: `${f.label}: ${t(`saveFmt_${f.id}`)}`, extensions: [ext(f)] }));
+  const base = fileName(store.doc, '').slice(0, -1);
+  const first = order[0];
+  try {
+    const path = await api.saveAs!(`${base}.${first.ext}`, filters);
+    if (!path) return;
+    const lower = path.toLowerCase();
+    const f = SAVE_FORMATS.find((x) => lower.endsWith(`.${ext(x)}`)) ?? first;
+    if (f.id !== 'project' && !store.doc.entities.length) return toast(ex('empty'), true);
+    await api.writeFile!(path, await exportData(f.id));
+    savedAs(f.id, path.split(/[\\/]/).pop() ?? path);
+  } catch (err) {
+    toast((err as Error).message, true);
+  }
+}
+
+const saveAsModal = $<HTMLDivElement>('saveAsModal');
+const saveAsName = $<HTMLInputElement>('saveAsName');
+const checkedFormat = () => ($<HTMLInputElement>('saveFormats').querySelector<HTMLInputElement>('input:checked')?.value ?? 'project') as SaveFormat;
+function syncSaveExt(): void {
+  $('saveAsExt').textContent = `.${SAVE_FORMATS.find((f) => f.id === checkedFormat())!.ext}`;
+}
+function openSaveAs(): void {
+  const cur = lastFormat();
+  $('saveFormats').innerHTML = SAVE_FORMATS.map(
+    (f) => `<label class="save-format"><input type="radio" name="saveFmt" value="${f.id}"${f.id === cur ? ' checked' : ''}><b>${f.label}</b><span>${esc(t(`saveFmt_${f.id}`))}</span></label>`,
+  ).join('');
+  saveAsName.value = fileName(store.doc, '').slice(0, -1);
+  syncSaveExt();
+  saveAsModal.hidden = false;
+  saveAsName.focus();
+  saveAsName.select();
+}
+$('saveFormats').addEventListener('change', syncSaveExt);
+const openSaveAsAny = () => (window.astDesktop?.saveAs ? void nativeSaveAs() : openSaveAs());
+$('btnSaveAs').addEventListener('click', openSaveAsAny);
+$('saveAsCancel').addEventListener('click', () => (saveAsModal.hidden = true));
+saveAsModal.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.stopPropagation();
+    saveAsModal.hidden = true;
+  }
+});
+$('saveAsForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const fmt = checkedFormat();
+  saveAsModal.hidden = true;
+  void saveAs(fmt, saveAsName.value);
+});
 
 const modal = $<HTMLDivElement>('confirmNew');
 const newName = $<HTMLInputElement>('newName');
@@ -743,7 +854,7 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (ctrl && k === 'z' && !e.shiftKey) return void (e.preventDefault(), store.undo());
   if (ctrl && (k === 'y' || (k === 'z' && e.shiftKey))) return void (e.preventDefault(), store.redo());
-  if (ctrl && k === 's') return void (e.preventDefault(), save());
+  if (ctrl && k === 's') return void (e.preventDefault(), e.shiftKey ? openSaveAsAny() : save());
   if (ctrl && k === 'o') return void (e.preventDefault(), fileInput.click());
   if (ctrl && k === 'a') {
     e.preventDefault();
