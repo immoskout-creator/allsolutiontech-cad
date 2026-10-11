@@ -9,7 +9,9 @@ import { sampleDoc } from './core/sample';
 import { Viewport } from './view/viewport';
 import { render } from './view/renderer';
 import { Editor, type ToolId } from './tools/editor';
-import { fileName, loadAutosave, readFile, saveData, saveFile, writeAutosave } from './io/files';
+import { fileName, loadAutosave, readFile, saveData, saveFile, serialize, writeAutosave } from './io/files';
+import { docToSvg } from './io/svg';
+import { docToPng } from './io/png';
 import { docToDxf } from './io/dxf';
 import { docToPdf } from './io/pdf';
 import { ex } from './io/exportStrings';
@@ -94,8 +96,6 @@ function applyLang(lang: Lang): void {
   langSelect.value = lang;
   document.documentElement.lang = lang;
   applyStatic(document);
-  $('btnPdf').title = ex('pdfTitle');
-  $('btnDxf').title = ex('dxfTitle');
   if (EDITION.id === 'all') brandSub.textContent = lic('allSub');
   licenseGate.refresh();
   try {
@@ -649,30 +649,97 @@ async function save(): Promise<void> {
     toast((err as Error).message, true);
   }
 }
-$('btnSave').addEventListener('click', save);
 
-// ---- eksporti: PDF për printim, DXF për AutoCAD/ActCAD ----
+// ---- Ruaj si: projekti, PDF për printim, DXF për programet CAD, SVG dhe PNG ----
 
-async function exportPlan(kind: 'pdf' | 'dxf'): Promise<void> {
-  if (!store.doc.entities.length) return toast(ex('empty'), true);
+type SaveFormat = 'project' | 'pdf' | 'dxf' | 'svg' | 'png';
+const SAVE_FORMATS: { id: SaveFormat; ext: string; label: string; mime: string }[] = [
+  { id: 'project', ext: 'astcad.json', label: 'ASTCAD', mime: 'application/json' },
+  { id: 'pdf', ext: 'pdf', label: 'PDF', mime: 'application/pdf' },
+  { id: 'dxf', ext: 'dxf', label: 'DXF', mime: 'application/dxf' },
+  { id: 'svg', ext: 'svg', label: 'SVG', mime: 'image/svg+xml' },
+  { id: 'png', ext: 'png', label: 'PNG', mime: 'image/png' },
+];
+const SAVE_FMT_KEY = 'astcad.saveFormat';
+function lastFormat(): SaveFormat {
   try {
-    const data =
-      kind === 'dxf'
-        ? docToDxf(store.doc)
-        : docToPdf(store.doc, {
-            title: store.doc.name,
-            product: productName(),
-            date: new Date().toLocaleDateString('sq-AL', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-            labels: { project: ex('project'), scale: ex('scale'), date: ex('date'), sheet: ex('sheet') },
-          });
-    const r = await saveData(fileName(store.doc, kind), data, kind === 'pdf' ? 'application/pdf' : 'application/dxf');
-    if (r === 'saved') toast(ex(kind === 'pdf' ? 'pdfSaved' : 'dxfSaved'));
+    const v = localStorage.getItem(SAVE_FMT_KEY);
+    if (SAVE_FORMATS.some((f) => f.id === v)) return v as SaveFormat;
+  } catch {
+    // pa ruajtje lokale: formati standard
+  }
+  return 'project';
+}
+
+async function exportData(fmt: SaveFormat): Promise<string | Uint8Array<ArrayBuffer>> {
+  const doc = store.doc;
+  if (fmt === 'project') return serialize(doc);
+  if (fmt === 'dxf') return docToDxf(doc);
+  if (fmt === 'svg') return docToSvg(doc);
+  if (fmt === 'png') return docToPng(doc);
+  return docToPdf(doc, {
+    title: doc.name,
+    product: productName(),
+    date: new Date().toLocaleDateString('sq-AL', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+    labels: { project: ex('project'), scale: ex('scale'), date: ex('date'), sheet: ex('sheet') },
+  });
+}
+
+/** Ruan projektin ose planin në formatin e zgjedhur; emri pa prapashtesë. */
+async function saveAs(fmt: SaveFormat, base: string): Promise<void> {
+  const f = SAVE_FORMATS.find((x) => x.id === fmt)!;
+  if (fmt !== 'project' && !store.doc.entities.length) return toast(ex('empty'), true);
+  try {
+    const name = `${base.replace(/[\\/:*?"<>|]+/g, '').trim() || fileName(store.doc, '').slice(0, -1)}.${f.ext}`;
+    const r = await saveData(name, await exportData(fmt), f.mime);
+    if (r !== 'saved') return;
+    if (fmt === 'project') {
+      lastSaved = JSON.stringify(store.doc);
+      syncUi();
+    }
+    toast(t('saveAsDone', { file: name }));
   } catch (err) {
     toast((err as Error).message, true);
   }
 }
-$('btnPdf').addEventListener('click', () => void exportPlan('pdf'));
-$('btnDxf').addEventListener('click', () => void exportPlan('dxf'));
+
+const saveAsModal = $<HTMLDivElement>('saveAsModal');
+const saveAsName = $<HTMLInputElement>('saveAsName');
+const checkedFormat = () => ($<HTMLInputElement>('saveFormats').querySelector<HTMLInputElement>('input:checked')?.value ?? 'project') as SaveFormat;
+function syncSaveExt(): void {
+  $('saveAsExt').textContent = `.${SAVE_FORMATS.find((f) => f.id === checkedFormat())!.ext}`;
+}
+function openSaveAs(): void {
+  const cur = lastFormat();
+  $('saveFormats').innerHTML = SAVE_FORMATS.map(
+    (f) => `<label class="save-format"><input type="radio" name="saveFmt" value="${f.id}"${f.id === cur ? ' checked' : ''}><b>${f.label}</b><span>${esc(t(`saveFmt_${f.id}`))}</span></label>`,
+  ).join('');
+  saveAsName.value = fileName(store.doc, '').slice(0, -1);
+  syncSaveExt();
+  saveAsModal.hidden = false;
+  saveAsName.focus();
+  saveAsName.select();
+}
+$('saveFormats').addEventListener('change', syncSaveExt);
+$('btnSaveAs').addEventListener('click', openSaveAs);
+$('saveAsCancel').addEventListener('click', () => (saveAsModal.hidden = true));
+saveAsModal.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.stopPropagation();
+    saveAsModal.hidden = true;
+  }
+});
+$('saveAsForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const fmt = checkedFormat();
+  try {
+    localStorage.setItem(SAVE_FMT_KEY, fmt);
+  } catch {
+    // pa ruajtje lokale
+  }
+  saveAsModal.hidden = true;
+  void saveAs(fmt, saveAsName.value);
+});
 
 const modal = $<HTMLDivElement>('confirmNew');
 const newName = $<HTMLInputElement>('newName');
@@ -720,7 +787,7 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (ctrl && k === 'z' && !e.shiftKey) return void (e.preventDefault(), store.undo());
   if (ctrl && (k === 'y' || (k === 'z' && e.shiftKey))) return void (e.preventDefault(), store.redo());
-  if (ctrl && k === 's') return void (e.preventDefault(), save());
+  if (ctrl && k === 's') return void (e.preventDefault(), e.shiftKey ? openSaveAs() : save());
   if (ctrl && k === 'o') return void (e.preventDefault(), fileInput.click());
   if (ctrl && k === 'a') {
     e.preventDefault();

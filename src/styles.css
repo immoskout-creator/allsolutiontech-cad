@@ -347,3 +347,13 @@ a.btn { text-decoration: none; }
 .logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .logo-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; flex-wrap: wrap; }
 .logo-preview { width: 40px; height: 40px; object-fit: contain; background: #FFFFFF; border-radius: 6px; }
+
+/* Ruaj si: zgjedhja e formatit */
+.save-formats { display: grid; gap: 6px; }
+.save-format { display: grid; grid-template-columns: auto 52px 1fr; gap: 10px; align-items: center; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.save-format:has(input:checked) { border-color: var(--accent-line); background: var(--accent-soft); }
+.save-format input { margin: 0; accent-color: var(--accent); }
+.save-format b { font-family: var(--mono, monospace); font-size: 13px; }
+.save-format span { color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+.save-name { display: flex; align-items: center; gap: 6px; }
+.save-name input { flex: 1; min-width: 0; }

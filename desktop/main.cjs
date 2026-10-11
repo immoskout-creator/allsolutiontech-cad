@@ -51,6 +51,8 @@ const FILTERS = {
   dxf: { name: 'DXF (AutoCAD, ActCAD)', extensions: ['dxf'] },
   csv: { name: 'CSV (Excel)', extensions: ['csv'] },
   html: { name: 'HTML', extensions: ['html'] },
+  svg: { name: 'SVG', extensions: ['svg'] },
+  png: { name: 'PNG', extensions: ['png'] },
 };
 
 ipcMain.handle('ast:save-file', async (event, { filename, data }) => {
