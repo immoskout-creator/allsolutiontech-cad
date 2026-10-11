@@ -1,0 +1,78 @@
+# Aplikacionet Android (.apk), një për çdo program, me Capacitor (mobile/).
+# Pas çdo ndryshimi në main dalin te faqja "Releases" me emrin "Programet për Android" (android-latest);
+# nga një PR dalin si version prove (android-test).
+name: Android
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths: ['mobile/**', 'src/**', 'build.mjs', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [civil, cctv, network, fire, emergency, all]
+    env:
+      APP_VERSION: 0.1.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm ci
+        working-directory: mobile
+      - run: node build-apk.mjs --edition ${{ matrix.edition }}
+        working-directory: mobile
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ matrix.edition }}
+          path: mobile/release/*.apk
+          if-no-files-found: error
+
+  release:
+    needs: build
+    # PR-të nga vetë depoja publikojnë versionin e provës; ato nga jashtë (fork) jo
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: apks
+          merge-multiple: true
+      - name: Kodet SHA256
+        run: |
+          cd apks
+          sha256sum *.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Publiko aplikacionet
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            TAG=android-latest; TITLE="Programet për Android (0.1.${{ github.run_number }})"; PRE=""
+          else
+            TAG=android-test; TITLE="Programet për Android, provë (0.1.${{ github.run_number }})"; PRE="--prerelease"
+          fi
+          gh release delete "$TAG" --yes --cleanup-tag || true
+          gh release create "$TAG" apks/*.apk apks/SHA256SUMS.txt --target "$GITHUB_SHA" $PRE --title "$TITLE" \
+            --notes "Aplikacionet Android të gjashtë programeve AllSolutionTech CAD. Shkarko në telefon ose tablet .apk e programit që të duhet dhe hape. Android kërkon një herë lejen \"Instalo aplikacione nga burime të panjohura\" për shfletuesin ose menaxherin e skedarëve. Kodi i aktivizimit është i njëjti si te Windows. Kodet SHA256 janë te SHA256SUMS.txt."

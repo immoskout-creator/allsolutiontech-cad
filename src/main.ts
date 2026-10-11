@@ -9,6 +9,7 @@ import { sampleDoc } from './core/sample';
 import { Viewport } from './view/viewport';
 import { render } from './view/renderer';
 import { Editor, type ToolId } from './tools/editor';
+import { TouchGestures } from './tools/touch';
 import { fileName, loadAutosave, readFile, saveData, saveFile, writeAutosave } from './io/files';
 import { docToDxf } from './io/dxf';
 import { docToPdf } from './io/pdf';
@@ -175,20 +176,41 @@ const screenPt = (e: PointerEvent | WheelEvent | MouseEvent) => {
   return { x: e.clientX - r.left, y: e.clientY - r.top };
 };
 
+// prekja (tablet, telefon): një gisht si miu, mbajtja si klik i djathtë, dy gishta zhvendosin dhe zmadhojnë
+const touch = new TouchGestures({
+  down: (p, button) => {
+    editor.pointerDown(p, button, false);
+    syncUi();
+  },
+  move: (p) => editor.pointerMove(p, false),
+  up: (p) => editor.pointerUp(p),
+  pinch: (center, factor, dx, dy) => {
+    vp.pan(dx, dy);
+    vp.zoomAt(center, factor);
+    scheduleRender();
+  },
+});
+
 canvas.addEventListener('pointerdown', (e) => {
   canvas.focus();
   canvas.setPointerCapture(e.pointerId);
+  e.preventDefault();
+  if (e.pointerType === 'touch') return touch.down(e.pointerId, screenPt(e));
   editor.pointerDown(screenPt(e), e.button, e.shiftKey);
   if (e.button === 1 || editor.tool === 'pan') canvas.classList.add('panning');
   syncUi();
-  e.preventDefault();
 });
-canvas.addEventListener('pointermove', (e) => editor.pointerMove(screenPt(e), e.shiftKey));
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'touch') return touch.move(e.pointerId, screenPt(e));
+  editor.pointerMove(screenPt(e), e.shiftKey);
+});
 canvas.addEventListener('pointerup', (e) => {
+  if (e.pointerType === 'touch') return touch.up(e.pointerId, screenPt(e));
   canvas.classList.remove('panning');
   editor.pointerUp(screenPt(e));
 });
-canvas.addEventListener('pointerleave', () => editor.pointerLeave());
+canvas.addEventListener('pointercancel', (e) => e.pointerType === 'touch' && touch.cancel(e.pointerId));
+canvas.addEventListener('pointerleave', (e) => e.pointerType !== 'touch' && editor.pointerLeave());
 canvas.addEventListener('dblclick', () => editor.doubleClick());
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener(
