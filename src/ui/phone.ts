@@ -46,7 +46,8 @@ export function setupPhoneLayout(): void {
   if (trial) panel.appendChild(trial);
 
   const menu = section('pp-menu');
-  for (const id of ['btnNew', 'btnOpen', 'btnSaveAs', 'btnReports']) {
+  // btnUpdate: "Përditëso" në Android (src/io/androidUpdate.ts), që të duket edhe kur telefoni mbahet drejt
+  for (const id of ['btnNew', 'btnOpen', 'btnSaveAs', 'btnReports', 'btnUpdate']) {
     const b = $(id);
     if (b) menu.appendChild(b);
   }
@@ -74,7 +75,7 @@ export function setupPhoneLayout(): void {
   const group = document.querySelector('.toolbar .settings');
   if (group) settings.appendChild(group);
 
-  // poshtë: gjuha, kontakti, përditësimi (shtohet më vonë pas kontaktit) dhe licenca
+  // poshtë: gjuha, kontakti dhe licenca
   const foot = section('pp-foot');
   const lang = document.querySelector('.top .lang');
   if (lang) foot.appendChild(lang);
