@@ -3,12 +3,10 @@ import { parseCustomSymbols, type CustomSymbol } from './custom';
 /**
  * Simbolet e komunitetit: përdoruesit dërgojnë simbolet e tyre, administratori i shikon,
  * miraton ato që i pëlqejnë dhe i nënshkruan me çelësin e tij (i njëjti me kodet e aktivizimit).
- * Lista e miratuar publikohet te depoja në community/symbols.json; programi e merr prej andej
- * dhe e pranon vetëm nëse nënshkrimi është i vlefshëm, që askush tjetër të mos shtojë simbole.
+ * Lista e miratuar publikohet në faqen tonë, te https://allsolutiontech.de/soft/cad/symbols.json; programi e merr
+ * prej andej dhe e pranon vetëm nëse nënshkrimi është i vlefshëm, që askush tjetër të mos shtojë simbole.
  */
-export const COMMUNITY_URL = 'https://raw.githubusercontent.com/immoskout-creator/allsolutiontech-cad/main/community/symbols.json';
-/** Ku e ngarkon administratori skedarin e nënshkruar. */
-export const COMMUNITY_UPLOAD_URL = 'https://github.com/immoskout-creator/allsolutiontech-cad/upload/main/community';
+export const COMMUNITY_URL = 'https://allsolutiontech.de/soft/cad/symbols.json';
 export const SUBMIT_EMAIL = 'info@allsolutiontech.de';
 
 export interface ApprovedFile {

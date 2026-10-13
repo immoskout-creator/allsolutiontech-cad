@@ -1,7 +1,7 @@
 import { LIFETIME, createCode, dayOf, formatDate, expiryFor, importPrivateKey, importPublicKey, readCode, type Duration, type LicenseProgram } from '../license/code';
 import { PUBLIC_KEY } from '../license/publicKey';
 import { CANVAS_BOUNDS, mergeSymbols, parseLibrary, toSymbolDef, type CustomSymbol } from '../symbols/custom';
-import { COMMUNITY_UPLOAD_URL, communityId, fetchApproved, signApproved } from '../symbols/community';
+import { communityId, fetchApproved, signApproved } from '../symbols/community';
 
 /**
  * Faqja e administratorit: krijon kodet e aktivizimit me çelësin privat.
@@ -264,7 +264,6 @@ $<HTMLInputElement>('subFiles').addEventListener('change', async (e) => {
   renderPool();
 });
 
-$<HTMLAnchorElement>('uploadLink').href = COMMUNITY_UPLOAD_URL;
 $('signApproved').addEventListener('click', async () => {
   if (!privateKey) {
     $('keyCard').hidden = false;
@@ -279,5 +278,5 @@ $('signApproved').addEventListener('click', async () => {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   $('communityMsg').className = 'msg ok';
-  $('communityMsg').textContent = `symbols.json u shkarkua me ${chosen.length} simbole. Ngarkoje te GitHub në dosjen community (lidhja poshtë).`;
+  $('communityMsg').textContent = `symbols.json u shkarkua me ${chosen.length} simbole. Ngarkoje në server te allsolutiontech.de/soft/cad/symbols.json.`;
 });

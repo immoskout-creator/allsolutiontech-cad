@@ -55,7 +55,7 @@
 
   <section class="card" id="communityCard">
     <h2>Simbolet e përdoruesve për miratim</h2>
-    <p class="hint">Hap skedarët <code>.astlib.json</code> që të kanë dërguar përdoruesit (mund të zgjedhësh disa njëherësh). Lista e miratuar deri tani merret vetë nga interneti. Shëno simbolet që miraton dhe kliko <b>Nënshkruaj dhe shkarko</b>; pastaj ngarkoje skedarin <code>symbols.json</code> te GitHub, në dosjen <code>community</code>. Programet e marrin me butonin <b>Simbole të miratuara</b>.</p>
+    <p class="hint">Hap skedarët <code>.astlib.json</code> që të kanë dërguar përdoruesit (mund të zgjedhësh disa njëherësh). Lista e miratuar deri tani merret vetë nga interneti. Shëno simbolet që miraton dhe kliko <b>Nënshkruaj dhe shkarko</b>; pastaj ngarkoje skedarin <code>symbols.json</code> në server, te <code>allsolutiontech.de/soft/cad/symbols.json</code>. Programet e marrin me butonin <b>Simbole të miratuara</b>.</p>
     <div class="row">
       <input type="file" id="subFiles" accept=".json,application/json" multiple>
       <button type="button" id="loadApproved">Rifresko listën e miratuar</button>
@@ -64,7 +64,6 @@
     <div class="sym-grid" id="symGrid"></div>
     <div class="row">
       <button type="button" class="go" id="signApproved">Nënshkruaj dhe shkarko symbols.json</button>
-      <a id="uploadLink" target="_blank" rel="noopener">Hap GitHub për ngarkim</a>
     </div>
   </section>
 

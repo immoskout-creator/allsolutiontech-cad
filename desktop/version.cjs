@@ -21,4 +21,19 @@ function isNewer(a, b) {
 /** Emri i instaluesit të këtij programi te publikimi. */
 const installerName = (editionName) => `${editionName.replace(/\s+/g, '-')}-Setup.exe`;
 
-module.exports = { installerName, isNewer, versionFromTitle };
+/**
+ * Përditësimi vetëm nga faqja jonë: versioni i publikuar lexohet te VERSION_URL
+ * ({"produkti":"allsolutiontech-cad","windows":"0.1.23","android":"0.1.6","faqja":"…"}) dhe butoni hap
+ * gjithmonë DOWNLOAD_PAGE (e shkruar këtu, jo ajo e JSON-it). Programi nuk shkarkon asgjë vetë.
+ */
+const VERSION_URL = 'https://allsolutiontech.de/soft/cad/versioni.json';
+const DOWNLOAD_PAGE = 'https://allsolutiontech.de/soft/#cad';
+
+/** Versioni i platformës ("windows" ose "android") nga versioni.json, ose null kur s'është i vlefshëm. */
+function siteVersion(json, platform) {
+  if (!json || typeof json !== 'object' || json.produkti !== 'allsolutiontech-cad') return null;
+  const v = json[platform];
+  return typeof v === 'string' && /^\d+(\.\d+)+$/.test(v.trim()) ? v.trim() : null;
+}
+
+module.exports = { installerName, isNewer, versionFromTitle, siteVersion, VERSION_URL, DOWNLOAD_PAGE };
