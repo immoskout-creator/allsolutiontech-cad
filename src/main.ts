@@ -1,8 +1,8 @@
 import { importDxf } from './io/dxfImport';
 import { Store } from './core/store';
-import { DEFAULT_STAIR, DRAW_SHAPES, STAIR_LIMITS, STAIR_TYPES, drawingPoints, type DrawShape, type StairType } from './core/drawings';
-import { DOOR_LEAVES, SCALES, WALL_HEIGHT, emptyDoc, isCable, isDrawing, isOpening, isRoom, isSymbol, isWall, type Cable, type Doc, type DoorLeaf, type Drawing, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
-import { DEFAULT_SILL, DOOR_HEIGHTS, SIZE_LIMITS, SWINGS, WINDOW_HEIGHTS, WINDOW_WIDTHS, applySwing, doorWidths, insideSide, openingFrame, openingHeight, swingOf, widthForLeaf, type Swing } from './core/openings';
+import { DEFAULT_RISER, DEFAULT_STAIR, DRAW_SHAPES, STAIR_LIMITS, STAIR_TYPES, drawingPoints, fitStair, rotateTo, stairAngle, stairTread, type DrawShape, type StairParams, type StairType } from './core/drawings';
+import { SCALES, WINDOW_SASHES, WALL_HEIGHT, emptyDoc, isCable, isDrawing, isOpening, isRoom, isSymbol, isWall, type Cable, type Doc, type Drawing, type WindowSash, type Entity, type Opening, type Room, type SymbolEntity, type Wall } from './core/types';
+import { DEFAULT_SILL, DEFAULT_SWING_ANGLE, DOOR_HEIGHTS, DOOR_KINDS, SIZE_LIMITS, SWINGS, SWING_ANGLE_LIMITS, WINDOW_HEIGHTS, WINDOW_WIDTHS, applyDoorKind, applySwing, doorKind, doorWidths, insideSide, openingFrame, openingHeight, swingOf, type DoorKind, type Swing } from './core/openings';
 import { areaText, findRoom } from './core/rooms';
 import { add, dist, formatMeters, len, scale, sub } from './core/geometry';
 import { sampleDoc } from './core/sample';
@@ -68,7 +68,7 @@ const vp = new Viewport();
 const editor = new Editor(
   store,
   vp,
-  { snap: true, grid: true, ortho: false, gridStep: 100, wallThickness: 250, doorWidth: 900, windowWidth: 1200, doorHeight: 2100, windowHeight: 1400, doorLeaf: 'single', doorExterior: false, wallHeight: WALL_HEIGHT, drawShape: 'rect', drawFill: false, stair: { ...DEFAULT_STAIR } },
+  { snap: true, grid: true, ortho: false, gridStep: 100, wallThickness: 250, doorWidth: 900, windowWidth: 1200, doorHeight: 2100, windowHeight: 1400, doorLeaf: 'single', doorExterior: false, doorSplit: 'equal', doorAngle: DEFAULT_SWING_ANGLE, windowSash: 'single', wallHeight: WALL_HEIGHT, drawShape: 'rect', drawFill: false, stair: { ...DEFAULT_STAIR } },
   () => scheduleRender(),
   (m) => toast(t(m === 'roomNotClosed' ? 'toastRoomNotClosed' : m === 'roomExists' ? 'toastRoomExists' : 'toastNoWall'), true),
 );
@@ -262,23 +262,36 @@ toolButtons.forEach((b) => b.addEventListener('click', () => setTool(b.dataset.t
 const widthInput = $<HTMLInputElement>('openingWidth');
 const heightInput = $<HTMLInputElement>('openingHeight');
 let sizeFor = '';
+const angleInput = $<HTMLInputElement>('swingAngle');
 function syncWidthField(): void {
   const placing = editor.tool === 'door' || editor.tool === 'window';
   $('openingWidthField').hidden = !placing;
-  $('wallThicknessField').hidden = placing || editor.tool === 'draw';
+  $('wallThicknessField').hidden = placing || editor.isDrawTool;
   syncDrawField();
+  syncOpeningFlip();
   if (!placing) return;
   const door = editor.tool === 'door';
   $('doorTypeField').hidden = !door;
+  $('windowSashField').hidden = door;
   const s0 = editor.settings;
   $('chipExterior').setAttribute('aria-pressed', String(s0.doorExterior));
   const leafSel = $<HTMLSelectElement>('doorLeaf');
-  const leafKey = `${getLang()}`;
-  if (leafSel.dataset.lang !== leafKey) {
-    leafSel.dataset.lang = leafKey;
-    leafSel.innerHTML = DOOR_LEAVES.map((v) => `<option value="${v}">${esc(t(`leaf_${v}`))}</option>`).join('');
+  const splitSel = $<HTMLSelectElement>('doorSplit');
+  const sashSel = $<HTMLSelectElement>('windowSash');
+  if (leafSel.dataset.lang !== getLang()) {
+    leafSel.dataset.lang = getLang();
+    leafSel.innerHTML = DOOR_KINDS.map((v) => `<option value="${v}">${esc(t(`leaf_${v}`))}</option>`).join('');
+    splitSel.innerHTML = (['equal', 'third'] as const).map((v) => `<option value="${v}">${esc(t(`split_${v}`))}</option>`).join('');
+    sashSel.innerHTML = WINDOW_SASHES.map((v) => `<option value="${v}">${esc(t(`sash_${v}`))}</option>`).join('');
   }
-  leafSel.value = s0.doorLeaf;
+  leafSel.value = doorKind({ leaf: s0.doorLeaf, exterior: s0.doorExterior });
+  splitSel.hidden = !door || s0.doorLeaf !== 'double';
+  splitSel.value = s0.doorSplit;
+  sashSel.value = s0.windowSash;
+  // këndi i hapjes: dyert me kanat që rrotullohet dhe dritaret me krahë
+  const swings = door ? s0.doorLeaf === 'single' || s0.doorLeaf === 'double' : s0.windowSash !== 'fixed';
+  $('swingAngleField').hidden = !swings;
+  if (document.activeElement !== angleInput) angleInput.value = String(s0.doorAngle);
   const sizeKey = `${editor.tool}:${door ? s0.doorLeaf : ''}`;
   if (sizeFor !== sizeKey) {
     sizeFor = sizeKey;
@@ -290,6 +303,43 @@ function syncWidthField(): void {
   if (document.activeElement !== widthInput) widthInput.value = String((door ? s.doorWidth : s.windowWidth) / 10);
   if (document.activeElement !== heightInput) heightInput.value = String((door ? s.doorHeight : s.windowHeight) / 10);
 }
+
+/**
+ * "Ktheje brenda/jashtë" dhe "Ktheje majtas/djathtas" për dyert/dritaret e zgjedhura, te shiriti i veglave
+ * (në telefon ky shirit është te paneli majtas, prandaj butonat duken edhe atje pa hapur Vetitë).
+ */
+function syncOpeningFlip(): void {
+  const sel = store.selected().filter(isOpening);
+  $('openingFlipField').hidden = sel.length === 0 || editor.tool !== 'select';
+}
+function flipSelectedOpenings(what: 'side' | 'hinge'): void {
+  const ids = new Set(store.selected().filter(isOpening).map((o) => o.id));
+  if (!ids.size) return;
+  store.commit((doc) => {
+    for (const e of doc.entities) {
+      if (!ids.has(e.id) || !isOpening(e)) continue;
+      if (what === 'side') e.side = e.side === 1 ? -1 : 1;
+      else e.hinge = e.hinge === 'a' ? 'b' : 'a';
+    }
+  });
+}
+$('btnFlipInOut').addEventListener('click', () => flipSelectedOpenings('side'));
+$('btnFlipLeftRight').addEventListener('click', () => flipSelectedOpenings('hinge'));
+angleInput.addEventListener('change', () => {
+  const v = Number(angleInput.value.replace(',', '.'));
+  if (v > 0) editor.settings.doorAngle = clampInt(v, SWING_ANGLE_LIMITS);
+  syncWidthField();
+  scheduleRender();
+});
+$<HTMLSelectElement>('doorSplit').addEventListener('change', (e) => {
+  editor.settings.doorSplit = (e.target as HTMLSelectElement).value === 'third' ? 'third' : 'equal';
+  scheduleRender();
+});
+$<HTMLSelectElement>('windowSash').addEventListener('change', (e) => {
+  editor.settings.windowSash = (e.target as HTMLSelectElement).value as WindowSash;
+  syncWidthField();
+  scheduleRender();
+});
 /** Lexon cm nga fusha dhe kthen mm, ose null nëse masa nuk pranohet. */
 function sizeMm(input: HTMLInputElement): number | null {
   const mm = Math.round(Number(input.value.replace(',', '.')) * 10);
@@ -313,9 +363,12 @@ heightInput.addEventListener('change', () => {
   else editor.settings.windowHeight = mm;
 });
 $<HTMLSelectElement>('doorLeaf').addEventListener('change', (e) => {
-  const v = (e.target as HTMLSelectElement).value as DoorLeaf;
-  editor.settings.doorLeaf = v;
-  editor.settings.doorWidth = widthForLeaf(editor.settings.doorWidth, v);
+  const s = editor.settings;
+  const o = { leaf: s.doorLeaf as Opening['leaf'], exterior: s.doorExterior || undefined, width: s.doorWidth };
+  applyDoorKind(o, (e.target as HTMLSelectElement).value as DoorKind);
+  s.doorLeaf = o.leaf ?? 'single';
+  s.doorExterior = !!o.exterior;
+  s.doorWidth = o.width;
   syncWidthField();
   scheduleRender();
 });
@@ -327,29 +380,36 @@ $('chipExterior').addEventListener('click', () => {
   syncWidthField();
   scheduleRender();
 });
-/** Shiriti i veglës Vizato: forma, mbushja dhe (për shkallët) modeli, gjerësia dhe numri i shkallëve. */
+/** Shiriti i veglës Vizato (forma dhe mbushja) dhe i veglës Shkallë (modeli, gjerësia, numri, lartësia, thellësia). */
 const drawShapeSel = $<HTMLSelectElement>('drawShape');
 const stairTypeSel = $<HTMLSelectElement>('stairType');
 const stairWidthInput = $<HTMLInputElement>('stairWidth');
 const stairStepsInput = $<HTMLInputElement>('stairSteps');
+const stairRiserInput = $<HTMLInputElement>('stairRiser');
+const stairTreadInput = $<HTMLInputElement>('stairTread');
 function syncDrawField(): void {
-  const on = editor.tool === 'draw';
-  $('drawField').hidden = !on;
-  if (!on) return;
+  const draw = editor.tool === 'draw';
+  const stair = editor.tool === 'stair';
+  $('drawField').hidden = !draw;
+  $('stairFields').hidden = !stair;
+  if (!draw && !stair) return;
   const s = editor.settings;
   if (drawShapeSel.dataset.lang !== getLang()) {
     drawShapeSel.dataset.lang = getLang();
-    drawShapeSel.innerHTML = DRAW_SHAPES.map((v) => `<option value="${v}">${esc(t(`shape_${v}`))}</option>`).join('');
+    drawShapeSel.innerHTML = DRAW_SHAPES.filter((v) => v !== 'stair').map((v) => `<option value="${v}">${esc(t(`shape_${v}`))}</option>`).join('');
     stairTypeSel.innerHTML = STAIR_TYPES.map((v) => `<option value="${v}">${esc(t(`stair_${v}`))}</option>`).join('');
   }
+  // shkallët vizatohen tani me veglën e vet
+  if (s.drawShape === 'stair') s.drawShape = 'rect';
   drawShapeSel.value = s.drawShape;
   stairTypeSel.value = s.stair.type;
-  const stair = s.drawShape === 'stair';
-  $('stairFields').hidden = !stair;
-  $('chipFill').hidden = stair || s.drawShape === 'line';
+  $('chipFill').hidden = s.drawShape === 'line';
   $('chipFill').setAttribute('aria-pressed', String(s.drawFill));
-  if (document.activeElement !== stairWidthInput) stairWidthInput.value = String(s.stair.width / 10);
+  const cmv = (mm: number | undefined) => String(Math.round(mm ?? 0) / 10);
+  if (document.activeElement !== stairWidthInput) stairWidthInput.value = cmv(s.stair.width);
   if (document.activeElement !== stairStepsInput) stairStepsInput.value = String(s.stair.steps);
+  if (document.activeElement !== stairRiserInput) stairRiserInput.value = cmv(s.stair.riser ?? DEFAULT_RISER);
+  if (document.activeElement !== stairTreadInput) stairTreadInput.value = cmv(s.stair.tread);
 }
 drawShapeSel.addEventListener('change', () => {
   editor.settings.drawShape = drawShapeSel.value as DrawShape;
@@ -364,17 +424,21 @@ $('chipFill').addEventListener('click', () => {
   syncDrawField();
 });
 const clampInt = (v: number, [lo, hi]: readonly [number, number]) => Math.min(hi, Math.max(lo, Math.round(v)));
-stairWidthInput.addEventListener('change', () => {
-  const cm = Number(stairWidthInput.value.replace(',', '.'));
-  if (cm > 0) editor.settings.stair = { ...editor.settings.stair, width: clampInt(cm * 10, STAIR_LIMITS.width) };
-  syncDrawField();
-});
+const onStairCm = (input: HTMLInputElement, key: 'width' | 'riser' | 'tread') =>
+  input.addEventListener('change', () => {
+    const cm = Number(input.value.replace(',', '.'));
+    if (cm > 0) editor.settings.stair = { ...editor.settings.stair, [key]: clampInt(cm * 10, STAIR_LIMITS[key]) };
+    syncDrawField();
+  });
+onStairCm(stairWidthInput, 'width');
+onStairCm(stairRiserInput, 'riser');
+onStairCm(stairTreadInput, 'tread');
 stairStepsInput.addEventListener('change', () => {
   const n = Number(stairStepsInput.value);
   if (n > 0) editor.settings.stair = { ...editor.settings.stair, steps: clampInt(n, STAIR_LIMITS.steps) };
   syncDrawField();
 });
-for (const input of [widthInput, heightInput, stairWidthInput, stairStepsInput]) {
+for (const input of [widthInput, heightInput, angleInput, stairWidthInput, stairStepsInput, stairRiserInput, stairTreadInput]) {
   // Enter e kthen fokusin te plani, që të vazhdosh menjëherë me vendosjen
   input.addEventListener('keydown', (e) => e.key === 'Enter' && canvas.focus());
 }
@@ -903,6 +967,7 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'm') setTool('room');
   else if (k === 'k') setTool('cable');
   else if (k === 'g') setTool('draw');
+  else if (k === 's') setTool('stair');
   else if (k === 'v') setTool('select');
   else if (k === 'h') setTool('pan');
   else if (k === 'f') fitAll();
@@ -1297,23 +1362,32 @@ function renderCableProps(el: HTMLElement, k: Cable): void {
 const DRAW_ICON =
   '<svg viewBox="0 0 24 24" class="ic" style="color:#CBD5E1;width:30px;height:30px"><circle cx="8" cy="9" r="5"></circle><rect x="11" y="11" width="10" height="9"></rect></svg>';
 
-/** Vetitë e një vizatimi: forma, masat në cm, mbushja; te shkallët modeli, gjerësia, numri, krahu i dytë dhe ana e kthimit. */
+/**
+ * Vetitë e një vizatimi: forma, masat në cm, mbushja. Te shkallët: modeli, gjerësia, numri, lartësia dhe thellësia
+ * e shkallës, rrotullimi, krahu i dytë, ana e kthimit dhe drejtimi i ngjitjes.
+ */
 function renderDrawingProps(el: HTMLElement, d: Drawing): void {
   const sel = (id: string, items: [string, string][], cur: string) =>
     `<select id="${id}">${items.map(([v, l]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   const L = dist(d.a, d.b);
   const cm = (mm: number) => Math.round(mm / 10);
+  const cm1 = (mm: number) => Math.round(mm) / 10;
   const st = d.stair ?? DEFAULT_STAIR;
   const stair = d.shape === 'stair';
   const closed = d.shape !== 'line' && !stair;
   let size = '';
+  let stats = '';
   if (stair) {
     size = st.type === 'spiral'
       ? numField('propDrawLen', t('diameterCm'), cm(2 * L))
       : numField('propDrawLen', t('lengthCm'), cm(L));
     size += numField('propStairW', t('stairWidth'), cm(st.width));
     size += numField('propStairN', t('stairSteps'), st.steps);
+    size += numField('propStairRiser', t('stairRiser'), cm1(st.riser ?? DEFAULT_RISER), '0.5');
+    size += numField('propStairTread', t('stairTread'), cm1(stairTread(d.a, d.b, st)), '0.5');
+    size += numField('propStairRot', t('stairRotation'), stairAngle(d.a, d.b));
     if (st.type === 'L' || st.type === 'winder') size += numField('propStairRun2', t('stairRun2'), cm(st.run2 ?? L));
+    stats = `<div class="stats"><div class="stat"><span>${esc(t('stairTotalRise'))}</span><b>${formatMeters(st.steps * (st.riser ?? DEFAULT_RISER))}</b></div></div>`;
   } else if (d.shape === 'rect') {
     size = numField('propDrawW', t('widthCm'), cm(Math.abs(d.b.x - d.a.x))) + numField('propDrawH', t('depthCm'), cm(Math.abs(d.b.y - d.a.y)));
   } else if (d.shape === 'square') {
@@ -1329,8 +1403,10 @@ function renderDrawingProps(el: HTMLElement, d: Drawing): void {
       ? `<label class="field" for="propStairType">${esc(t('stairType'))}${sel('propStairType', STAIR_TYPES.map((v) => [v, t(`stair_${v}`)]), st.type)}</label>`
       : `<label class="field" for="propShape">${esc(t('drawShape'))}${sel('propShape', DRAW_SHAPES.filter((v) => v !== 'stair').map((v) => [v, t(`shape_${v}`)]), d.shape)}</label>`}
     <div class="prop-grid">${size}</div>
+    ${stats}
     ${closed ? `<label class="check" for="propFill"><input id="propFill" type="checkbox"${d.fill ? ' checked' : ''}> ${esc(t('drawFillCheck'))}</label>` : ''}
-    ${stair && st.type !== 'straight' ? `<button class="btn" id="propStairFlip" type="button">${esc(t('stairFlip'))}</button>` : ''}
+    ${stair ? `<div class="btn-row"><button class="btn" id="propStairReverse" type="button">${esc(t('stairReverse'))}</button>
+      ${st.type !== 'straight' ? `<button class="btn" id="propStairFlip" type="button">${esc(t('stairFlip'))}</button>` : ''}</div>` : ''}
     <button class="btn danger" id="propDelete" type="button">${esc(t('deleteDrawing'))}</button>`;
   const onCm = (id: string, fn: (x: Drawing, mm: number) => void) =>
     $(id)?.addEventListener('change', (e) => {
@@ -1344,22 +1420,52 @@ function renderDrawingProps(el: HTMLElement, d: Drawing): void {
     x.b = l ? add(x.a, scale(u, mm / l)) : { x: x.a.x + mm, y: x.a.y };
   };
   const sgn = (v: number) => (v < 0 ? -1 : 1);
+  const stairOf = (x: Drawing) => (x.stair = { ...(x.stair ?? DEFAULT_STAIR) });
+  /** Pas çdo ndryshimi të shkallës: gjatësia e krahëve del nga shkallët × thellësia. */
+  const refit = (x: Drawing, change: (s: StairParams) => void) => {
+    const s1 = stairOf(x);
+    change(s1);
+    const fit = fitStair(x.a, x.b, s1);
+    x.b = fit.b;
+    x.stair = fit.stair;
+  };
   onCm('propDrawLen', (x, mm) => {
     if (x.shape === 'square') x.b = { x: x.a.x + sgn(x.b.x - x.a.x) * mm, y: x.a.y + sgn(x.b.y - x.a.y) * mm };
-    else setLen(x, x.shape === 'circle' || (x.shape === 'stair' && x.stair?.type === 'spiral') ? mm / 2 : mm);
+    else if (x.shape === 'stair' && x.stair?.type !== 'spiral') {
+      // gjatësia e re ndryshon thellësinë e shkallës
+      setLen(x, mm);
+      const s1 = stairOf(x);
+      delete s1.tread;
+      s1.tread = clampInt(stairTread(x.a, x.b, s1), STAIR_LIMITS.tread);
+      const fit = fitStair(x.a, x.b, s1);
+      x.b = fit.b;
+      x.stair = fit.stair;
+    } else setLen(x, x.shape === 'circle' || x.shape === 'stair' ? mm / 2 : mm);
   });
   onCm('propDrawW', (x, mm) => void (x.b = { ...x.b, x: x.a.x + sgn(x.b.x - x.a.x) * mm }));
   onCm('propDrawH', (x, mm) => void (x.b = { ...x.b, y: x.a.y + sgn(x.b.y - x.a.y) * mm }));
-  const stairOf = (x: Drawing) => (x.stair = { ...(x.stair ?? DEFAULT_STAIR) });
   onCm('propStairW', (x, mm) => void (stairOf(x).width = clampInt(mm, STAIR_LIMITS.width)));
   onCm('propStairRun2', (x, mm) => void (stairOf(x).run2 = Math.round(mm)));
+  onCm('propStairRiser', (x, mm) => void (stairOf(x).riser = clampInt(mm, STAIR_LIMITS.riser)));
+  onCm('propStairTread', (x, mm) => refit(x, (s1) => void (s1.tread = clampInt(mm, STAIR_LIMITS.tread))));
   $('propStairN')?.addEventListener('change', (e) => {
     const n = Number((e.target as HTMLInputElement).value);
-    if (n > 0) update<Drawing>(d.id, (x) => void (stairOf(x).steps = clampInt(n, STAIR_LIMITS.steps)));
+    // numri i ri i shkallëve mban thellësinë dhe zgjat/shkurton krahët
+    if (n > 0) update<Drawing>(d.id, (x) => refit(x, (s1) => {
+      s1.tread ??= stairTread(x.a, x.b, s1);
+      s1.steps = clampInt(n, STAIR_LIMITS.steps);
+    }));
+  });
+  $('propStairRot')?.addEventListener('change', (e) => {
+    const deg = Number((e.target as HTMLInputElement).value.replace(',', '.'));
+    if (Number.isFinite(deg)) update<Drawing>(d.id, (x) => void (x.b = rotateTo(x.a, x.b, deg)));
   });
   $('propStairType')?.addEventListener('change', (e) => {
     const v = (e.target as HTMLSelectElement).value as StairType;
-    update<Drawing>(d.id, (x) => void (stairOf(x).type = v));
+    update<Drawing>(d.id, (x) => refit(x, (s1) => {
+      s1.tread ??= stairTread(x.a, x.b, s1);
+      s1.type = v;
+    }));
   });
   $('propShape')?.addEventListener('change', (e) => {
     const v = (e.target as HTMLSelectElement).value as DrawShape;
@@ -1373,6 +1479,13 @@ function renderDrawingProps(el: HTMLElement, d: Drawing): void {
     update<Drawing>(d.id, (x) => void (on ? (x.fill = true) : delete x.fill));
   });
   $('propStairFlip')?.addEventListener('click', () => update<Drawing>(d.id, (x) => void (stairOf(x).turn = x.stair!.turn === 1 ? -1 : 1)));
+  $('propStairReverse')?.addEventListener('click', () =>
+    update<Drawing>(d.id, (x) => {
+      const s1 = stairOf(x);
+      if (s1.reverse) delete s1.reverse;
+      else s1.reverse = true;
+    }),
+  );
   $('propDelete').addEventListener('click', () => editor.deleteSelection());
 }
 
@@ -1383,6 +1496,10 @@ const WINDOW_ICON =
 const ROOM_ICON =
   '<svg viewBox="0 0 24 24" class="ic" style="color:#5EEAD4;width:30px;height:30px"><rect x="3" y="4" width="18" height="16"></rect><path d="M8 13h3M8 10h8"></path></svg>';
 
+/**
+ * Vetitë e derës/dritares. Dera: lloji (një/dy kanate, rrëshqitëse, palosëse, brenda murit, hyrëse), nga hapet dhe
+ * menteshat, kanatet 1/3–2/3, këndi i hapjes. Dritarja: krahët dhe nga hapen. Të dyja: masat dhe butonat "Ktheje".
+ */
 function renderOpeningProps(el: HTMLElement, o: Opening): void {
   const door = o.type === 'door';
   const wall = store.doc.entities.find((e): e is Wall => isWall(e) && e.id === o.wall);
@@ -1390,35 +1507,56 @@ function renderOpeningProps(el: HTMLElement, o: Opening): void {
   const walls = store.doc.entities.filter(isWall);
   const inside = wall ? insideSide(o, wall, walls) : 1;
   const leaf = o.leaf ?? 'single';
+  const kind = doorKind(o);
   const swing = swingOf(o, inside);
-  const sliding = leaf === 'sliding' || leaf === 'sliding2';
+  const sliding = leaf === 'sliding' || leaf === 'sliding2' || leaf === 'pocket';
+  const sash = o.sash ?? 'fixed';
+  const rotates = door ? leaf === 'single' || leaf === 'double' : sash !== 'fixed';
   const sel = (id: string, items: [string, string][], cur: string) =>
     `<select id="${id}">${items.map(([v, l]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  const inOut = (id: string, label: string) =>
+    `<label class="field" for="${id}">${esc(t(label as 'doorSwing'))}${sel(id, [['in', t('openIn')], ['out', t('openOut')]], o.side === inside ? 'in' : 'out')}</label>`;
   el.innerHTML = `
     <div class="prop-head">${door ? DOOR_ICON : WINDOW_ICON}<div><b>${esc(t(door ? (o.exterior ? 'doorExterior' : 'door') : 'window'))}</b>
       <span>${esc(t('layer'))}: ${esc(layerName(o.layer, o.layer))}</span></div></div>
-    ${door ? `<label class="field" for="propLeaf">${esc(t('doorLeaf'))}${sel('propLeaf', DOOR_LEAVES.map((v) => [v, t(`leaf_${v}`)]), leaf)}</label>
+    ${door ? `<label class="field" for="propLeaf">${esc(t('doorLeaf'))}${sel('propLeaf', DOOR_KINDS.map((v) => [v, t(`leaf_${v}`)]), kind)}</label>
       ${leaf === 'single' ? `<label class="field" for="propSwing">${esc(t('doorSwing'))}${sel('propSwing', SWINGS.map((v) => [v, t(`swing_${v}`)]), swing)}</label>` : ''}
       ${sliding ? `<label class="field" for="propSlide">${esc(t('doorSlide'))}${sel('propSlide', [['in', t('slideIn')], ['out', t('slideOut')]], o.side === inside ? 'in' : 'out')}</label>` : ''}
-      ${leaf === 'double' ? `<label class="field" for="propSlide">${esc(t('doorSwing'))}${sel('propSlide', [['in', t('openIn')], ['out', t('openOut')]], o.side === inside ? 'in' : 'out')}</label>` : ''}
-      <label class="check" for="propExterior"><input id="propExterior" type="checkbox"${o.exterior ? ' checked' : ''}> ${esc(t('doorExteriorCheck'))}</label>` : ''}
+      ${leaf === 'double' || leaf === 'folding' ? inOut('propSlide', 'doorSwing') : ''}
+      ${leaf === 'double' ? `<label class="field" for="propSplit">${esc(t('doorSplit'))}${sel('propSplit', [['equal', t('split_equal')], ['third', t('split_third')]], o.split ?? 'equal')}</label>` : ''}
+      <label class="check" for="propExterior"><input id="propExterior" type="checkbox"${o.exterior ? ' checked' : ''}> ${esc(t('doorExteriorCheck'))}</label>`
+    : `<label class="field" for="propSash">${esc(t('windowSash'))}${sel('propSash', WINDOW_SASHES.map((v) => [v, t(`sash_${v}`)]), sash)}</label>
+      ${sash !== 'fixed' ? inOut('propSlide', 'doorSwing') : ''}`}
     <div class="prop-grid">
       ${numField('propWidth', t('widthCm'), Math.round(o.width / 10))}
       ${numField('propHeight', t('openingHeightCm'), Math.round(openingHeight(o) / 10))}
       ${door ? '' : numField('propSill', t('sillCm'), Math.round((o.sill ?? DEFAULT_SILL) / 10))}
       ${numField('propFrom', t('fromWallStart'), f ? Math.round(f.s1 / 10) : '')}
+      ${rotates ? numField('propAngle', t('swingAngle'), o.angle ?? DEFAULT_SWING_ANGLE) : ''}
     </div>
     ${door ? `<datalist id="propWidthList">${doorWidths(leaf).map((v) => `<option value="${v / 10}"></option>`).join('')}</datalist>` : ''}
-    ${door ? `<div class="btn-row"><button class="btn" id="propFlipSide" type="button">${esc(t('flipSide'))}</button>
-      ${leaf === 'double' ? '' : `<button class="btn" id="propFlipHinge" type="button">${esc(t(sliding ? 'flipSlide' : 'flipHinge'))}</button>`}</div>` : ''}
+    <div class="btn-row"><button class="btn" id="propFlipSide" type="button">${esc(t('flipInOut'))}</button>
+      <button class="btn" id="propFlipHinge" type="button">${esc(t('flipLeftRight'))}</button></div>
     <button class="btn danger" id="propDelete" type="button">${esc(t('delete'))}</button>`;
   if (door) $('propWidth').setAttribute('list', 'propWidthList');
   $('propLeaf')?.addEventListener('change', (e) => {
-    const v = (e.target as HTMLSelectElement).value as DoorLeaf;
-    update<Opening>(o.id, (x) => {
-      if (v === 'single') delete x.leaf;
-      else x.leaf = v;
-      x.width = widthForLeaf(x.width, v);
+    const v = (e.target as HTMLSelectElement).value as DoorKind;
+    update<Opening>(o.id, (x) => applyDoorKind(x, v));
+  });
+  $('propSplit')?.addEventListener('change', (e) => {
+    const third = (e.target as HTMLSelectElement).value === 'third';
+    update<Opening>(o.id, (x) => void (third ? (x.split = 'third') : delete x.split));
+  });
+  $('propSash')?.addEventListener('change', (e) => {
+    const v = (e.target as HTMLSelectElement).value as WindowSash;
+    update<Opening>(o.id, (x) => void (v === 'fixed' ? delete x.sash : (x.sash = v)));
+  });
+  $('propAngle')?.addEventListener('change', (e) => {
+    const v = Number((e.target as HTMLInputElement).value.replace(',', '.'));
+    if (v > 0) update<Opening>(o.id, (x) => {
+      const a = clampInt(v, SWING_ANGLE_LIMITS);
+      if (a === DEFAULT_SWING_ANGLE) delete x.angle;
+      else x.angle = a;
     });
   });
   $('propSwing')?.addEventListener('change', (e) => {
@@ -1605,7 +1743,7 @@ function updateStatus(): void {
   $('stCoords').textContent = `X ${(p.x / 1000).toFixed(2)} m · Y ${(p.y / 1000).toFixed(2)} m`;
   const sk = editor.snapKind;
   $('stSnap').textContent =
-    (editor.tool === 'wall' || editor.tool === 'symbol' || editor.tool === 'cable' || editor.tool === 'draw' || editor.isPlacingOpening) && sk !== 'none' ? t(SNAP_KEYS[sk]) : '';
+    (editor.tool === 'wall' || editor.tool === 'symbol' || editor.tool === 'cable' || editor.isDrawTool || editor.isPlacingOpening) && sk !== 'none' ? t(SNAP_KEYS[sk]) : '';
   $('stZoom').textContent = `1 m = ${Math.round(vp.scale * 1000)} px`;
 
   const def = editor.activeSymbol ? symbolDef(editor.activeSymbol) : undefined;
@@ -1622,6 +1760,7 @@ function updateStatus(): void {
               room: 'infoRoom',
               cable: 'infoCable',
               draw: 'infoDraw',
+              stair: 'infoDraw',
               select: 'infoSelect',
               symbol: 'infoSelect',
             } as const
@@ -1637,6 +1776,10 @@ function updateStatus(): void {
     const c = store.doc.circuits?.find((x) => x.id === editor.activeCircuit);
     hint.hidden = false;
     hint.innerHTML = c ? t('hintCable', { name: esc(`${c.name} ${c.label}`.trim()) }) : t('hintCableNone');
+  } else if (editor.tool === 'stair') {
+    hint.hidden = false;
+    const spiral = editor.settings.stair.type === 'spiral';
+    hint.innerHTML = editor.drawStart ? t(spiral ? 'hintDrawRadius' : 'hintStairDir') : t(spiral ? 'hintDrawCenter' : 'hintStairStart');
   } else if (editor.tool === 'draw') {
     hint.hidden = false;
     const sh = editor.settings.drawShape;

@@ -1,4 +1,4 @@
-import { DEFAULT_SCALE, DOOR_LEAVES, TITLE_FIELDS, defaultLayers, knownLayer, type TitleInfo, type Circuit, type CircuitKind, type Doc, type Entity, type Layer, type ProjectLogo } from '../core/types';
+import { DEFAULT_SCALE, DOOR_LEAVES, TITLE_FIELDS, WINDOW_SASHES, defaultLayers, knownLayer, type TitleInfo, type Circuit, type CircuitKind, type Doc, type Entity, type Layer, type ProjectLogo } from '../core/types';
 import { setCustomSymbols, symbolDef } from '../symbols/library';
 import { DRAW_SHAPES, STAIR_TYPES, type DrawShape } from '../core/drawings';
 import { EDITION } from '../edition';
@@ -52,7 +52,10 @@ export function parse(text: string): Doc {
             isNum(st.steps) &&
             st.steps > 0 &&
             (st.turn === 1 || st.turn === -1) &&
-            (st.run2 === undefined || (isNum(st.run2) && st.run2 > 0))))
+            (st.run2 === undefined || (isNum(st.run2) && st.run2 > 0)) &&
+            (st.riser === undefined || (isNum(st.riser) && st.riser > 0)) &&
+            (st.tread === undefined || (isNum(st.tread) && st.tread > 0)) &&
+            (st.reverse === undefined || typeof st.reverse === 'boolean')))
       );
     }
     if (e.kind === 'opening') {
@@ -67,7 +70,10 @@ export function parse(text: string): Doc {
         (e.side === 1 || e.side === -1) &&
         (e.hinge === 'a' || e.hinge === 'b') &&
         (e.leaf === undefined || DOOR_LEAVES.includes(e.leaf)) &&
-        (e.exterior === undefined || typeof e.exterior === 'boolean')
+        (e.exterior === undefined || typeof e.exterior === 'boolean') &&
+        (e.split === undefined || e.split === 'third') &&
+        (e.angle === undefined || (isNum(e.angle) && e.angle > 0 && e.angle <= 180)) &&
+        (e.sash === undefined || WINDOW_SASHES.includes(e.sash))
       );
     }
     return false;
