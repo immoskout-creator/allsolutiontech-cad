@@ -1,4 +1,4 @@
-import { DEFAULT_SCALE, DOOR_LEAVES, defaultLayers, knownLayer, type Circuit, type CircuitKind, type Doc, type Entity, type Layer, type ProjectLogo } from '../core/types';
+import { DEFAULT_SCALE, DOOR_LEAVES, TITLE_FIELDS, defaultLayers, knownLayer, type TitleInfo, type Circuit, type CircuitKind, type Doc, type Entity, type Layer, type ProjectLogo } from '../core/types';
 import { setCustomSymbols, symbolDef } from '../symbols/library';
 import { DRAW_SHAPES, STAIR_TYPES, type DrawShape } from '../core/drawings';
 import { EDITION } from '../edition';
@@ -100,7 +100,19 @@ export function parse(text: string): Doc {
     ...(symbols.length ? { symbols } : {}),
     ...(circuits.length ? { circuits } : {}),
     ...(parseLogo(d.logo) ? { logo: parseLogo(d.logo)! } : {}),
+    ...(parseInfo(d.info) ? { info: parseInfo(d.info)! } : {}),
   };
+}
+
+/** Kartela e projektit: vetëm fushat e njohura, si tekst i shkurtër; null kur s'ka asgjë. */
+export function parseInfo(raw: unknown): TitleInfo | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const out: TitleInfo = {};
+  for (const k of TITLE_FIELDS) {
+    const v = (raw as Record<string, unknown>)[k];
+    if (typeof v === 'string' && v.trim()) out[k] = v.trim().slice(0, 120);
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 /** Logoja e projektit: vetëm JPEG si data URL, me madhësi të arsyeshme. */
