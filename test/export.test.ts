@@ -147,12 +147,55 @@ test('PDF: pa materiale s\'ka faqe 2; shumë materiale zënë disa faqe', () => 
   assert.ok(pdf.includes('(Element 89) Tj'));
 });
 
-test('PDF: kartela e projektit (ISO 7200) del në tabelën e titullit dhe ruhet me projektin', async () => {
+const JPEG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+
+const BOX = {
+  firm: { name: 'Firma Shembull sh.p.k.', address: 'Rruga e Shembullit 1, Tiranë', contact: '+355 4 000 000 · info@shembull.al', logo: { jpeg: JPEG, w: 1, h: 1 } },
+  designer: { name: 'Projektuesi Shembull', title: 'Ing. elektrik, licenca E-0000', signature: { jpeg: JPEG, w: 1, h: 1 } },
+  object: { name: 'Shtëpi banimi 2 kat', address: 'Rruga e Objektit 5', client: 'Investitori Shembull' },
+  drawing: { sheet: 'Plani i instalimeve elektrike – Kati 1', number: 'EL-001', revision: 'A', date: '14.10.2026 09:30', checked: 'Kontrolluesi' },
+  labels: { designer: 'Projektuesi', object: 'Objekti', client: 'Investitori', number: 'Nr. i vizatimit', revision: 'Revizioni', date: 'Data', checked: 'Kontrolloi' },
+};
+
+test('PDF: kutia e titullit me të gjitha fushat, logon dhe firmën, në çdo faqe', () => {
+  const rows = [{ group: 'Pajisjet', code: 'AST-PR-02', name: 'Prizë', qty: 2, unit: 'copë' }];
+  const pdf = text(docToPdf(sampleDoc('civil'), { ...PAGE, box: BOX, materials: { title: 'Lista e materialeve', rows, labels: MATERIAL_LABELS } }));
+  assertXref(pdf);
+  assert.match(pdf, /\/XObject << \/Im1 8 0 R \/Im2 9 0 R >>/);
+  assert.equal([...pdf.matchAll(/\/Im2 Do/g)].length, 2, 'firma në të dyja faqet');
+  for (const v of ['(Firma Shembull sh.p.k.) Tj', '(Projektuesi Shembull) Tj', '(Ing. elektrik, licenca E-0000) Tj', '(Investitori: Investitori Shembull) Tj', '(EL-001) Tj', '(14.10.2026 09:30) Tj', '(Kontrolluesi) Tj', '(1:50) Tj', '(2 / 2) Tj'])
+    assert.equal(pdf.split(v).length - 1 >= 2 || v === '(1:50) Tj' || v === '(2 / 2) Tj', true, v);
+  assert.ok(pdf.includes('(Sht\xebpi banimi 2 kat) Tj'), 'ë si WinAnsi');
+  assert.ok(pdf.includes('(Plani i instalimeve elektrike \x96 Kati 1) Tj'), 'vija e mesme në WinAnsi');
+  assert.ok(!pdf.includes('(AST) Tj'), 'pa logon AST kur ka logo firme');
+});
+
+test('PDF: fushat bosh nuk dalin dhe kutia ngel e vogël; emrat e gjatë kalojnë në rresht të dytë', async () => {
+  const { wrap } = await import('../src/io/pdf');
+  const empty = text(docToPdf(sampleDoc('civil'), { ...PAGE, box: { labels: BOX.labels } }));
+  assert.ok(!empty.includes('(Projektuesi) Tj') && !empty.includes('(Kontrolloi) Tj') && !empty.includes('(Revizioni) Tj'));
+  assert.ok(empty.includes('(AST) Tj') && empty.includes('(1:50) Tj') && empty.includes('(Sht\xebpi) Tj'));
+  assert.ok(!/\/XObject/.test(empty));
+  const lines = wrap('Plani i instalimeve elektrike dhe i ndriçimit të emergjencës – Kati përdhes dhe bodrumi', 60, 3, 2);
+  assert.equal(lines.length, 2);
+  assert.ok(lines[1].endsWith('...'));
+  const long = text(docToPdf(sampleDoc('civil'), { ...PAGE, box: { ...BOX, firm: { name: 'Firma me një emër shumë shumë të gjatë për ndërtime dhe instalime elektrike' } } }));
+  assertXref(long);
+});
+
+test('PDF: legjenda e madhe vazhdon në faqe tjetër pa u zvogëluar', () => {
+  const legend = Array.from({ length: 60 }, (_, i) => ({ parts: [{ d: 'M -5 -5 L 5 5' }], code: `E-${i}`, name: `Simboli me emër të gjatë numër ${i} për provë`, qty: i + 1 }));
+  const pdf = text(docToPdf(sampleDoc('civil'), { ...PAGE, labels: { ...PAGE.labels, legend: 'Legjenda', legendMore: 'vazhdim' }, legend }));
+  assertXref(pdf);
+  assert.ok(pdf.includes('(Legjenda \\(vazhdim\\)) Tj'));
+  assert.ok(pdf.includes('(E-0) Tj') && pdf.includes('(E-59) Tj') && pdf.includes('(60x) Tj'));
+  // shkronjat e legjendës: emri 3.1 mm, sasia 3.4 mm
+  assert.ok(pdf.includes(`/F1 ${(3.1 * 72 / 25.4).toFixed(2).replace(/\.?0+$/, '')} Tf`));
+});
+
+test('kutia e titullit: objekti dhe vizatimi ruhen me projektin', async () => {
   const { parse, serialize } = await import('../src/io/files');
-  const doc = { ...sampleDoc('civil'), info: { company: 'Kompania Shembull', drawnBy: 'Projektuesi', drawingNo: 'E-01', revision: 'A', date: '14.10.2026 09:30', bad: 'x' } };
-  const back = parse(serialize(doc as never));
-  assert.deepEqual(back.info, { company: 'Kompania Shembull', drawnBy: 'Projektuesi', drawingNo: 'E-01', revision: 'A', date: '14.10.2026 09:30' });
-  const pdf = text(docToPdf(back, { ...PAGE, infoLabels: { company: 'Kompania', drawnBy: 'Projektoi', dateTime: 'Data dhe ora' } }));
-  for (const s of ['(Kompania Shembull) Tj', '(Projektuesi) Tj', '(E-01) Tj', '(14.10.2026 09:30) Tj', '(Projektoi) Tj', '(Data dhe ora) Tj']) assert.ok(pdf.includes(s), s);
-  assert.equal(parse(serialize({ ...sampleDoc('civil'), info: { company: '  ' } } as never)).info, undefined);
+  const doc = { ...sampleDoc('civil'), info: { objectName: 'Vila', sheetName: 'Plani', drawingNo: 'E-01', revision: 'A', date: '14.10.2026 09:30', bad: 'x' } };
+  assert.deepEqual(parse(serialize(doc as never)).info, { objectName: 'Vila', sheetName: 'Plani', drawingNo: 'E-01', revision: 'A', date: '14.10.2026 09:30' });
+  assert.equal(parse(serialize({ ...sampleDoc('civil'), info: { client: '  ' } } as never)).info, undefined);
 });

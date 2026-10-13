@@ -23,4 +23,4 @@ Ikona është `icon.png` (logoja AST). Te Releases ka edhe `SHA256SUMS.txt`; në
 
 Instaluesit nuk janë ende të nënshkruar, ndaj Windows SmartScreen shfaq një paralajmërim deri sa të shtohet një certifikatë.
 
-Versioni i instaluesve është `version` te `desktop/package.json`: rrite para çdo publikimi, që butoni i përditësimit ta gjejë.
+Versioni i instaluesve është `version` te `desktop/package.json`: rrite para çdo publikimi. Butoni **Përditëso** lexon `https://allsolutiontech.de/soft/cad/versioni.json` (fusha `windows`) dhe hap vetëm faqen `https://allsolutiontech.de/soft/#cad`; programi nuk shkarkon asgjë vetë.

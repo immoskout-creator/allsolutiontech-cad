@@ -12,7 +12,7 @@ import { Editor, type ToolId } from './tools/editor';
 import { TouchGestures } from './tools/touch';
 import { isAndroidApp, setupAndroidUpdate } from './io/androidUpdate';
 import { setupPhoneLayout } from './ui/phone';
-import { nowStamp, openTitleInfo, titleLabels } from './ui/titleInfo';
+import { nowStamp, openTitleBox, titleBox } from './ui/titleInfo';
 import { fileName, loadAutosave, readFile, saveData, saveFile, serialize, writeAutosave } from './io/files';
 import { docToSvg } from './io/svg';
 import { docToPng } from './io/png';
@@ -714,8 +714,8 @@ async function exportData(fmt: SaveFormat): Promise<string | Uint8Array<ArrayBuf
     title: doc.name,
     product: productName(),
     date: nowStamp(),
-    labels: { project: ex('project'), scale: ex('scale'), date: ex('date'), sheet: ex('sheet'), legend: t('tabLegend') },
-    infoLabels: titleLabels(),
+    labels: { project: ex('project'), scale: ex('scale'), date: ex('date'), sheet: ex('sheet'), legend: t('tabLegend'), legendMore: ex('legendMore') },
+    box: titleBox(doc),
     legend: pdfLegend(doc),
     materials: pdfMaterials(doc),
   });
@@ -745,10 +745,14 @@ function pdfLegend(doc: Doc): LegendItem[] {
   }));
 }
 
+const askTitleBox = () => openTitleBox(store, { cancel: t('cancel'), save: t('save'), ok: ex('savePdf') });
+
 /** Ruan projektin ose planin në formatin e zgjedhur; emri pa prapashtesë. */
 async function saveAs(fmt: SaveFormat, base: string): Promise<void> {
   const f = SAVE_FORMATS.find((x) => x.id === fmt)!;
   if (fmt !== 'project' && !store.doc.entities.length) return toast(ex('empty'), true);
+  // PDF: së pari kutia e titullit (firma, projektuesi, objekti, vizatimi), pastaj ruajtja
+  if (fmt === 'pdf' && !(await askTitleBox())) return;
   try {
     const name = `${base.replace(/[\\/:*?"<>|]+/g, '').trim() || fileName(store.doc, '').slice(0, -1)}.${f.ext}`;
     const r = await saveData(name, await exportData(fmt), f.mime);
@@ -789,6 +793,7 @@ async function nativeSaveAs(): Promise<void> {
     const lower = path.toLowerCase();
     const f = SAVE_FORMATS.find((x) => lower.endsWith(`.${ext(x)}`)) ?? first;
     if (f.id !== 'project' && !store.doc.entities.length) return toast(ex('empty'), true);
+    if (f.id === 'pdf' && !(await askTitleBox())) return;
     await api.writeFile!(path, await exportData(f.id));
     savedAs(f.id, path.split(/[\\/]/).pop() ?? path);
   } catch (err) {
@@ -1088,10 +1093,10 @@ function renderProps(): void {
           ${store.doc.logo ? `<button class="btn" id="propLogoDel" type="button">${esc(t('logoRemove'))}</button>` : ''}</div>
         <span class="muted small">${esc(t('logoHint'))}</span></div>
       <div class="field">${esc(ex('titleBlock'))}
-        ${store.doc.info?.drawnBy || store.doc.info?.company ? `<span class="muted small">${esc([store.doc.info.company, store.doc.info.drawnBy].filter(Boolean).join(' · '))}</span>` : ''}
+        ${store.doc.info?.sheetName ? `<span class="muted small">${esc(store.doc.info.sheetName)}</span>` : ''}
         <button class="btn" id="propTitleInfo" type="button">${esc(ex('titleBlock'))}…</button></div>
       <p class="muted small">${esc(t('pickHint'))}</p>`;
-    $('propTitleInfo').addEventListener('click', () => openTitleInfo(store, { cancel: t('cancel'), save: t('save') }));
+    $('propTitleInfo').addEventListener('click', () => void openTitleBox(store, { cancel: t('cancel'), save: t('save') }));
     $('propLogo').addEventListener('click', pickLogo);
     $('propLogoDel')?.addEventListener('click', () => store.commit((d) => void delete d.logo));
     const input = $<HTMLInputElement>('propName');

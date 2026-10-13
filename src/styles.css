@@ -455,10 +455,17 @@ body.is-phone .modal-report .report-frame { grid-area: frame; min-height: 0; hei
   box-shadow: 8px 0 24px rgba(0, 0, 0, 0.45);
 }
 
-/* kartela e projektit (src/ui/titleInfo.ts) */
-.ti-box { max-width: 560px; max-height: calc(100vh - 32px); overflow-y: auto; }
+/* kutia e titullit (src/ui/titleInfo.ts) */
+.ti-box { max-width: 640px; max-height: calc(100vh - 32px); overflow-y: auto; }
+.ti-sec { border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 12px 12px; margin: 0; }
+.ti-sec legend { padding: 0 6px; font-weight: 600; font-size: 13px; color: var(--fg); }
 .ti-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
 .ti-grid .field input { width: 100%; box-sizing: border-box; }
+.ti-wide { grid-column: 1 / -1; }
 .ti-date { display: flex; gap: 6px; }
 .ti-date input { flex: 1; min-width: 0; }
+.ti-img { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ti-logo { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 40px; border-radius: 6px; background: #F59E42; color: #FFFFFF; font-weight: 700; font-size: 12px; overflow: hidden; }
+.ti-logo img { max-width: 100%; max-height: 100%; background: #FFFFFF; }
+.ti-sig { width: 100%; max-width: 480px; aspect-ratio: 480 / 150; background: #FFFFFF; border: 1px solid var(--line-2); border-radius: 6px; touch-action: none; cursor: crosshair; }
 @media (max-width: 520px) { .ti-grid { grid-template-columns: minmax(0, 1fr); } }

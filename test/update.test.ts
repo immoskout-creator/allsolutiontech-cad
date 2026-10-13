@@ -12,18 +12,20 @@ test('përditësimi: versioni lexohet nga titulli i publikimit dhe krahasohet si
   assert.equal(installerName('AllSolutionTech CAD All in One'), 'AllSolutionTech-CAD-All-in-One-Setup.exe');
 });
 
-test('përditësimi në Android: gjen APK-në e programit kur publikimi është më i ri', async () => {
-  const { apkName, newerApk } = await import('../src/io/androidUpdate');
-  const name = 'AllSolutionTech CAD All in One';
-  assert.equal(apkName(name), 'AllSolutionTech-CAD-All-in-One.apk');
-  const release = {
-    name: 'Programet për Android (0.1.7)',
-    assets: [
-      { name: 'AllSolutionTech-CAD-AP.apk', browser_download_url: 'https://x/ap.apk' },
-      { name: 'AllSolutionTech-CAD-All-in-One.apk', browser_download_url: 'https://x/all.apk' },
-    ],
-  };
-  assert.deepEqual(newerApk(release, '0.1.3', name), { version: '0.1.7', url: 'https://x/all.apk' });
-  assert.equal(newerApk(release, '0.1.7', name), null);
-  assert.equal(newerApk(release, '0.1.3', 'AllSolutionTech CAD Fire'), null);
+test('përditësimi: versioni vetëm nga allsolutiontech.de, faqja e shkruar në kod', async () => {
+  const { siteVersion, VERSION_URL, DOWNLOAD_PAGE } = await import('../desktop/version.cjs');
+  const json = { produkti: 'allsolutiontech-cad', windows: '0.1.23', android: '0.1.6', faqja: 'https://x.example/' };
+  assert.equal(siteVersion(json, 'windows'), '0.1.23');
+  assert.equal(siteVersion(json, 'android'), '0.1.6');
+  assert.equal(siteVersion({ ...json, produkti: 'tjeter' }, 'android'), null);
+  assert.equal(siteVersion({ ...json, android: 'x' }, 'android'), null);
+  assert.equal(siteVersion(null, 'android'), null);
+  assert.equal(VERSION_URL, 'https://allsolutiontech.de/soft/cad/versioni.json');
+  assert.equal(DOWNLOAD_PAGE, 'https://allsolutiontech.de/soft/#cad');
+});
+
+test('programi nuk lidhet më me GitHub (përditësimi, simbolet e komunitetit)', async () => {
+  const { readFile } = await import('node:fs/promises');
+  for (const f of ['src/io/androidUpdate.ts', 'desktop/update.cjs', 'desktop/main.cjs', 'src/symbols/community.ts', 'src/main.ts'])
+    assert.doesNotMatch((await readFile(f, 'utf8')).replace(/^\s*(\/\/|\*|\/\*\*).*$/gm, ''), /github(usercontent)?\.com/, f);
 });

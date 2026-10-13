@@ -116,7 +116,7 @@ export function parseInfo(raw: unknown): TitleInfo | null {
 }
 
 /** Logoja e projektit: vetëm JPEG si data URL, me madhësi të arsyeshme. */
-function parseLogo(raw: unknown): ProjectLogo | null {
+export function parseLogo(raw: unknown): ProjectLogo | null {
   const l = raw as Partial<ProjectLogo> | null;
   if (!l || typeof l.jpeg !== 'string' || !l.jpeg.startsWith('data:image/jpeg;base64,') || l.jpeg.length > 2_000_000) return null;
   if (!isNum(l.w) || !isNum(l.h) || l.w < 1 || l.h < 1 || l.w > 2000 || l.h > 2000) return null;
