@@ -403,9 +403,10 @@ a.btn { text-decoration: none; }
 .pp-menu .btn, .pp-foot .btn, .pp-foot .lic-badge { width: 100%; min-height: 34px; padding: 0 8px; font-size: 12px; justify-content: flex-start; box-sizing: border-box; }
 .pp-foot .lang { width: 100%; }
 .pp-foot .lang select { flex: 1; min-width: 0; min-height: 34px; }
-.pp-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
-.pp-tools .tool { min-width: 0; min-height: 36px; padding: 2px; }
-.pp-tools .tool span { display: none; }
+.pp-tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
+/* çdo vegël me emrin poshtë ikonës (Derë, Dritare, Kabllo…), që të njihet edhe në telefon */
+.pp-tools .tool { min-width: 0; min-height: 44px; padding: 3px 2px; gap: 1px; }
+.pp-tools .tool span { display: block; max-width: 100%; font-size: 9.5px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pp-settings .settings { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
 .pp-settings .field-inline { flex: 1 1 100%; flex-wrap: wrap; font-size: 11px; gap: 4px; }
 .pp-settings .chip { flex: 1 1 calc(50% - 6px); padding: 0 6px; }
@@ -413,6 +414,28 @@ a.btn { text-decoration: none; }
 .pp-settings .field-inline .num { width: 52px; }
 .pp-settings .chip { min-height: 30px; }
 .app.phone .panels-toggle, .app.phone .library-toggle { display: inline-block; }
+
+/* Raportet / PDF në telefon: si plani, veglat (titulli, faqet, ruajtja, mbyll) në një shirit majtas dhe faqja A4
+   djathtas, në këmbë (shirit i ngushtë) dhe shtrirë (~168 px) */
+body.is-phone #reportsModal { padding: 0; align-items: stretch; justify-content: stretch; }
+body.is-phone .modal-report {
+  --rp-w: 168px;
+  width: 100%; height: 100%; max-width: none; border: 0; border-radius: 0; padding: 8px; gap: 8px;
+  display: grid; grid-template-columns: var(--rp-w) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: "title frame" "tabs frame" "actions frame"; align-content: start;
+}
+body.is-phone[data-phone="portrait"] .modal-report { --rp-w: 92px; padding: 6px; gap: 6px; }
+body.is-phone .modal-report h2 { grid-area: title; font-size: 13px; line-height: 1.25; }
+body.is-phone[data-phone="portrait"] .modal-report h2 { display: none; }
+body.is-phone .modal-report .report-tabs { grid-area: tabs; flex-direction: column; flex-wrap: nowrap; gap: 4px; }
+body.is-phone .modal-report .modal-actions { grid-area: actions; flex-direction: column; justify-content: flex-start; align-self: start; gap: 4px; }
+body.is-phone .modal-report .spacer { display: none; }
+body.is-phone .modal-report .chip, body.is-phone .modal-report .modal-actions .btn {
+  width: 100%; min-height: 36px; height: auto; padding: 4px 6px; box-sizing: border-box;
+  white-space: normal; line-height: 1.2; font-size: 12px; text-align: center; justify-content: center;
+}
+body.is-phone[data-phone="portrait"] .modal-report .chip, body.is-phone[data-phone="portrait"] .modal-report .modal-actions .btn { font-size: 11px; padding: 4px 3px; }
+body.is-phone .modal-report .report-frame { grid-area: frame; min-height: 0; height: 100%; }
 
 /* telefoni në këmbë: vetëm ikona; një prekje te ☰ e hap panelin më të gjerë mbi plan */
 .app.phone[data-phone="portrait"] .pp-toggle { display: inline-flex; }
@@ -424,9 +447,18 @@ a.btn { text-decoration: none; }
 .app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-tools { grid-template-columns: minmax(0, 1fr); }
 .app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-menu .btn { width: 44px; justify-content: center; padding: 0; }
 .app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-menu .btn span { display: none; }
-.app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-tools .tool { width: 44px; }
+.app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-tools .tool { width: 48px; }
+.app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-tools .tool span { font-size: 8.5px; }
 .app.phone[data-phone="portrait"][data-phone-open] .phone-panel {
   position: absolute; z-index: 40; width: 220px; box-sizing: border-box;
   top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px); left: env(safe-area-inset-left, 0px);
   box-shadow: 8px 0 24px rgba(0, 0, 0, 0.45);
 }
+
+/* kartela e projektit (src/ui/titleInfo.ts) */
+.ti-box { max-width: 560px; max-height: calc(100vh - 32px); overflow-y: auto; }
+.ti-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.ti-grid .field input { width: 100%; box-sizing: border-box; }
+.ti-date { display: flex; gap: 6px; }
+.ti-date input { flex: 1; min-width: 0; }
+@media (max-width: 520px) { .ti-grid { grid-template-columns: minmax(0, 1fr); } }

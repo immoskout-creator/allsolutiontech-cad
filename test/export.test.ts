@@ -130,8 +130,9 @@ test('PDF: lista e materialeve hyn vetë si faqja 2, me shenjat shqipe', () => {
   assert.ok(pdf.includes('(Ndri\xe7ues tavani) Tj') && pdf.includes('(AST-PR-02) Tj') && pdf.includes('(48) Tj'));
   // "Gjithsej" për çdo njësi të grupit: 17 copë pajisje
   assert.ok(pdf.includes('(Gjithsej) Tj') && pdf.includes('(17) Tj'));
-  // faqja e planit tregon "1/2" te fleta
-  assert.match(pdf, /\(\d\d\.\d\d\.\d{4} {2}A\d {2}1\/2\) Tj/);
+  // faqja e planit tregon "1/2" te fleta; data ka kutinë e vet
+  assert.match(pdf, /\(A\d {2}1\/2\) Tj/);
+  assert.ok(pdf.includes('(08.10.2026) Tj'));
 });
 
 test('PDF: pa materiale s\'ka faqe 2; shumë materiale zënë disa faqe', () => {
@@ -144,4 +145,14 @@ test('PDF: pa materiale s\'ka faqe 2; shumë materiale zënë disa faqe', () => 
   assert.ok(count >= 3, `faqe: ${count}`);
   assert.ok(pdf.includes(`(Faqe ${count} / ${count}) Tj`));
   assert.ok(pdf.includes('(Element 89) Tj'));
+});
+
+test('PDF: kartela e projektit (ISO 7200) del në tabelën e titullit dhe ruhet me projektin', async () => {
+  const { parse, serialize } = await import('../src/io/files');
+  const doc = { ...sampleDoc('civil'), info: { company: 'Kompania Shembull', drawnBy: 'Projektuesi', drawingNo: 'E-01', revision: 'A', date: '14.10.2026 09:30', bad: 'x' } };
+  const back = parse(serialize(doc as never));
+  assert.deepEqual(back.info, { company: 'Kompania Shembull', drawnBy: 'Projektuesi', drawingNo: 'E-01', revision: 'A', date: '14.10.2026 09:30' });
+  const pdf = text(docToPdf(back, { ...PAGE, infoLabels: { company: 'Kompania', drawnBy: 'Projektoi', dateTime: 'Data dhe ora' } }));
+  for (const s of ['(Kompania Shembull) Tj', '(Projektuesi) Tj', '(E-01) Tj', '(14.10.2026 09:30) Tj', '(Projektoi) Tj', '(Data dhe ora) Tj']) assert.ok(pdf.includes(s), s);
+  assert.equal(parse(serialize({ ...sampleDoc('civil'), info: { company: '  ' } } as never)).info, undefined);
 });

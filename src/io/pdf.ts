@@ -1,11 +1,11 @@
-import type { Doc, ProjectLogo, Vec } from '../core/types';
+import { TITLE_FIELDS, type Doc, type ProjectLogo, type Vec } from '../core/types';
 import { recordDrawing, type Drawing } from './export';
 import { latin1 } from './dxf';
 import { PX_PER_PAPER_MM, Recorder, parseColor, type Shape } from './recorder';
 
 /**
  * PDF vektorial për printim: plani në shkallë të vërtetë (p.sh. 1:50) në fletën më të vogël A4–A0 ku nxë,
- * me kornizë dhe tabelë titulli (logoja AST, programi, projekti, shkalla, data, fleta).
+ * me kornizë dhe tabelë titulli sipas ISO 7200 (logoja, kompania, klienti, projekti, nr., shkalla, projektoi, data, fleta).
  * Pa biblioteka: PDF 1.4 me shkronjat standarde Helvetica.
  */
 
@@ -128,7 +128,12 @@ interface PageInput {
   legend?: LegendItem[];
   /** Logoja e përdoruesit (JPEG); pa të vizatohet logoja AST. */
   logo?: ProjectLogo;
+  /** Kartela e projektit (ISO 7200): vlerat dhe emrat e fushave; pa të fushat dalin bosh. */
+  info?: Partial<Record<TitleField, string>>;
+  infoLabels?: Partial<Record<TitleField | 'dateTime', string>>;
 }
+
+type TitleField = (typeof TITLE_FIELDS)[number];
 
 /** Përmbajtja e faqes (operatorët PDF) dhe madhësia e fletës. */
 export function drawingToPdf(drawing: Drawing, docScale: number, page: PageInput): string {
@@ -225,12 +230,16 @@ export function drawingToPdf(drawing: Drawing, docScale: number, page: PageInput
   const jpeg = page.logo ? jpegBytes(page.logo.jpeg) : null;
   const matPages = materialPages(page);
   const total = 1 + matPages.length;
-  titleBlock(ops, W, H, page, !!jpeg, [page.labels.scale, `1:${scale}`], `${page.date}  ${paper.name}${total > 1 ? `  1/${total}` : ''}`);
+  titleBlock(ops, W, H, page, !!jpeg, [page.labels.scale, `1:${scale}`], `${paper.name}${total > 1 ? `  1/${total}` : ''}`);
   const pages = [{ W, H, content: ops.join('\n') }, ...matPages.map((rows, i) => ({ W: A4P.w, H: A4P.h, content: materialPage(page, rows, i + 2, total, !!jpeg) }))];
   return writePdf(pages, page, jpeg);
 }
 
-/** Korniza dhe tabela e titullit (logoja, programi, projekti, shkalla ose faqja, data dhe fleta). */
+/**
+ * Korniza dhe tabela e titullit sipas ISO 7200: majtas logoja dhe programi; pastaj tre rreshta:
+ * kompania · klienti · adresa / projekti · nr. i vizatimit · rev. · shkalla (ose faqja) /
+ * projektoi · kontrolloi · data dhe ora · fleta.
+ */
 function titleBlock(ops: string[], W: number, H: number, page: PageInput, hasLogo: boolean, mid: [string, string], sheet: string): void {
   const P = (mm: number) => n(mm * PT);
   ops.push('[] 0 d 0 0 0 RG 0 0 0 rg');
@@ -238,19 +247,31 @@ function titleBlock(ops: string[], W: number, H: number, page: PageInput, hasLog
   const tbW = Math.min(190, W - 2 * MARGIN);
   const tx = W - MARGIN - tbW, ty = MARGIN;
   ops.push(`${P(0.35)} w ${P(tx)} ${P(ty)} ${P(tbW)} ${P(TITLE_H)} re S`);
-  logoOps(ops, page, hasLogo, tx + 3, ty + 3, 18);
-  const cols = [tx + 24, tx + 24 + (tbW - 24) * 0.58];
-  ops.push(`0 0 0 RG ${P(0.2)} w ${P(tx + 24)} ${P(ty)} m ${P(tx + 24)} ${P(ty + TITLE_H)} l S`);
-  ops.push(`${P(cols[1])} ${P(ty)} m ${P(cols[1])} ${P(ty + TITLE_H)} l S`);
-  ops.push(`${P(tx + 24)} ${P(ty + 12)} m ${P(tx + tbW)} ${P(ty + 12)} l S`);
-  const cell = (x: number, y: number, label: string, value: string, size = 3.4) => {
-    ops.push(`BT 0.4 0.4 0.4 rg /F1 ${P(1.9)} Tf ${P(x + 2)} ${P(y + 8.2)} Td ${pdfString(label)} Tj ET`);
-    ops.push(`BT 0 0 0 rg /F2 ${P(size)} Tf ${P(x + 2)} ${P(y + 3)} Td ${pdfString(value)} Tj ET`);
-  };
-  cell(tx + 24, ty + 12, 'AllSolutionTech', short(page.product, 34), 3);
-  cell(tx + 24, ty, page.labels.project, short(page.title, 34));
-  cell(cols[1], ty + 12, mid[0], mid[1]);
-  cell(cols[1], ty, `${page.labels.date} / ${page.labels.sheet}`, sheet, 3);
+  logoOps(ops, page, hasLogo, tx + 4, ty + 7, 16);
+  ops.push(`BT 0.3 0.3 0.3 rg /F2 ${P(1.45)} Tf ${P(tx + 1.2)} ${P(ty + 2.6)} Td ${pdfString(short(page.product, 32))} Tj ET`);
+  const x0 = tx + 24, w = tbW - 24, rowH = TITLE_H / 3;
+  ops.push(`0 0 0 RG ${P(0.2)} w ${P(x0)} ${P(ty)} m ${P(x0)} ${P(ty + TITLE_H)} l S`);
+  for (const r of [1, 2]) ops.push(`${P(x0)} ${P(ty + r * rowH)} m ${P(tx + tbW)} ${P(ty + r * rowH)} l S`);
+  const info = page.info ?? {};
+  const L = page.infoLabels ?? {};
+  // çdo rresht: [pjesa e gjerësisë, emri, vlera, vlera e theksuar]
+  const rows: [number, string, string, boolean][][] = [
+    [[0.24, L.drawnBy ?? 'Drawn by', info.drawnBy ?? '', false], [0.24, L.checkedBy ?? 'Checked', info.checkedBy ?? '', false], [0.3, L.dateTime ?? page.labels.date, info.date || page.date, false], [0.22, page.labels.sheet, sheet, false]],
+    [[0.46, page.labels.project, page.title, true], [0.22, L.drawingNo ?? 'Drawing no.', info.drawingNo ?? '', true], [0.1, L.revision ?? 'Rev.', info.revision ?? '', false], [0.22, mid[0], mid[1], true]],
+    [[0.34, L.company ?? 'Company', info.company ?? '', true], [0.3, L.client ?? 'Client', info.client ?? '', false], [0.36, L.address ?? 'Address', info.address ?? '', false]],
+  ];
+  rows.forEach((cells, r) => {
+    const y = ty + r * rowH;
+    let x = x0;
+    cells.forEach(([part, label, value, bold], i) => {
+      const cw = w * part;
+      if (i) ops.push(`${P(x)} ${P(y)} m ${P(x)} ${P(y + rowH)} l S`);
+      const size = bold ? 2.7 : 2.5;
+      ops.push(`BT 0.4 0.4 0.4 rg /F1 ${P(1.5)} Tf ${P(x + 1.2)} ${P(y + rowH - 2.2)} Td ${pdfString(short(label, Math.floor((cw - 2) / 0.8)))} Tj ET`);
+      if (value) ops.push(`BT 0 0 0 rg /${bold ? 'F2' : 'F1'} ${P(size)} Tf ${P(x + 1.2)} ${P(y + 1.5)} Td ${pdfString(short(value, Math.floor((cw - 2) / (size * 0.55))))} Tj ET`);
+      x += cw;
+    });
+  });
 }
 
 const short = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}...` : s);
@@ -327,7 +348,7 @@ function materialPage(page: PageInput, lines: MatLine[], no: number, total: numb
   text(MARGIN + 22, top - 15.5, m.title, 5.2, true);
   const rx = W - MARGIN - 4;
   text(rx, top - 8, short(page.title, 40), 3.2, true, 0, true);
-  text(rx, top - 13, page.date, 2.8, false, 0.35, true);
+  text(rx, top - 13, page.info?.date || page.date, 2.8, false, 0.35, true);
   text(rx, top - 18, m.labels.page.replace('{n}', String(no)).replace('{total}', String(total)), 2.8, true, 0, true);
   ops.push(`0 0 0 RG ${P(0.4)} w ${P(MARGIN)} ${P(top - MAT_HEAD)} m ${P(W - MARGIN)} ${P(top - MAT_HEAD)} l S`);
 
@@ -364,7 +385,7 @@ function materialPage(page: PageInput, lines: MatLine[], no: number, total: numb
   }
   if (m.note && no === total) text(x0, Math.max(y - 2, MARGIN + TITLE_H + 4), short(m.note, 120), 2.2, false, 0.35);
 
-  titleBlock(ops, W, H, page, hasLogo, [m.labels.page.replace(/\s*\{n\}.*$/, ''), `${no} / ${total}`], `${page.date}  A4`);
+  titleBlock(ops, W, H, page, hasLogo, [m.labels.page.replace(/\s*\{n\}.*$/, ''), `${no} / ${total}`], 'A4');
   return ops.join('\n');
 }
 
@@ -419,5 +440,5 @@ function jpegBytes(dataUrl: string): string | null {
 
 /** Plani si skedar PDF. */
 export function docToPdf(doc: Doc, page: PageInput): Uint8Array<ArrayBuffer> {
-  return latin1(drawingToPdf(recordDrawing(doc), doc.scale, { ...page, logo: page.logo ?? doc.logo }));
+  return latin1(drawingToPdf(recordDrawing(doc), doc.scale, { ...page, logo: page.logo ?? doc.logo, info: page.info ?? doc.info }));
 }

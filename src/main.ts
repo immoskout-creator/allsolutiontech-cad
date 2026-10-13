@@ -10,8 +10,9 @@ import { Viewport } from './view/viewport';
 import { render } from './view/renderer';
 import { Editor, type ToolId } from './tools/editor';
 import { TouchGestures } from './tools/touch';
-import { setupAndroidUpdate } from './io/androidUpdate';
+import { isAndroidApp, setupAndroidUpdate } from './io/androidUpdate';
 import { setupPhoneLayout } from './ui/phone';
+import { nowStamp, openTitleInfo, titleLabels } from './ui/titleInfo';
 import { fileName, loadAutosave, readFile, saveData, saveFile, serialize, writeAutosave } from './io/files';
 import { docToSvg } from './io/svg';
 import { docToPng } from './io/png';
@@ -237,7 +238,11 @@ const circuitPanel = new CircuitPanel(
   () => EDITION.kinds[0],
 );
 
-const reports = new ReportsDialog(store, (m, error) => toast(m, error));
+const reports = new ReportsDialog(
+  store,
+  (m, error) => toast(m, error),
+  isAndroidApp() ? () => void saveAs('pdf', fileName(store.doc, '').slice(0, -1)) : undefined,
+);
 $('btnReports').addEventListener('click', () => reports.open());
 store.subscribe(() => reports.refresh());
 
@@ -646,6 +651,9 @@ function syncLibraryPressed(): void {
 // ---- skedarët ----
 
 const fileInput = $<HTMLInputElement>('fileInput');
+// Android: zgjedhësi i skedarëve s'njeh .astcad/.dxf si lloje, prandaj aty tregohen të gjithë skedarët;
+// parse() e refuzon me mesazh të qartë çdo skedar që s'është projekt
+if (isAndroidApp()) fileInput.removeAttribute('accept');
 $('btnOpen').addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', async () => {
   const f = fileInput.files?.[0];
@@ -705,8 +713,9 @@ async function exportData(fmt: SaveFormat): Promise<string | Uint8Array<ArrayBuf
   return docToPdf(doc, {
     title: doc.name,
     product: productName(),
-    date: new Date().toLocaleDateString('sq-AL', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+    date: nowStamp(),
     labels: { project: ex('project'), scale: ex('scale'), date: ex('date'), sheet: ex('sheet'), legend: t('tabLegend') },
+    infoLabels: titleLabels(),
     legend: pdfLegend(doc),
     materials: pdfMaterials(doc),
   });
@@ -1055,7 +1064,7 @@ const numField = (id: string, label: string, value: number | string, step = '1')
 let propsKey = '';
 function renderProps(): void {
   const sel = store.selected();
-  const key = JSON.stringify([getLang(), store.doc.name, sel, store.doc.entities.length, store.doc.circuits, store.doc.logo?.jpeg.length]);
+  const key = JSON.stringify([getLang(), store.doc.name, sel, store.doc.entities.length, store.doc.circuits, store.doc.logo?.jpeg.length, store.doc.info]);
   if (key === propsKey) return;
   propsKey = key;
   const el = $('props');
@@ -1078,7 +1087,11 @@ function renderProps(): void {
           <button class="btn" id="propLogo" type="button">${esc(t('logoUpload'))}</button>
           ${store.doc.logo ? `<button class="btn" id="propLogoDel" type="button">${esc(t('logoRemove'))}</button>` : ''}</div>
         <span class="muted small">${esc(t('logoHint'))}</span></div>
+      <div class="field">${esc(ex('titleBlock'))}
+        ${store.doc.info?.drawnBy || store.doc.info?.company ? `<span class="muted small">${esc([store.doc.info.company, store.doc.info.drawnBy].filter(Boolean).join(' · '))}</span>` : ''}
+        <button class="btn" id="propTitleInfo" type="button">${esc(ex('titleBlock'))}…</button></div>
       <p class="muted small">${esc(t('pickHint'))}</p>`;
+    $('propTitleInfo').addEventListener('click', () => openTitleInfo(store, { cancel: t('cancel'), save: t('save') }));
     $('propLogo').addEventListener('click', pickLogo);
     $('propLogoDel')?.addEventListener('click', () => store.commit((d) => void delete d.logo));
     const input = $<HTMLInputElement>('propName');

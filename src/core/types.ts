@@ -161,7 +161,23 @@ export interface Doc {
   logo?: ProjectLogo;
   /** Qarqet e kuadrit. */
   circuits?: Circuit[];
+  /** Kartela e projektit (tabela e titullit sipas ISO 7200): kush e bëri, kompania, klienti, data… */
+  info?: TitleInfo;
 }
+
+/** Fushat e kartelës; të gjitha tekst i lirë, bosh kur s'plotësohen. Data bosh = data dhe ora e ruajtjes. */
+export interface TitleInfo {
+  company?: string;
+  drawnBy?: string;
+  checkedBy?: string;
+  client?: string;
+  address?: string;
+  drawingNo?: string;
+  revision?: string;
+  date?: string;
+}
+
+export const TITLE_FIELDS = ['company', 'drawnBy', 'checkedBy', 'client', 'address', 'drawingNo', 'revision', 'date'] as const;
 
 /** Logoja si JPEG (data URL) me madhësinë në piksel. */
 export interface ProjectLogo {

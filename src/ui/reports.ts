@@ -123,10 +123,17 @@ export class ReportsDialog {
   constructor(
     private store: Store,
     private toast: (msg: string, error?: boolean) => void,
+    /** Android: printimi s'punon brenda WebView-it, prandaj butoni ruan PDF-në e planit (me materialet) për ta ndarë/printuar. */
+    pdf?: () => void,
   ) {
+    const printBtn = document.getElementById('reportPrint')!;
+    if (pdf) {
+      printBtn.removeAttribute('data-i18n');
+      printBtn.textContent = 'PDF';
+    }
     this.tabs.forEach((b) => b.addEventListener('click', () => this.show(b.dataset.report as ReportKind)));
     document.getElementById('reportClose')!.addEventListener('click', () => this.close());
-    document.getElementById('reportPrint')!.addEventListener('click', () => this.print());
+    printBtn.addEventListener('click', () => (pdf ? pdf() : this.print()));
     document.getElementById('reportHtml')!.addEventListener('click', () => this.saveHtml());
     this.csvBtn.addEventListener('click', () => this.saveCsv());
     this.modal.addEventListener('click', (e) => {

@@ -68,6 +68,21 @@ for (const ed of editions) {
     await writeFile(join(javaDir, f), (await readFile(join('native', f), 'utf8')).replace('__PACKAGE__', appId));
   }
 
+  // ruajtja te Dokumentet / AllSolutionTech CAD (@capacitor/filesystem): Android 10 e më i vjetër kërkon lejen e
+  // memories dhe requestLegacyExternalStorage; nga Android 11 skedarët e vetë programit shkruhen pa leje
+  const manifestFile = 'android/app/src/main/AndroidManifest.xml';
+  let manifest = await readFile(manifestFile, 'utf8');
+  manifest = manifest
+    .replace('<application', '<application\n        android:requestLegacyExternalStorage="true"')
+    .replace(
+      '<uses-permission android:name="android.permission.INTERNET" />',
+      '<uses-permission android:name="android.permission.INTERNET" />\n' +
+        '    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n' +
+        '    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />',
+    );
+  if (!manifest.includes('WRITE_EXTERNAL_STORAGE')) throw new Error('AndroidManifest.xml: lejet e ruajtjes nuk u shtuan');
+  await writeFile(manifestFile, manifest);
+
   // ikona: logoja AST e programeve të Windows në vend të ikonës së Capacitor
   const res = 'android/app/src/main/res';
   for (const dir of await readdir(res)) {

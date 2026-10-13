@@ -21,8 +21,14 @@ node build-apk.mjs --edition all --prepare && npx cap open android   # projekti 
   ose kabllon), dy gishta zhvendosin dhe zmadhojnë pamjen (`src/tools/touch.ts`).
 - Butoni **Përditëso** lart (dhe një kontroll vetë pak pas hapjes) gjen versionin e ri te `android-latest` dhe hap
   APK-në në shfletues; Android e instalon mbi të vjetrin (`src/io/androidUpdate.ts`).
-- Ruaj, PDF, DXF, CSV hapin dritaren "Ruaj si" të Android (`native/AstFilesPlugin.java` ← `src/io/files.ts`).
-- Pamja në telefon (`src/ui/phone.ts`): i shtrirë, paneli majtas (~168 px) me menynë, veglat në rrjetë 4 kolona,
+- Ruajtja (Ctrl+S, "Ruaj si" PDF/DXF/SVG/PNG/projekt, CSV, raportet): `@capacitor/filesystem` e shkruan skedarin te
+  Dokumentet / AllSolutionTech CAD si "<emri> – <data>.<prapashtesa>", pastaj del mesazhi me "Hap / Ndaj"
+  (`@capacitor/share`: email, WhatsApp, Drive, printim) dhe "Mbyll". Kur Android-i s'lejon Dokumentet, skedari
+  shkruhet te Cache dhe hapet menjëherë "Ndaj"; çdo dështim del si "Ruajtja dështoi: …" (`src/io/androidFiles.ts`).
+- "Hap" tregon të gjithë skedarët (zgjedhësi i Android-it s'i njeh .astcad/.dxf si lloje).
+- Raportet në telefon: titulli, faqet dhe butonat majtas, faqja A4 djathtas (në këmbë dhe shtrirë); "Printo" s'punon
+  në WebView, prandaj në Android butoni "PDF" ruan PDF-në e planit (me legjendën dhe listën e materialeve).
+- Pamja në telefon (`src/ui/phone.ts`): i shtrirë, paneli majtas (~168 px) me menynë, veglat në rrjetë 3 kolona me emrin poshtë ikonës, butonat Libraritë dhe Panelet,
   cilësimet dhe poshtë gjuhën, kontaktin, përditësimin dhe licencën; në këmbë, paneli vetëm me ikona (56 px) që hapet
   me ☰. Tableti mbetet si në kompjuter. Faqja nuk shkon nën shiritin e orës dhe nën Back/Home
   (`adjustMarginsForEdgeToEdge: "force"` dhe ngjyra e shiritave te `native/MainActivity.java`).
