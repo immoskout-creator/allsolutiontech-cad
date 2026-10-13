@@ -99,11 +99,31 @@ function pdfString(s: string): string {
   return `(${out})`;
 }
 
+/** Një rresht i listës së materialeve në PDF. */
+export interface MaterialPdfRow {
+  group: string;
+  code: string;
+  name: string;
+  qty: number;
+  unit: string;
+}
+
+/** Lista e materialeve: faqja 2 (e të tjera nëse s'nxë), pas planit. */
+export interface MaterialPdf {
+  title: string;
+  rows: MaterialPdfRow[];
+  labels: { nr: string; code: string; name: string; qty: string; unit: string; total: string; page: string };
+  /** Shënimi poshtë tabelës (p.sh. rezerva e kabllove). */
+  note?: string;
+}
+
 interface PageInput {
   title: string;
   product: string;
   date: string;
   labels: { project: string; scale: string; date: string; sheet: string; legend?: string };
+  /** Lista e materialeve; pa rreshta faqja 2 nuk shtohet. */
+  materials?: MaterialPdf;
   /** Simbolet e përdorura në plan, për legjendën automatike. */
   legend?: LegendItem[];
   /** Logoja e përdoruesit (JPEG); pa të vizatohet logoja AST. */
@@ -177,7 +197,6 @@ export function drawingToPdf(drawing: Drawing, docScale: number, page: PageInput
     const top = H - MARGIN - PAD; // mm nga poshtë
     const x0 = W - MARGIN - legW + PAD / 2;
     const perCol = Math.max(1, Math.floor((top - (MARGIN + TITLE_H + PAD) - LEG_HEAD) / LEG_ROW));
-    const short = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}...` : s);
     ops.push('[] 0 d 0 0 0 RG');
     ops.push(`${P(0.2)} w ${P(x0 - PAD / 2)} ${P(MARGIN + TITLE_H)} m ${P(x0 - PAD / 2)} ${P(H - MARGIN)} l S`);
     ops.push(`BT 0 0 0 rg /F2 ${P(3.2)} Tf ${P(x0 + 1)} ${P(top - 4.5)} Td ${pdfString(page.labels.legend ?? 'Legend')} Tj ET`);
@@ -203,48 +222,177 @@ export function drawingToPdf(drawing: Drawing, docScale: number, page: PageInput
     });
   }
 
-  // korniza dhe tabela e titullit
+  const jpeg = page.logo ? jpegBytes(page.logo.jpeg) : null;
+  const matPages = materialPages(page);
+  const total = 1 + matPages.length;
+  titleBlock(ops, W, H, page, !!jpeg, [page.labels.scale, `1:${scale}`], `${page.date}  ${paper.name}${total > 1 ? `  1/${total}` : ''}`);
+  const pages = [{ W, H, content: ops.join('\n') }, ...matPages.map((rows, i) => ({ W: A4P.w, H: A4P.h, content: materialPage(page, rows, i + 2, total, !!jpeg) }))];
+  return writePdf(pages, page, jpeg);
+}
+
+/** Korniza dhe tabela e titullit (logoja, programi, projekti, shkalla ose faqja, data dhe fleta). */
+function titleBlock(ops: string[], W: number, H: number, page: PageInput, hasLogo: boolean, mid: [string, string], sheet: string): void {
+  const P = (mm: number) => n(mm * PT);
   ops.push('[] 0 d 0 0 0 RG 0 0 0 rg');
   ops.push(`${P(0.5)} w ${P(MARGIN)} ${P(MARGIN)} ${P(W - 2 * MARGIN)} ${P(H - 2 * MARGIN)} re S`);
   const tbW = Math.min(190, W - 2 * MARGIN);
   const tx = W - MARGIN - tbW, ty = MARGIN;
   ops.push(`${P(0.35)} w ${P(tx)} ${P(ty)} ${P(tbW)} ${P(TITLE_H)} re S`);
-  // logoja e përdoruesit brenda katrorit 18 × 18 mm, me përpjesëtimet e veta; pa të katrori portokalli me "AST"
-  const jpeg = page.logo ? jpegBytes(page.logo.jpeg) : null;
-  if (page.logo && jpeg) {
-    const k = 18 / Math.max(page.logo.w, page.logo.h);
-    const lw = page.logo.w * k, lh = page.logo.h * k;
-    ops.push(`q ${P(lw)} 0 0 ${P(lh)} ${P(tx + 3 + (18 - lw) / 2)} ${P(ty + 3 + (18 - lh) / 2)} cm /Im1 Do Q`);
-  } else {
-    ops.push(`0.961 0.62 0.259 rg ${P(tx + 3)} ${P(ty + 3)} ${P(18)} ${P(18)} re f`);
-    ops.push(`BT 1 1 1 rg /F2 ${P(6.2)} Tf ${P(tx + 4.6)} ${P(ty + 9.8)} Td (AST) Tj ET`);
-  }
+  logoOps(ops, page, hasLogo, tx + 3, ty + 3, 18);
   const cols = [tx + 24, tx + 24 + (tbW - 24) * 0.58];
-  ops.push(`${P(0.2)} w ${P(tx + 24)} ${P(ty)} m ${P(tx + 24)} ${P(ty + TITLE_H)} l S`);
+  ops.push(`0 0 0 RG ${P(0.2)} w ${P(tx + 24)} ${P(ty)} m ${P(tx + 24)} ${P(ty + TITLE_H)} l S`);
   ops.push(`${P(cols[1])} ${P(ty)} m ${P(cols[1])} ${P(ty + TITLE_H)} l S`);
   ops.push(`${P(tx + 24)} ${P(ty + 12)} m ${P(tx + tbW)} ${P(ty + 12)} l S`);
   const cell = (x: number, y: number, label: string, value: string, size = 3.4) => {
     ops.push(`BT 0.4 0.4 0.4 rg /F1 ${P(1.9)} Tf ${P(x + 2)} ${P(y + 8.2)} Td ${pdfString(label)} Tj ET`);
     ops.push(`BT 0 0 0 rg /F2 ${P(size)} Tf ${P(x + 2)} ${P(y + 3)} Td ${pdfString(value)} Tj ET`);
   };
-  const short = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}...` : s);
   cell(tx + 24, ty + 12, 'AllSolutionTech', short(page.product, 34), 3);
   cell(tx + 24, ty, page.labels.project, short(page.title, 34));
-  cell(cols[1], ty + 12, page.labels.scale, `1:${scale}`);
-  cell(cols[1], ty, `${page.labels.date} / ${page.labels.sheet}`, `${page.date}  ${paper.name}`, 3);
+  cell(cols[1], ty + 12, mid[0], mid[1]);
+  cell(cols[1], ty, `${page.labels.date} / ${page.labels.sheet}`, sheet, 3);
+}
 
-  const content = ops.join('\n');
+const short = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}...` : s);
+
+/** Logoja e përdoruesit brenda katrorit size × size, me përpjesëtimet e veta; pa të katrori portokalli me "AST". */
+function logoOps(ops: string[], page: PageInput, hasLogo: boolean, x: number, y: number, size: number): void {
+  const P = (mm: number) => n(mm * PT);
+  if (page.logo && hasLogo) {
+    const k = size / Math.max(page.logo.w, page.logo.h);
+    const lw = page.logo.w * k, lh = page.logo.h * k;
+    ops.push(`q ${P(lw)} 0 0 ${P(lh)} ${P(x + (size - lw) / 2)} ${P(y + (size - lh) / 2)} cm /Im1 Do Q`);
+  } else {
+    ops.push(`0.961 0.62 0.259 rg ${P(x)} ${P(y)} ${P(size)} ${P(size)} re f`);
+    ops.push(`BT 1 1 1 rg /F2 ${P(size * 0.344)} Tf ${P(x + size * 0.089)} ${P(y + size * 0.378)} Td (AST) Tj ET`);
+  }
+}
+
+// ---- lista e materialeve: A4 më këmbë, pas faqes së planit ----
+
+const A4P = { w: 210, h: 297 };
+const MAT_HEAD = 24; // koka e faqes: logoja, titulli, projekti, data, faqja
+const MAT_ROW = 5.4;
+const MAT_COLS = { nr: 0, code: 10, name: 46, qty: 160, unit: 172 }; // mm nga e majta e tabelës (gjerësia 190)
+
+type MatLine = { kind: 'group'; text: string } | { kind: 'row'; nr: number; row: MaterialPdfRow } | { kind: 'total'; qty: number; unit: string };
+
+/** Rreshtat e tabelës: grupi, rreshtat me numër, pastaj "Gjithsej" për çdo njësi të grupit. */
+export function materialLines(rows: MaterialPdfRow[]): MatLine[] {
+  const out: MatLine[] = [];
+  let nr = 0;
+  for (const g of [...new Set(rows.map((r) => r.group))]) {
+    const list = rows.filter((r) => r.group === g);
+    out.push({ kind: 'group', text: g });
+    for (const row of list) out.push({ kind: 'row', nr: ++nr, row });
+    const units = [...new Set(list.map((r) => r.unit))];
+    for (const unit of units) out.push({ kind: 'total', qty: list.filter((r) => r.unit === unit).reduce((a, r) => a + r.qty, 0), unit });
+  }
+  return out;
+}
+
+/** Rreshtat në faqe: sa nxënë mbi tabelën e titullit; grupi nuk mbetet vetëm në fund të faqes. */
+function materialPages(page: PageInput): MatLine[][] {
+  const rows = page.materials?.rows ?? [];
+  if (!rows.length) return [];
+  const per = Math.floor((A4P.h - 2 * MARGIN - MAT_HEAD - 2 * MAT_ROW - TITLE_H - 10) / MAT_ROW);
+  const pages: MatLine[][] = [];
+  let cur: MatLine[] = [];
+  for (const line of materialLines(rows)) {
+    if (cur.length >= per || (line.kind === 'group' && cur.length >= per - 1)) {
+      pages.push(cur);
+      cur = [];
+    }
+    cur.push(line);
+  }
+  pages.push(cur);
+  return pages;
+}
+
+function materialPage(page: PageInput, lines: MatLine[], no: number, total: number, hasLogo: boolean): string {
+  const m = page.materials!;
+  const W = A4P.w, H = A4P.h;
+  const P = (mm: number) => n(mm * PT);
+  const ops: string[] = ['1 J 1 j'];
+  const text = (x: number, y: number, s: string, size: number, bold = false, gray = 0, right = false) => {
+    // tekstet djathtas: gjerësia e përafërt e Helvetica (0.5 em për shkronjë)
+    const dx = right ? -s.length * size * 0.5 : 0;
+    ops.push(`BT ${n(gray)} ${n(gray)} ${n(gray)} rg ${bold ? '/F2' : '/F1'} ${P(size)} Tf ${P(x + dx)} ${P(y)} Td ${pdfString(s)} Tj ET`);
+  };
+
+  // koka: logoja AST, programi, titulli; djathtas projekti, data dhe "Faqe 2 / N"
+  const top = H - MARGIN;
+  logoOps(ops, page, hasLogo, MARGIN + 4, top - 4 - 14, 14);
+  text(MARGIN + 22, top - 9, short(page.product, 60), 3, false, 0.35);
+  text(MARGIN + 22, top - 15.5, m.title, 5.2, true);
+  const rx = W - MARGIN - 4;
+  text(rx, top - 8, short(page.title, 40), 3.2, true, 0, true);
+  text(rx, top - 13, page.date, 2.8, false, 0.35, true);
+  text(rx, top - 18, m.labels.page.replace('{n}', String(no)).replace('{total}', String(total)), 2.8, true, 0, true);
+  ops.push(`0 0 0 RG ${P(0.4)} w ${P(MARGIN)} ${P(top - MAT_HEAD)} m ${P(W - MARGIN)} ${P(top - MAT_HEAD)} l S`);
+
+  // tabela
+  const x0 = MARGIN + 4;
+  const tw = W - 2 * MARGIN - 8;
+  const qtyRight = x0 + MAT_COLS.unit - 3;
+  let y = top - MAT_HEAD - 6;
+  text(x0 + MAT_COLS.nr + 1, y, m.labels.nr, 2.4, true, 0.3);
+  text(x0 + MAT_COLS.code, y, m.labels.code, 2.4, true, 0.3);
+  text(x0 + MAT_COLS.name, y, m.labels.name, 2.4, true, 0.3);
+  text(qtyRight, y, m.labels.qty, 2.4, true, 0.3, true);
+  text(x0 + MAT_COLS.unit, y, m.labels.unit, 2.4, true, 0.3);
+  ops.push(`0.5 0.5 0.5 RG ${P(0.25)} w ${P(x0)} ${P(y - 1.8)} m ${P(x0 + tw)} ${P(y - 1.8)} l S`);
+  y -= MAT_ROW;
+  for (const line of lines) {
+    if (line.kind === 'group') {
+      ops.push(`0.93 0.94 0.95 rg ${P(x0)} ${P(y - 1.8)} ${P(tw)} ${P(MAT_ROW - 0.4)} re f`);
+      text(x0 + 1, y, short(line.text, 90), 2.6, true);
+    } else if (line.kind === 'row') {
+      text(x0 + MAT_COLS.nr + 1, y, String(line.nr), 2.5, false, 0.35);
+      text(x0 + MAT_COLS.code, y, short(line.row.code, 26), 2.4);
+      text(x0 + MAT_COLS.name, y, short(line.row.name, 82), 2.5);
+      text(qtyRight, y, String(line.row.qty), 2.6, true, 0, true);
+      text(x0 + MAT_COLS.unit, y, line.row.unit, 2.5);
+      ops.push(`0.85 0.86 0.88 RG ${P(0.15)} w ${P(x0)} ${P(y - 1.8)} m ${P(x0 + tw)} ${P(y - 1.8)} l S`);
+    } else {
+      text(x0 + MAT_COLS.name, y, m.labels.total, 2.6, true);
+      text(qtyRight, y, String(line.qty), 2.6, true, 0, true);
+      text(x0 + MAT_COLS.unit, y, line.unit, 2.6, true);
+      ops.push(`0.4 0.4 0.4 RG ${P(0.25)} w ${P(x0 + MAT_COLS.name)} ${P(y + MAT_ROW - 1.8)} m ${P(x0 + tw)} ${P(y + MAT_ROW - 1.8)} l S`);
+    }
+    y -= MAT_ROW;
+  }
+  if (m.note && no === total) text(x0, Math.max(y - 2, MARGIN + TITLE_H + 4), short(m.note, 120), 2.2, false, 0.35);
+
+  titleBlock(ops, W, H, page, hasLogo, [m.labels.page.replace(/\s*\{n\}.*$/, ''), `${no} / ${total}`], `${page.date}  A4`);
+  return ops.join('\n');
+}
+
+/** Skedari PDF: një objekt /Page për çdo faqe, të gjitha nën /Pages me /Kids [...] /Count N. */
+function writePdf(pages: { W: number; H: number; content: string }[], page: PageInput, jpeg: string | null): string {
+  const P = (mm: number) => n(mm * PT);
+  // renditja e objekteve: 1 katalogu, 2 faqet, 3–4 faqja e planit, 5–6 shkronjat, 7 info, 8 logoja, pastaj faqet e tjera
+  const extra = (i: number) => 9 + 2 * (i - 1) - (jpeg ? 0 : 1);
+  const pageObj = (i: number) => (i === 0 ? 3 : extra(i));
+  const res = `/Resources << /Font << /F1 5 0 R /F2 6 0 R >>${jpeg ? ' /XObject << /Im1 8 0 R >>' : ''} >>`;
+  const pageDict = (i: number, contents: number) =>
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${P(pages[i].W)} ${P(pages[i].H)}] ${res} /Contents ${contents} 0 R >>`;
+  const stream = (c: string) => `<< /Length ${c.length} >>\nstream\n${c}\nendstream`;
   const objs = [
     '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${P(W)} ${P(H)}] /Resources << /Font << /F1 5 0 R /F2 6 0 R >>${jpeg ? ' /XObject << /Im1 8 0 R >>' : ''} >> /Contents 4 0 R >>`,
-    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    `<< /Type /Pages /Kids [${pages.map((_, i) => `${pageObj(i)} 0 R`).join(' ')}] /Count ${pages.length} >>`,
+    pageDict(0, 4),
+    stream(pages[0].content),
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
     `<< /Title ${pdfString(page.title)} /Producer ${pdfString(page.product)} /Creator (AllSolutionTech CAD) >>`,
   ];
   if (page.logo && jpeg)
     objs.push(`<< /Type /XObject /Subtype /Image /Width ${page.logo.w} /Height ${page.logo.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n${jpeg}\nendstream`);
+  for (let i = 1; i < pages.length; i++) {
+    objs.push(pageDict(i, pageObj(i) + 1));
+    objs.push(stream(pages[i].content));
+  }
   let out = '%PDF-1.4\n%\xe2\xe3\xcf\xd3\n';
   const offsets: number[] = [];
   objs.forEach((o, i) => {

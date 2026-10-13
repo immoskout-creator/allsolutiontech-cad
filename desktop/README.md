@@ -22,3 +22,5 @@ Ikona është `icon.png` (logoja AST). Te Releases ka edhe `SHA256SUMS.txt`; në
 `certutil -hashfile <skedari> SHA256`.
 
 Instaluesit nuk janë ende të nënshkruar, ndaj Windows SmartScreen shfaq një paralajmërim deri sa të shtohet një certifikatë.
+
+Versioni i instaluesve është `version` te `desktop/package.json`: rrite para çdo publikimi, që butoni i përditësimit ta gjejë.

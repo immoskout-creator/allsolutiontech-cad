@@ -1,5 +1,7 @@
 // Dritarja e programit në Windows: hap faqen e programit (app/index.html) si program më vete.
-const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, net, shell } = require('electron');
+const { execFile } = require('node:child_process');
+const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const edition = require('./app/edition.json');
@@ -96,6 +98,47 @@ ipcMain.handle('ast:write-file', async (event, { filePath, data }) => {
   chosenPaths.delete(filePath);
   await fs.writeFile(filePath, typeof data === 'string' ? Buffer.from(data, 'utf8') : Buffer.from(data));
   return 'saved';
+});
+
+// Prova falas 7 ditë: pajisja është SHA-256 e "ast-cad|" + MachineGuid i Windows-it, që çinstalimi s'e rifillon provën.
+// Kërkesa te serveri bëhet këtu, në procesin kryesor (net.fetch, pa Origin), jo nga faqja.
+const TRIAL_URL = 'https://admin.allsolutiontech.de/api/cad/prova';
+let deviceIdPromise = null;
+
+function machineGuid() {
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') return resolve(null);
+    const reg = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'reg.exe');
+    execFile(reg, ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid', '/reg:64'], { windowsHide: true, timeout: 10000 }, (err, stdout) => {
+      const m = !err && /MachineGuid\s+REG_SZ\s+(\S+)/i.exec(String(stdout));
+      resolve(m ? m[1].trim() : null);
+    });
+  });
+}
+
+/** Identifikuesi i pajisjes; pa MachineGuid (rrallë), një identifikues i rastësishëm i ruajtur te programi. */
+async function rawDeviceId() {
+  const guid = await machineGuid();
+  if (guid) return guid;
+  const file = path.join(app.getPath('userData'), 'device-id.txt');
+  const saved = await fs.readFile(file, 'utf8').catch(() => '');
+  if (saved.trim()) return saved.trim();
+  const id = crypto.randomUUID();
+  await fs.writeFile(file, id).catch(() => {});
+  return id;
+}
+
+const deviceId = () =>
+  (deviceIdPromise ??= rawDeviceId().then((id) => crypto.createHash('sha256').update(`ast-cad|${id}`, 'utf8').digest('hex')));
+
+ipcMain.handle('ast:device-id', () => deviceId());
+ipcMain.handle('ast:trial', async () => {
+  const res = await net.fetch(TRIAL_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pajisja: await deviceId(), programi: edition.id, platforma: 'windows' }),
+  });
+  return { status: res.status, text: await res.text() };
 });
 
 app.on('second-instance', () => {

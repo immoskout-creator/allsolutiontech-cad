@@ -44,7 +44,22 @@ for (const ed of editions) {
   await rm('android', { recursive: true, force: true });
   await mkdir('www', { recursive: true });
   await copyFile(join('..', ed.dir, 'index.html'), 'www/index.html');
-  await writeFile('capacitor.config.json', JSON.stringify({ appId, appName: ed.name, webDir: 'www', android: { allowMixedContent: false } }, null, 2));
+  // CapacitorHttp: fetch shkon nga ana native (pa Origin), si e kërkon serveri i provës falas;
+  // adjustMarginsForEdgeToEdge "force": faqja mbetet brenda zonës së sigurt edhe në Android 15
+  await writeFile(
+    'capacitor.config.json',
+    JSON.stringify(
+      {
+        appId,
+        appName: ed.name,
+        webDir: 'www',
+        android: { allowMixedContent: false, adjustMarginsForEdgeToEdge: 'force' },
+        plugins: { CapacitorHttp: { enabled: true } },
+      },
+      null,
+      2,
+    ),
+  );
   run('npx', ['cap', 'add', 'android']);
 
   // ura e ruajtjes së skedarëve (native/AstFilesPlugin.java) dhe aktiviteti që e regjistron

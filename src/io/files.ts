@@ -176,6 +176,9 @@ declare global {
       /** Vetëm në versionet e reja: dritarja "Ruaj si" e Windows-it me llojet e skedarit. */
       saveAs?(defaultName: string, filters: { name: string; extensions: string[] }[]): Promise<string | null>;
       writeFile?(filePath: string, data: string | Uint8Array): Promise<'saved'>;
+      /** Prova falas: pajisja (SHA-256 e MachineGuid) dhe kërkesa te serveri, nga procesi kryesor. */
+      deviceId?(): Promise<string>;
+      requestTrial?(): Promise<{ status: number; text: string }>;
     };
     /** Programi në Android (mobile/): ura e Capacitor drejt shtojcës AstFiles (dritarja "Ruaj si" e Android). */
     Capacitor?: {

@@ -40,9 +40,12 @@ button:disabled { cursor: default; opacity: 0.45; }
 
 .app {
   height: 100%;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
+.app > * { flex: none; }
+.app > .main { flex: 1 1 0; }
 
 /* ---- shiriti i sipërm ---- */
 .top {
@@ -357,3 +360,73 @@ a.btn { text-decoration: none; }
 .save-format span { color: var(--muted); font-size: 12.5px; line-height: 1.35; }
 .save-name { display: flex; align-items: center; gap: 6px; }
 .save-name input { flex: 1; min-width: 0; }
+
+/* ---- zona e sigurt (Android 15 edge-to-edge): asgjë nën shiritin e orës dhe nën Back/Home ---- */
+.app {
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+/* ---- telefoni (src/ui/phone.ts): paneli majtas, plani djathtas ---- */
+.phone-panel { display: none; }
+.app.phone {
+  display: grid; position: relative;
+  grid-template-columns: var(--pp-w, 168px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
+}
+.app.phone[data-phone="landscape"] { --pp-w: 168px; }
+.app.phone[data-phone="portrait"] { --pp-w: 56px; }
+.app.phone > .top, .app.phone > .toolbar, .app.phone > .status { display: none; }
+.app.phone > .main { grid-column: 2; grid-row: 1; min-height: 0; grid-template-columns: minmax(0, 1fr); }
+.app.phone .library {
+  position: absolute; top: 0; left: 0; bottom: 0; width: min(280px, 88%); z-index: 11;
+  box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35); display: none;
+}
+.app.phone[data-library="open"] .library { display: flex; }
+.app.phone .side {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(300px, 88%); z-index: 10;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35); display: none;
+}
+.app.phone[data-panels="open"] .side { display: flex; }
+
+.app.phone .phone-panel {
+  grid-column: 1; grid-row: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 10px; padding: 8px 6px 12px;
+  background: var(--panel); border-right: 1px solid var(--line); z-index: 12;
+}
+.pp-section { display: flex; flex-direction: column; gap: 4px; }
+.pp-section + .pp-section { padding-top: 8px; border-top: 1px solid var(--line); }
+.pp-head { flex-direction: row; align-items: center; gap: 6px; }
+.pp-head .brand { gap: 6px; min-width: 0; }
+.pp-head .brand-name { font-size: 11px; line-height: 1.2; white-space: normal; }
+.pp-head .brand-sub { display: none; }
+.pp-toggle { display: none; width: 44px; height: 40px; flex: none; border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); color: var(--fg); align-items: center; justify-content: center; }
+.phone-panel .trial-bar { flex-direction: column; gap: 4px; padding: 6px; border: 1px solid var(--line-2); border-radius: 6px; text-align: center; }
+.pp-menu .btn, .pp-foot .btn, .pp-foot .lic-badge { width: 100%; min-height: 34px; padding: 0 8px; font-size: 12px; justify-content: flex-start; box-sizing: border-box; }
+.pp-foot .lang { width: 100%; }
+.pp-foot .lang select { flex: 1; min-width: 0; min-height: 34px; }
+.pp-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
+.pp-tools .tool { min-width: 0; min-height: 36px; padding: 2px; }
+.pp-tools .tool span { display: none; }
+.pp-settings .settings { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pp-settings .field-inline { flex: 1 1 100%; flex-wrap: wrap; font-size: 11px; gap: 4px; }
+.pp-settings .chip { flex: 1 1 calc(50% - 6px); padding: 0 6px; }
+.pp-settings .field-inline select { flex: 1 1 100%; min-width: 0; font-size: 12px; }
+.pp-settings .field-inline .num { width: 52px; }
+.pp-settings .chip { min-height: 30px; }
+.app.phone .panels-toggle, .app.phone .library-toggle { display: inline-block; }
+
+/* telefoni në këmbë: vetëm ikona; një prekje te ☰ e hap panelin më të gjerë mbi plan */
+.app.phone[data-phone="portrait"] .pp-toggle { display: inline-flex; }
+.app.phone[data-phone="portrait"]:not([data-phone-open]) .phone-panel { padding: 6px 4px; align-items: center; }
+.app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-head .brand,
+.app.phone[data-phone="portrait"]:not([data-phone-open]) .trial-bar,
+.app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-settings,
+.app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-foot { display: none; }
+.app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-tools { grid-template-columns: minmax(0, 1fr); }
+.app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-menu .btn { width: 44px; justify-content: center; padding: 0; }
+.app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-menu .btn span { display: none; }
+.app.phone[data-phone="portrait"]:not([data-phone-open]) .pp-tools .tool { width: 44px; }
+.app.phone[data-phone="portrait"][data-phone-open] .phone-panel {
+  position: absolute; z-index: 40; width: 220px; box-sizing: border-box;
+  top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px); left: env(safe-area-inset-left, 0px);
+  box-shadow: 8px 0 24px rgba(0, 0, 0, 0.45);
+}

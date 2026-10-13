@@ -11,12 +11,13 @@ import { render } from './view/renderer';
 import { Editor, type ToolId } from './tools/editor';
 import { TouchGestures } from './tools/touch';
 import { setupAndroidUpdate } from './io/androidUpdate';
+import { setupPhoneLayout } from './ui/phone';
 import { fileName, loadAutosave, readFile, saveData, saveFile, serialize, writeAutosave } from './io/files';
 import { docToSvg } from './io/svg';
 import { docToPng } from './io/png';
 import { docToDxf } from './io/dxf';
-import { docToPdf, type LegendItem } from './io/pdf';
-import { usedSymbols } from './core/materials';
+import { docToPdf, type LegendItem, type MaterialPdf } from './io/pdf';
+import { materialList, usedSymbols } from './core/materials';
 import { ex } from './io/exportStrings';
 import { mergeSymbols, parseLibrary, serializeLibrary, toSymbolDef } from './symbols/custom';
 import { SUBMIT_EMAIL, communityId, fetchApproved } from './symbols/community';
@@ -24,7 +25,7 @@ import { importPublicKey } from './license/code';
 import { PUBLIC_KEY } from './license/publicKey';
 import { SymbolEditor } from './ui/symbolEditor';
 import { CircuitPanel, symbolCenters } from './ui/circuits';
-import { ReportsDialog } from './ui/reports';
+import { ReportsDialog, materialRows } from './ui/reports';
 import { cableRunLength } from './core/circuits';
 import { applyStatic, getLang, isLang, LANGS, layerName, setLang, t, type Lang, type StringKey } from './i18n/strings';
 import { syncCableLayers } from './core/systems';
@@ -41,7 +42,7 @@ import { normAngle } from './symbols/place';
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 // pa kod aktivizimi nga administratori programi mbetet i mbyllur
-const licenseGate = startLicenseGate(EDITION.id, productName(), document.querySelector<HTMLElement>('.top .actions'));
+const licenseGate = startLicenseGate(EDITION.id, productName(), document.querySelector<HTMLElement>('.top .actions'), document.getElementById('app'));
 
 const canvas = $<HTMLCanvasElement>('canvas');
 const ctx = canvas.getContext('2d')!;
@@ -707,7 +708,19 @@ async function exportData(fmt: SaveFormat): Promise<string | Uint8Array<ArrayBuf
     date: new Date().toLocaleDateString('sq-AL', { day: '2-digit', month: '2-digit', year: 'numeric' }),
     labels: { project: ex('project'), scale: ex('scale'), date: ex('date'), sheet: ex('sheet'), legend: t('tabLegend') },
     legend: pdfLegend(doc),
+    materials: pdfMaterials(doc),
   });
+}
+
+/** Faqja 2 e PDF-së: e njëjta listë si te Raportet → Lista e materialeve. */
+function pdfMaterials(doc: Doc): MaterialPdf {
+  const rows = materialRows(materialList(doc, symbolCenters(doc))).map(({ group, code, name, qty, unit }) => ({ group, code, name, qty, unit }));
+  return {
+    title: t('tabMaterials'),
+    rows,
+    labels: { nr: ex('nr'), code: t('code'), name: ex('itemName'), qty: t('qty'), unit: t('unit'), total: t('totalArea'), page: ex('pageOf') },
+    note: rows.some((r) => r.unit === 'm') ? t('reserveNote') : undefined,
+  };
 }
 
 /** Legjenda e PDF-së: çdo simbol i përdorur në shtresat e dukshme, me figurën, kodin, emrin dhe sasinë. */
@@ -1712,4 +1725,5 @@ function toast(msg: string, error = false): void {
 
 applyLang(storedLang());
 setupAndroidUpdate(toast);
+setupPhoneLayout();
 resize();

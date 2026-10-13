@@ -24,10 +24,12 @@ jobs:
       fail-fast: false
       matrix:
         edition: [civil, cctv, network, fire, emergency, all]
-    env:
-      APP_VERSION: 0.1.${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
+      # versioni i publikimit: "version" te mobile/package.json (rritet me dorë para çdo publikimi)
+      - name: Versioni
+        run: echo "APP_VERSION=$(node -p "require('./mobile/package.json').version")" >> "$GITHUB_ENV"
+        shell: bash
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -54,6 +56,12 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: mobile/package.json
+          sparse-checkout-cone-mode: false
+      - name: Versioni
+        run: echo "APP_VERSION=$(node -p "require('./mobile/package.json').version")" >> "$GITHUB_ENV"
       - uses: actions/download-artifact@v4
         with:
           path: apks
@@ -69,9 +77,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           if [ "$GITHUB_REF" = "refs/heads/main" ]; then
-            TAG=android-latest; TITLE="Programet për Android (0.1.${{ github.run_number }})"; PRE=""
+            TAG=android-latest; TITLE="Programet për Android (${{ env.APP_VERSION }})"; PRE=""
           else
-            TAG=android-test; TITLE="Programet për Android, provë (0.1.${{ github.run_number }})"; PRE="--prerelease"
+            TAG=android-test; TITLE="Programet për Android, provë (${{ env.APP_VERSION }})"; PRE="--prerelease"
           fi
           gh release delete "$TAG" --yes --cleanup-tag || true
           gh release create "$TAG" apks/*.apk apks/SHA256SUMS.txt --target "$GITHUB_SHA" $PRE --title "$TITLE" \

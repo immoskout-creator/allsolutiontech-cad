@@ -78,7 +78,7 @@ const LIB_SYSTEM: Partial<Record<LibraryId, SystemKind>> = { cctv: 'cctv', netwo
  * Rreshtat e listës së materialeve: grupi, kodi, përshkrimi, sasia, njësia.
  * Instalimi elektrik del i pari; çdo sistem (kamera, rrjet, zjarr) ka grupin e vet.
  */
-interface MaterialRow {
+export interface MaterialRow {
   group: string;
   code: string;
   name: string;
@@ -87,7 +87,7 @@ interface MaterialRow {
   def?: SymbolDef;
 }
 
-function materialRows(m: Materials): MaterialRow[] {
+export function materialRows(m: Materials): MaterialRow[] {
   const systemOf = (d: SymbolDef) => LIB_SYSTEM[categoryLibrary(d.category)];
   const civil = m.symbols.filter((s) => !systemOf(s.def));
   const rows: MaterialRow[] = [

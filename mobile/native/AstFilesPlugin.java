@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.net.Uri;
+import android.provider.Settings;
 import android.util.Base64;
 import androidx.activity.result.ActivityResult;
 import com.getcapacitor.JSObject;
@@ -45,6 +46,23 @@ public class AstFilesPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("Versioni nuk u lexua", e);
         }
+    }
+
+    /**
+     * Identifikuesi i qëndrueshëm i pajisjes për provën falas (Settings.Secure.ANDROID_ID, i njëjti që jep
+     * Device.getId() i @capacitor/device). Faqja e kthen në SHA-256 (src/license/trial.ts); çinstalimi s'e ndryshon.
+     */
+    @PluginMethod
+    public void deviceId(PluginCall call) {
+        String id = Settings.Secure.getString(getContext().getContentResolver(), Settings.Secure.ANDROID_ID);
+        if (id == null || id.isEmpty()) {
+            call.reject("Pajisja nuk u identifikua");
+            return;
+        }
+        JSObject ret = new JSObject();
+        ret.put("identifier", id);
+        ret.put("id", id);
+        call.resolve(ret);
     }
 
     /** Hap një lidhje https në shfletues (shkarkimi i APK-së së re). */

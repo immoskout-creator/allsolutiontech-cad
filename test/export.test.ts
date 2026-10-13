@@ -101,3 +101,47 @@ test('PDF: legjenda e simboleve të përdorura vendoset vetë', () => {
   // legjenda e vogël nuk e zmadhon fletën
   assert.equal(chooseSheet(12000, 8000, 50, 2).paper.name, 'A3');
 });
+
+const MATERIAL_LABELS = { nr: 'Nr', code: 'Kodi', name: 'Emërtimi', qty: 'Sasia', unit: 'Njësia', total: 'Gjithsej', page: 'Faqe {n} / {total}' };
+
+/** Kontrolli i xref: çdo objekt fillon aty ku thotë tabela. */
+function assertXref(pdf: string): void {
+  const xref = Number(/startxref\n(\d+)/.exec(pdf)![1]);
+  assert.equal(pdf.slice(xref, xref + 4), 'xref');
+  const offsets = [...pdf.slice(xref).matchAll(/(\d{10}) 00000 n/g)].map((m) => Number(m[1]));
+  offsets.forEach((o, i) => assert.equal(pdf.slice(o, o + `${i + 1} 0 obj`.length), `${i + 1} 0 obj`));
+  for (const m of pdf.matchAll(/\/Length (\d+) >>\nstream\n/g)) {
+    const start = m.index! + m[0].length;
+    assert.equal(pdf.slice(start + Number(m[1]), start + Number(m[1]) + 10), '\nendstream');
+  }
+}
+
+test('PDF: lista e materialeve hyn vetë si faqja 2, me shenjat shqipe', () => {
+  const rows = [
+    { group: 'Pajisjet', code: 'AST-PR-02', name: 'Prizë me tokëzim', qty: 12, unit: 'copë' },
+    { group: 'Pajisjet', code: 'AST-ND-01', name: 'Ndriçues tavani', qty: 5, unit: 'copë' },
+    { group: 'Kabllot', code: '3×2.5 mm²', name: 'Kabllo 3×2.5 mm²', qty: 48, unit: 'm' },
+  ];
+  const pdf = text(docToPdf(sampleDoc('civil'), { ...PAGE, materials: { title: 'Lista e materialeve', rows, labels: MATERIAL_LABELS } }));
+  assertXref(pdf);
+  assert.match(pdf, /\/Count 2 >>/);
+  assert.equal([...pdf.matchAll(/\/Type \/Page /g)].length, 2);
+  assert.ok(pdf.includes('(Lista e materialeve) Tj') && pdf.includes('(Faqe 2 / 2) Tj') && pdf.includes('(Em\xebrtimi) Tj'));
+  assert.ok(pdf.includes('(Ndri\xe7ues tavani) Tj') && pdf.includes('(AST-PR-02) Tj') && pdf.includes('(48) Tj'));
+  // "Gjithsej" për çdo njësi të grupit: 17 copë pajisje
+  assert.ok(pdf.includes('(Gjithsej) Tj') && pdf.includes('(17) Tj'));
+  // faqja e planit tregon "1/2" te fleta
+  assert.match(pdf, /\(\d\d\.\d\d\.\d{4} {2}A\d {2}1\/2\) Tj/);
+});
+
+test('PDF: pa materiale s\'ka faqe 2; shumë materiale zënë disa faqe', () => {
+  const none = text(docToPdf(sampleDoc('civil'), { ...PAGE, materials: { title: 'Lista e materialeve', rows: [], labels: MATERIAL_LABELS } }));
+  assert.match(none, /\/Count 1 >>/);
+  const rows = Array.from({ length: 90 }, (_, i) => ({ group: i < 60 ? 'Pajisjet' : 'Kabllot', code: `AST-X-${i}`, name: `Element ${i}`, qty: i + 1, unit: i < 60 ? 'copë' : 'm' }));
+  const pdf = text(docToPdf(sampleDoc('civil'), { ...PAGE, materials: { title: 'Lista e materialeve', rows, labels: MATERIAL_LABELS } }));
+  assertXref(pdf);
+  const count = Number(/\/Count (\d+) >>/.exec(pdf)![1]);
+  assert.ok(count >= 3, `faqe: ${count}`);
+  assert.ok(pdf.includes(`(Faqe ${count} / ${count}) Tj`));
+  assert.ok(pdf.includes('(Element 89) Tj'));
+});
