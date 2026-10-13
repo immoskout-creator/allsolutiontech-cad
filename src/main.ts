@@ -10,7 +10,7 @@ import { Viewport } from './view/viewport';
 import { render } from './view/renderer';
 import { Editor, type ToolId } from './tools/editor';
 import { TouchGestures } from './tools/touch';
-import { setupAndroidUpdate } from './io/androidUpdate';
+import { isAndroidApp, setupAndroidUpdate } from './io/androidUpdate';
 import { setupPhoneLayout } from './ui/phone';
 import { fileName, loadAutosave, readFile, saveData, saveFile, serialize, writeAutosave } from './io/files';
 import { docToSvg } from './io/svg';
@@ -237,7 +237,11 @@ const circuitPanel = new CircuitPanel(
   () => EDITION.kinds[0],
 );
 
-const reports = new ReportsDialog(store, (m, error) => toast(m, error));
+const reports = new ReportsDialog(
+  store,
+  (m, error) => toast(m, error),
+  isAndroidApp() ? () => void saveAs('pdf', fileName(store.doc, '').slice(0, -1)) : undefined,
+);
 $('btnReports').addEventListener('click', () => reports.open());
 store.subscribe(() => reports.refresh());
 
@@ -646,6 +650,9 @@ function syncLibraryPressed(): void {
 // ---- skedarët ----
 
 const fileInput = $<HTMLInputElement>('fileInput');
+// Android: zgjedhësi i skedarëve s'njeh .astcad/.dxf si lloje, prandaj aty tregohen të gjithë skedarët;
+// parse() e refuzon me mesazh të qartë çdo skedar që s'është projekt
+if (isAndroidApp()) fileInput.removeAttribute('accept');
 $('btnOpen').addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', async () => {
   const f = fileInput.files?.[0];

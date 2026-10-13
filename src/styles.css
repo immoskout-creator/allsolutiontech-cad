@@ -414,6 +414,28 @@ a.btn { text-decoration: none; }
 .pp-settings .chip { min-height: 30px; }
 .app.phone .panels-toggle, .app.phone .library-toggle { display: inline-block; }
 
+/* Raportet / PDF në telefon: si plani, veglat (titulli, faqet, ruajtja, mbyll) në një shirit majtas dhe faqja A4
+   djathtas, në këmbë (shirit i ngushtë) dhe shtrirë (~168 px) */
+body.is-phone #reportsModal { padding: 0; align-items: stretch; justify-content: stretch; }
+body.is-phone .modal-report {
+  --rp-w: 168px;
+  width: 100%; height: 100%; max-width: none; border: 0; border-radius: 0; padding: 8px; gap: 8px;
+  display: grid; grid-template-columns: var(--rp-w) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: "title frame" "tabs frame" "actions frame"; align-content: start;
+}
+body.is-phone[data-phone="portrait"] .modal-report { --rp-w: 92px; padding: 6px; gap: 6px; }
+body.is-phone .modal-report h2 { grid-area: title; font-size: 13px; line-height: 1.25; }
+body.is-phone[data-phone="portrait"] .modal-report h2 { display: none; }
+body.is-phone .modal-report .report-tabs { grid-area: tabs; flex-direction: column; flex-wrap: nowrap; gap: 4px; }
+body.is-phone .modal-report .modal-actions { grid-area: actions; flex-direction: column; justify-content: flex-start; align-self: start; gap: 4px; }
+body.is-phone .modal-report .spacer { display: none; }
+body.is-phone .modal-report .chip, body.is-phone .modal-report .modal-actions .btn {
+  width: 100%; min-height: 36px; height: auto; padding: 4px 6px; box-sizing: border-box;
+  white-space: normal; line-height: 1.2; font-size: 12px; text-align: center; justify-content: center;
+}
+body.is-phone[data-phone="portrait"] .modal-report .chip, body.is-phone[data-phone="portrait"] .modal-report .modal-actions .btn { font-size: 11px; padding: 4px 3px; }
+body.is-phone .modal-report .report-frame { grid-area: frame; min-height: 0; height: 100%; }
+
 /* telefoni në këmbë: vetëm ikona; një prekje te ☰ e hap panelin më të gjerë mbi plan */
 .app.phone[data-phone="portrait"] .pp-toggle { display: inline-flex; }
 .app.phone[data-phone="portrait"]:not([data-phone-open]) .phone-panel { padding: 6px 4px; align-items: center; }

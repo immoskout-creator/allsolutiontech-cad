@@ -66,6 +66,8 @@ export function setupPhoneLayout(): void {
 
   app.prepend(panel);
   app.classList.add('phone');
+  // dritaret e mëdha (Raportet / PDF) ndjekin të njëjtin rregull: veglat majtas, faqja djathtas
+  document.body.classList.add('is-phone');
 
   const setOpen = (open: boolean) => {
     app.toggleAttribute('data-phone-open', open);
@@ -80,6 +82,7 @@ export function setupPhoneLayout(): void {
 
   const orient = () => {
     app.dataset.phone = window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait';
+    document.body.dataset.phone = app.dataset.phone;
     if (app.dataset.phone === 'landscape') setOpen(false);
   };
   orient();

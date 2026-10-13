@@ -3,6 +3,7 @@ import { setCustomSymbols, symbolDef } from '../symbols/library';
 import { DRAW_SHAPES, STAIR_TYPES, type DrawShape } from '../core/drawings';
 import { EDITION } from '../edition';
 import { parseCustomSymbols, toSymbolDef } from '../symbols/custom';
+import { saveAndroidData } from './androidFiles';
 
 const AUTOSAVE_KEY = EDITION.storage;
 
@@ -180,7 +181,7 @@ declare global {
       deviceId?(): Promise<string>;
       requestTrial?(): Promise<{ status: number; text: string }>;
     };
-    /** Programi në Android (mobile/): ura e Capacitor drejt shtojcës AstFiles (dritarja "Ruaj si" e Android). */
+    /** Programi në Android (mobile/): ura e Capacitor drejt shtojcave AstFiles, Filesystem dhe Share. */
     Capacitor?: {
       isNativePlatform?(): boolean;
       nativePromise?(plugin: string, method: string, options: unknown): Promise<unknown>;
@@ -196,14 +197,10 @@ export function toBase64(data: string | Uint8Array): string {
   return btoa(bin);
 }
 
-/** Në Android ruan me dritaren e sistemit për zgjedhjen e dosjes (shtojca AstFiles te mobile/native). */
-async function saveAndroid(filename: string, data: string | Uint8Array, type: string): Promise<'saved' | 'declined'> {
-  try {
-    const res = (await window.Capacitor!.nativePromise!('AstFiles', 'save', { filename, mime: type, data: toBase64(data) })) as { saved?: boolean };
-    return res?.saved ? 'saved' : 'declined';
-  } catch {
-    throw new Error('Skedari nuk u ruajt: kontrollo dosjen dhe provo përsëri.');
-  }
+/** Në Android: te Dokumentet / AllSolutionTech CAD me @capacitor/filesystem, pastaj "Hap / Ndaj" (src/io/androidFiles.ts). */
+function saveAndroid(filename: string, data: string | Uint8Array): Promise<'saved' | 'declined'> {
+  const cap = window.Capacitor!;
+  return saveAndroidData((plugin, method, options) => cap.nativePromise!(plugin, method, options), filename, toBase64(data));
 }
 
 let downloads: Promise<DownloadsApi | null> | null = null;
@@ -221,7 +218,7 @@ function getDownloads(): Promise<DownloadsApi | null> {
  * konfirmimi i shkarkimit; në shfletues (skedar lokal) shkarkon direkt.
  */
 export async function saveData(filename: string, data: string | Uint8Array<ArrayBuffer>, type = 'application/json'): Promise<'saved' | 'declined'> {
-  if (window.Capacitor?.isNativePlatform?.() && window.Capacitor.nativePromise) return saveAndroid(filename, data, type);
+  if (window.Capacitor?.isNativePlatform?.() && window.Capacitor.nativePromise) return saveAndroid(filename, data);
   if (window.astDesktop) {
     try {
       return await window.astDesktop.saveFile(filename, data);
