@@ -23,10 +23,12 @@ jobs:
       fail-fast: false
       matrix:
         edition: [civil, cctv, network, fire, emergency, all]
-    env:
-      APP_VERSION: 0.1.${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
+      # versioni i publikimit: "version" te desktop/package.json (rritet me dorë para çdo publikimi)
+      - name: Versioni
+        run: echo "APP_VERSION=$(node -p "require('./desktop/package.json').version")" >> "$GITHUB_ENV"
+        shell: bash
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -48,6 +50,12 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: desktop/package.json
+          sparse-checkout-cone-mode: false
+      - name: Versioni
+        run: echo "APP_VERSION=$(node -p "require('./desktop/package.json').version")" >> "$GITHUB_ENV"
       - uses: actions/download-artifact@v4
         with:
           path: installers
@@ -68,5 +76,5 @@ jobs:
           TAG=windows-latest
           gh release delete "$TAG" --yes --cleanup-tag || true
           gh release create "$TAG" installers/*.exe installers/*.zip installers/SHA256SUMS.txt --target "$GITHUB_SHA" \
-            --title "Programet për Windows (0.1.${{ github.run_number }})" \
+            --title "Programet për Windows (${{ env.APP_VERSION }})" \
             --notes "Instaluesit e gjashtë programeve AllSolutionTech CAD. Shkarko .exe e programit që të duhet dhe hape, ose skedarin .zip (një program, ose të gjitha bashkë te AllSolutionTech-CAD-te-gjitha-programet.zip). Windows mund të shfaqë një paralajmërim (SmartScreen) sepse instaluesit ende nuk janë të nënshkruar: kliko \"More info\" dhe pastaj \"Run anyway\". Kodet SHA256 janë te SHA256SUMS.txt (në Windows: certutil -hashfile <skedari> SHA256)."

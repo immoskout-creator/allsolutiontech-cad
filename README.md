@@ -29,7 +29,7 @@ Paneli **Qarqet** krijon qarqet e kuadrit (Q1, Q2…), me lloj (ndriçim, priza,
 
 ## Raportet
 Butoni **Raportet** lart hap tre raporte, secili gati për printim (A4), për ruajtje si HTML dhe, kur ka kuptim, për eksport CSV:
-- **Lista e materialeve**: pajisjet me sasitë, metrat e kabllove sipas llojit (me zbritjet në mur dhe 10% rezervë) dhe siguresat e kuadrit sipas lakores dhe rrymës.
+- **Lista e materialeve**: hyn vetë edhe te "Ruaj si → PDF", si faqja 2 (e të tjera nëse s'nxë) pas planit, me logon, projektin, datën dhe "Faqe 2 / N". Pajisjet me sasitë, metrat e kabllove sipas llojit (me zbritjet në mur dhe 10% rezervë) dhe siguresat e kuadrit sipas lakores dhe rrymës.
 - **Simbolet e përdorura**: legjenda e planit, me simbolin, kodin AST, emrin dhe sasinë.
 - **Libraria e plotë**: katalogu i të gjitha simboleve sipas kategorive, përfshirë simbolet e tua.
 
@@ -57,6 +57,7 @@ Te programet e sistemeve, **Qark i ri** krijon linjë (CAM1, NET1, FA1, EM1) pa 
 - Kodi është i nënshkruar me çelësin privat të administratorit (ECDSA P-256); programet kanë vetëm çelësin publik (`src/license/publicKey.ts`), prandaj kodet nuk krijohen dot duke ndryshuar programin. Afati llogaritet nga data e fillimit; dita e fundit vlen.
 - Çelësi privat është në `admin-key.json`, që **nuk futet në git**. Me të, `npm run build` e fut çelësin brenda faqes së administratorit; pa të, faqja kërkon skedarin. `node scripts/keygen.mjs --force` krijon çelës të ri, por kodet e vjetra nuk vlejnë më.
 - Programi kujton kodin në shfletues dhe tregon lart ditët që mbeten; butoni i licencës ndryshon kodin. Kthimi i orës mbrapa nuk e zgjat licencën.
+- **Prova falas 7 ditë** (vetëm programet e instaluara në Windows dhe Android): pa licencë, ekrani i nisjes ka dy butona, "Provo 7 ditë falas" dhe "Fut kodin e aktivizimit". Serveri (`https://admin.allsolutiontech.de/api/cad/prova`) nënshkruan me të njëjtin çelës si kodet datën e kërkesës së parë të pajisjes për atë program; pajisja është SHA-256 e `ast-cad|` + MachineGuid (Windows) ose ANDROID_ID (Android), prandaj riinstalimi s'e rifillon provën. Prova ruhet lokalisht dhe punon pa internet brenda 7 ditëve; ora mbrapa nuk e zgjat. Gjatë provës lart del shiriti "Prova falas: X ditë të mbetura" me butonin "Aktivizo"; pas 7 ditëve hapet vetëm fusha e kodit, projektet mbeten. Kodi ka përparësi mbi provën (`src/license/trial.ts`, `src/license/gate.ts`).
 - Një program në shfletues nuk mbrohet plotësisht nga dikush që di ta ndryshojë kodin e faqes; versioni `.exe` mund ta forcojë më tej.
 
 ## Të gjitha bashkë: All in One

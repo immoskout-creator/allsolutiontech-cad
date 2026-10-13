@@ -1,14 +1,19 @@
 import { coversProgram, daysLeft, dayOf, formatDate, importPublicKey, readCode, type License } from './code';
 import { PUBLIC_KEY } from './publicKey';
-import { lic } from './strings';
+import { lic, type LicenseKey } from './strings';
+import { checkTrial, parseTrialResponse, trialPlatform, type SignedTrial, type TrialState } from './trial';
+import { tr, type TrialKey } from './trialStrings';
 
 /**
- * Dritarja e aktivizimit: programi nuk përdoret pa një kod të vlefshëm për të (ose për "të gjitha").
- * Kodet ruhen në shfletues; data më e madhe e parë ruhet gjithashtu, që kthimi i orës mbrapa të mos zgjasë licencën.
+ * Dritarja e aktivizimit: programi nuk përdoret pa një kod të vlefshëm për të, ose pa provën falas 7 ditë
+ * (vetëm programet e instaluara në Windows dhe Android). Kodi ka përparësi mbi provën.
+ * Kodet dhe prova ruhen lokalisht; koha më e madhe e parë ruhet gjithashtu, që kthimi i orës mbrapa të mos zgjasë asgjë.
  */
 
 const CODES_KEY = 'astcad.license.v1';
 const SEEN_KEY = 'astcad.license.seen';
+const TRIAL_KEY = 'astcad.trial.v1';
+const TRIAL_SEEN_KEY = 'astcad.trial.seen';
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -75,6 +80,13 @@ const CSS = `
 .lic-badge { white-space: nowrap; font-size: 12px; padding: 5px 9px; border-radius: 6px; border: 1px solid var(--line-2, #3E4651);
   background: transparent; color: var(--muted, #A3ACB8); }
 .lic-badge.warn { color: var(--warn, #FDE7C2); background: var(--warn-bg, #3A2A12); }
+.lic-choice { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; }
+.lic-choice button { min-height: 44px; border-radius: 8px; border: 1px solid var(--line-2, #3E4651); background: var(--panel-2, #262C34); font-weight: 600; }
+.lic-choice .lic-try { background: var(--brand, #F59E42); border-color: var(--brand, #F59E42); color: #16191E; }
+.trial-bar { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 4px 12px;
+  background: var(--warn-bg, #3A2A12); color: var(--warn, #FDE7C2); font-size: 12px; border-bottom: 1px solid var(--line, #343B46); }
+.trial-bar button { min-height: 26px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--brand, #F59E42);
+  background: var(--brand, #F59E42); color: #16191E; font-weight: 600; font-size: 12px; }
 `;
 
 export interface Gate {
@@ -82,14 +94,18 @@ export interface Gate {
   refresh(): void;
 }
 
+type Message = { lic: LicenseKey; date?: number; error: boolean } | { trial: TrialKey; error: boolean };
+
 /**
- * Hap dritaren e aktivizimit menjëherë dhe e mbyll vetëm kur gjendet një kod i vlefshëm.
- * `badgeHost` merr butonin e licencës (ditët që mbeten, ndryshimi i kodit).
+ * Hap dritaren e aktivizimit menjëherë dhe e mbyll vetëm kur gjendet një kod i vlefshëm ose prova falas është në fuqi.
+ * `badgeHost` merr butonin e licencës (ditët që mbeten, ndryshimi i kodit); `trialHost` shiritin e provës falas.
  */
-export function startLicenseGate(program: string, productName: string, badgeHost: HTMLElement | null): Gate {
+export function startLicenseGate(program: string, productName: string, badgeHost: HTMLElement | null, trialHost: HTMLElement | null = null): Gate {
   const style = document.createElement('style');
   style.textContent = CSS;
   document.head.appendChild(style);
+
+  const platform = trialPlatform(program);
 
   const overlay = document.createElement('div');
   overlay.className = 'lic-overlay';
@@ -97,7 +113,8 @@ export function startLicenseGate(program: string, productName: string, badgeHost
   overlay.setAttribute('aria-modal', 'true');
   overlay.innerHTML = `<form class="lic-box">
     <h2 id="licTitle"></h2><div class="lic-prod"></div><p class="lic-intro"></p>
-    <textarea spellcheck="false" autocomplete="off" aria-labelledby="licTitle"></textarea>
+    <div class="lic-choice"><button type="button" class="lic-try"></button><button type="button" class="lic-code"></button></div>
+    <div class="lic-entry"><textarea spellcheck="false" autocomplete="off" aria-labelledby="licTitle"></textarea></div>
     <div class="lic-msg" role="status"></div>
     <div class="lic-actions"><button type="button" class="lic-close"></button><button type="submit" class="lic-go"></button></div>
   </form>`;
@@ -106,6 +123,11 @@ export function startLicenseGate(program: string, productName: string, badgeHost
   const input = overlay.querySelector('textarea')!;
   const msg = overlay.querySelector<HTMLElement>('.lic-msg')!;
   const closeBtn = overlay.querySelector<HTMLButtonElement>('.lic-close')!;
+  const goBtn = overlay.querySelector<HTMLButtonElement>('.lic-go')!;
+  const choice = overlay.querySelector<HTMLElement>('.lic-choice')!;
+  const tryBtn = overlay.querySelector<HTMLButtonElement>('.lic-try')!;
+  const codeBtn = overlay.querySelector<HTMLButtonElement>('.lic-code')!;
+  const entry = overlay.querySelector<HTMLElement>('.lic-entry')!;
   overlay.querySelector('.lic-prod')!.textContent = productName;
 
   const badge = document.createElement('button');
@@ -114,11 +136,26 @@ export function startLicenseGate(program: string, productName: string, badgeHost
   badge.hidden = true;
   badgeHost?.prepend(badge);
 
+  // shiriti lart gjatë provës: ditët që mbeten dhe butoni "Aktivizo"
+  const bar = document.createElement('div');
+  bar.className = 'trial-bar';
+  bar.id = 'trialBar';
+  bar.hidden = true;
+  bar.innerHTML = '<span></span><button type="button"></button>';
+  trialHost?.prepend(bar);
+
   let current: Check | null = null;
-  let message: { key: 'invalid' | 'wrongProgram' | 'expired' | 'renew' | 'noCrypto' | 'activated'; date?: number; error: boolean } | null = null;
+  let trial: TrialState | null = null;
+  /** Gjatë provës ose pa provë: dritarja tregon fushën e kodit; përndryshe dy butonat. */
+  let showEntry = !platform;
+  let busy = false;
+  let message: Message | null = null;
   let key: CryptoKey | null = null;
 
-  const locked = () => !current?.ok;
+  const trialOn = () => !current?.ok && !!trial?.ok;
+  const locked = () => !current?.ok && !trial?.ok;
+  const trialOver = () => !!trial && !trial.ok && trial.reason === 'expired';
+  const canTry = () => !!platform && !trialOver() && !trial?.ok;
 
   // pa kod të vlefshëm, tastiera nuk arrin te programi
   const block = (e: Event) => {
@@ -130,13 +167,22 @@ export function startLicenseGate(program: string, productName: string, badgeHost
   for (const type of ['keydown', 'keyup', 'paste', 'wheel']) window.addEventListener(type, block, { capture: true, passive: false });
 
   function render(): void {
+    const isLocked = locked();
+    const choosing = isLocked && canTry();
     overlay.querySelector('#licTitle')!.textContent = lic('title');
-    overlay.querySelector('.lic-intro')!.textContent = lic('intro');
+    overlay.querySelector('.lic-intro')!.textContent = isLocked && trialOver() ? tr('over') : choosing ? tr('choose') : lic('intro');
     input.placeholder = lic('placeholder');
-    overlay.querySelector('.lic-go')!.textContent = lic('activate');
+    goBtn.textContent = lic('activate');
+    tryBtn.textContent = tr('try');
+    codeBtn.textContent = tr('enterCode');
     closeBtn.textContent = lic('close');
-    closeBtn.hidden = locked();
-    msg.textContent = message ? lic(message.key, { date: message.date !== undefined ? formatDate(message.date) : '' }) : '';
+    closeBtn.hidden = isLocked;
+    choice.hidden = !choosing;
+    codeBtn.hidden = showEntry;
+    tryBtn.disabled = busy;
+    entry.hidden = goBtn.hidden = choosing && !showEntry;
+    overlay.querySelector<HTMLElement>('.lic-actions')!.hidden = goBtn.hidden && closeBtn.hidden;
+    msg.textContent = !message ? '' : 'trial' in message ? tr(message.trial) : lic(message.lic, { date: message.date !== undefined ? formatDate(message.date) : '' });
     msg.className = `lic-msg ${message?.error ? 'err' : 'ok'}`;
     if (current?.ok) {
       const left = daysLeft(current.license, licenseToday());
@@ -145,12 +191,24 @@ export function startLicenseGate(program: string, productName: string, badgeHost
       badge.classList.toggle('warn', left < 7);
       badge.hidden = false;
     } else badge.hidden = true;
+    bar.hidden = !trialOn();
+    if (trial?.ok) {
+      bar.querySelector('span')!.textContent = trial.daysLeft > 1 ? tr('bar', { n: trial.daysLeft }) : tr('barLast');
+      bar.querySelector('button')!.textContent = tr('activate');
+    }
   }
 
   function show(): void {
     overlay.hidden = false;
     render();
-    input.focus();
+    if (!entry.hidden) input.focus();
+  }
+
+  function openCodeEntry(): void {
+    input.value = '';
+    message = null;
+    showEntry = true;
+    show();
   }
 
   closeBtn.addEventListener('click', () => {
@@ -158,11 +216,15 @@ export function startLicenseGate(program: string, productName: string, badgeHost
     overlay.hidden = true;
     message = null;
   });
-  badge.addEventListener('click', () => {
-    input.value = '';
+  badge.addEventListener('click', openCodeEntry);
+  bar.querySelector('button')!.addEventListener('click', openCodeEntry);
+  codeBtn.addEventListener('click', () => {
+    showEntry = true;
     message = null;
-    show();
+    render();
+    input.focus();
   });
+  tryBtn.addEventListener('click', () => void startTrial());
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -172,18 +234,18 @@ export function startLicenseGate(program: string, productName: string, badgeHost
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!key) return;
+    if (!key || entry.hidden) return;
     const code = input.value.trim();
     if (!code) return;
     const c = await checkCode(code, program, key, licenseToday());
     if (!c.ok) {
-      message = { key: c.reason, date: c.reason === 'expired' ? c.license!.expiry : undefined, error: true };
+      message = { lic: c.reason, date: c.reason === 'expired' ? c.license!.expiry : undefined, error: true };
       return render();
     }
     const codes = readJson<string[]>(CODES_KEY, []).filter((x) => x !== c.code);
     writeJson(CODES_KEY, [c.code, ...codes].slice(0, 10));
     current = c;
-    message = { key: 'activated', error: false };
+    message = { lic: 'activated', error: false };
     render();
     window.setTimeout(() => {
       if (current?.ok) overlay.hidden = true;
@@ -191,30 +253,103 @@ export function startLicenseGate(program: string, productName: string, badgeHost
     }, 900);
   });
 
-  async function recheck(): Promise<void> {
-    if (!key) return;
-    const best = await bestStored(program, key, licenseToday());
-    const wasOk = current?.ok;
-    current = best?.ok ? best : null;
-    if (!current) {
-      if (best && !best.ok) message = { key: 'renew', error: true };
-      show();
-    } else if (!wasOk) overlay.hidden = true;
+  /** Kontrolli i një prove: ruan kohën më të madhe të parë, që ora mbrapa të mos e zgjasë. */
+  async function evaluate(signed: SignedTrial): Promise<TrialState | null> {
+    if (!key || !platform) return null;
+    let device: string;
+    try {
+      device = await platform.device();
+    } catch {
+      return null;
+    }
+    const state = await checkTrial(signed, key, device, program, Date.now() / 1000, readJson<number>(TRIAL_SEEN_KEY, 0));
+    if (state.now) writeJson(TRIAL_SEEN_KEY, Math.max(state.now, readJson<number>(TRIAL_SEEN_KEY, 0)));
+    return state;
+  }
+
+  /** Kërkesa te serveri; kthen provën e nënshkruar ose gabimin. */
+  async function ask(): Promise<SignedTrial | 'bad' | 'busy' | 'offline'> {
+    try {
+      const res = await platform!.request();
+      return parseTrialResponse(res.status, res.text);
+    } catch {
+      return 'offline';
+    }
+  }
+
+  async function startTrial(): Promise<void> {
+    if (!platform || busy) return;
+    busy = true;
+    message = { trial: 'starting', error: false };
+    render();
+    const res = await ask();
+    busy = false;
+    if (typeof res === 'string') {
+      message = { trial: res === 'bad' ? 'failed' : res, error: true };
+      return render();
+    }
+    const state = await evaluate(res);
+    if (state?.ok || (state && state.reason === 'expired')) {
+      writeJson(TRIAL_KEY, res);
+      trial = state;
+    }
+    if (state?.ok) {
+      message = { trial: 'started', error: false };
+      render();
+      window.setTimeout(() => {
+        if (!locked()) overlay.hidden = true;
+        message = null;
+        render();
+      }, 900);
+      return;
+    }
+    message = trialOver() ? null : { trial: 'failed', error: true };
+    showEntry = true;
     render();
   }
 
+  let refreshed = false;
+  async function recheck(): Promise<void> {
+    if (!key) return;
+    const best = await bestStored(program, key, licenseToday());
+    const wasLocked = locked();
+    current = best?.ok ? best : null;
+    const stored = platform ? readJson<SignedTrial | null>(TRIAL_KEY, null) : null;
+    trial = stored ? await evaluate(stored) : null;
+    // prova e një pajisjeje ose programi tjetër (p.sh. skedarë të kopjuar) nuk vlen: kërkohet sërish
+    if (trial && !trial.ok && trial.reason !== 'expired') trial = null;
+    if (locked()) {
+      if (best && !best.ok && !trial) message = { lic: 'renew', error: true };
+      show();
+    } else if (wasLocked) overlay.hidden = true;
+    render();
+    // me internet, prova kontrollohet edhe me serverin (koha e serverit e mban të saktë)
+    if (stored && !current?.ok && !refreshed) {
+      refreshed = true;
+      const res = await ask();
+      if (typeof res !== 'string') {
+        const state = await evaluate(res);
+        if (state && (state.ok || state.reason === 'expired')) {
+          writeJson(TRIAL_KEY, res);
+          trial = state;
+          if (locked()) show();
+          render();
+        }
+      }
+    }
+  }
+
   render();
-  input.focus();
   importPublicKey(PUBLIC_KEY)
     .then((k) => {
       key = k;
       return recheck();
     })
     .catch(() => {
-      message = { key: 'noCrypto', error: true };
+      message = { lic: 'noCrypto', error: true };
       render();
     });
-  // licenca mund të skadojë ndërsa programi është i hapur
+  // licenca ose prova mund të skadojë ndërsa programi është i hapur
   window.setInterval(() => void recheck(), 30 * 60_000);
 
   return { refresh: render };

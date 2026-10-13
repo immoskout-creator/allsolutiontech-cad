@@ -11,6 +11,9 @@ const STR = {
   scale: { sq: 'Shkalla', en: 'Scale', it: 'Scala', de: 'Maßstab' },
   date: { sq: 'Data', en: 'Date', it: 'Data', de: 'Datum' },
   sheet: { sq: 'Fleta', en: 'Sheet', it: 'Foglio', de: 'Blatt' },
+  nr: { sq: 'Nr', en: 'No.', it: 'N.', de: 'Nr.' },
+  itemName: { sq: 'Emërtimi', en: 'Name', it: 'Denominazione', de: 'Bezeichnung' },
+  pageOf: { sq: 'Faqe {n} / {total}', en: 'Page {n} / {total}', it: 'Pagina {n} / {total}', de: 'Seite {n} / {total}' },
 } as const;
 
 export type ExportKey = keyof typeof STR;
