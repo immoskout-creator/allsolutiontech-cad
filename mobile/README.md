@@ -19,8 +19,10 @@ node build-apk.mjs --edition all --prepare && npx cap open android   # projekti 
 
 - Prekja: një gisht punon si miu (trokit = klik, tërhiq = tërheqje), gishti i mbajtur = klik i djathtë (mbyll murin
   ose kabllon), dy gishta zhvendosin dhe zmadhojnë pamjen (`src/tools/touch.ts`).
-- Butoni **Përditëso** lart (dhe një kontroll vetë pak pas hapjes) gjen versionin e ri te `android-latest` dhe hap
-  APK-në në shfletues; Android e instalon mbi të vjetrin (`src/io/androidUpdate.ts`).
+- Butoni **Përditëso** (paneli majtas në telefon; edhe një kontroll vetë pak pas hapjes) lexon versionin te
+  `https://allsolutiontech.de/soft/cad-versioni.json` (`{"android": "0.1.6", "windows": "0.1.23"}`) dhe, kur ka
+  version më të ri, hap faqen `https://allsolutiontech.de/soft/#cad`. Pa atë skedar kontrollon `android-latest` në
+  GitHub dhe hap APK-në (`src/io/androidUpdate.ts`).
 - Ruajtja (Ctrl+S, "Ruaj si" PDF/DXF/SVG/PNG/projekt, CSV, raportet): `@capacitor/filesystem` e shkruan skedarin te
   Dokumentet / AllSolutionTech CAD si "<emri> – <data>.<prapashtesa>", pastaj del mesazhi me "Hap / Ndaj"
   (`@capacitor/share`: email, WhatsApp, Drive, printim) dhe "Mbyll". Kur Android-i s'lejon Dokumentet, skedari

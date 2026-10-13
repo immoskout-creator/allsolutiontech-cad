@@ -161,23 +161,26 @@ export interface Doc {
   logo?: ProjectLogo;
   /** Qarqet e kuadrit. */
   circuits?: Circuit[];
-  /** Kartela e projektit (tabela e titullit sipas ISO 7200): kush e bëri, kompania, klienti, data… */
+  /** Kutia e titullit: objekti dhe vizatimi (emri i fletës, nr., rev., data, kontrolloi). */
   info?: TitleInfo;
 }
 
-/** Fushat e kartelës; të gjitha tekst i lirë, bosh kur s'plotësohen. Data bosh = data dhe ora e ruajtjes. */
+/**
+ * Kutia e titullit, pjesa që ruhet me projektin: objekti dhe vizatimi. Firma dhe projektuesi ruhen në program
+ * (src/ui/titleInfo.ts) dhe dalin vetë në çdo projekt. Data bosh = data dhe ora kur ruhet PDF-ja.
+ */
 export interface TitleInfo {
-  company?: string;
-  drawnBy?: string;
-  checkedBy?: string;
-  client?: string;
+  objectName?: string;
   address?: string;
+  client?: string;
+  sheetName?: string;
   drawingNo?: string;
   revision?: string;
   date?: string;
+  checkedBy?: string;
 }
 
-export const TITLE_FIELDS = ['company', 'drawnBy', 'checkedBy', 'client', 'address', 'drawingNo', 'revision', 'date'] as const;
+export const TITLE_FIELDS = ['objectName', 'address', 'client', 'sheetName', 'drawingNo', 'revision', 'date', 'checkedBy'] as const;
 
 /** Logoja si JPEG (data URL) me madhësinë në piksel. */
 export interface ProjectLogo {

@@ -27,3 +27,11 @@ test('përditësimi në Android: gjen APK-në e programit kur publikimi është 
   assert.equal(newerApk(release, '0.1.7', name), null);
   assert.equal(newerApk(release, '0.1.3', 'AllSolutionTech CAD Fire'), null);
 });
+
+test('përditësimi në Android: versioni nga faqja allsolutiontech.de', async () => {
+  const { siteVersion, SITE_PAGE } = await import('../src/io/androidUpdate');
+  assert.equal(siteVersion({ android: '0.1.6', windows: '0.1.23' }), '0.1.6');
+  assert.equal(siteVersion({ android: 'x' }), null);
+  assert.equal(siteVersion(null), null);
+  assert.equal(SITE_PAGE, 'https://allsolutiontech.de/soft/#cad');
+});
