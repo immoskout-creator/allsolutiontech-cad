@@ -28,7 +28,7 @@ node build-apk.mjs --edition all --prepare && npx cap open android   # projekti 
 - "Hap" tregon të gjithë skedarët (zgjedhësi i Android-it s'i njeh .astcad/.dxf si lloje).
 - Raportet në telefon: titulli, faqet dhe butonat majtas, faqja A4 djathtas (në këmbë dhe shtrirë); "Printo" s'punon
   në WebView, prandaj në Android butoni "PDF" ruan PDF-në e planit (me legjendën dhe listën e materialeve).
-- Pamja në telefon (`src/ui/phone.ts`): i shtrirë, paneli majtas (~168 px) me menynë, veglat në rrjetë 4 kolona,
+- Pamja në telefon (`src/ui/phone.ts`): i shtrirë, paneli majtas (~168 px) me menynë, veglat në rrjetë 3 kolona me emrin poshtë ikonës, butonat Libraritë dhe Panelet,
   cilësimet dhe poshtë gjuhën, kontaktin, përditësimin dhe licencën; në këmbë, paneli vetëm me ikona (56 px) që hapet
   me ☰. Tableti mbetet si në kompjuter. Faqja nuk shkon nën shiritin e orës dhe nën Back/Home
   (`adjustMarginsForEdgeToEdge: "force"` dhe ngjyra e shiritave te `native/MainActivity.java`).
