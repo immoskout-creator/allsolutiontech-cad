@@ -20,7 +20,8 @@ import {
 } from '../core/types';
 import { moveEntity, wallMap } from '../core/move';
 import { drawingGeometry } from '../core/drawings';
-import { doorKeepouts, openingFrame, sizeText, wallLength, wallPieces } from '../core/openings';
+import { doorKeepouts, openingFrame, openingSymbol, sizeText, wallLength, wallPieces, type StrokeKind } from '../core/openings';
+import { t } from '../i18n/strings';
 import { areaText, findRoomCached, inKeepout, labelSpot, pointInPolygon, type Keepout } from '../core/rooms';
 import { dist, formatMeters, mid, sub } from '../core/geometry';
 import { HIT_RADIUS_UNITS, symbolDef, unitMm } from '../symbols/library';
@@ -346,125 +347,34 @@ function drawWall(ctx: CanvasRenderingContext2D, vp: Viewport, w: Wall, color: s
   ctx.fill();
 }
 
-/** Dera: krahu dhe harku i hapjes. Dritarja: tri vija (faqet dhe xhami). */
+/** Trashësia (px ekrani) dhe ndërprerja e vijave të simbolit të derës/dritares. */
+const OPENING_STROKE: Record<StrokeKind, { w: number; dash?: number[] }> = {
+  frame: { w: 1.2 },
+  heavy: { w: 2.4 },
+  leaf: { w: 2 },
+  arc: { w: 1, dash: [4, 3] },
+  thin: { w: 1 },
+  hidden: { w: 1, dash: [3, 3] },
+};
+
+/** Dera (kanati, harku, shigjetat) dhe dritarja (faqet, xhami, krahët), nga core/openings.ts. */
 function drawOpening(ctx: CanvasRenderingContext2D, vp: Viewport, o: Opening, w: Wall, color: string): void {
-  const f = openingFrame(o, w);
-  if (!f) return;
-  const at = (base: Vec, k: number) => vp.toScreen({ x: base.x + f.n.x * k, y: base.y + f.n.y * k });
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineCap = 'butt';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  // kufijtë e hapjes, nga njëra faqe e murit te tjetra
-  for (const p of [f.p1, f.p2]) {
-    const a = at(p, -f.half);
-    const b = at(p, f.half);
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-  }
-  if (o.type === 'window') {
-    for (const k of [-f.half, -f.half * 0.2, f.half * 0.2, f.half]) {
-      const a = at(f.p1, k);
-      const b = at(f.p2, k);
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-    }
+  ctx.lineJoin = 'miter';
+  for (const st of openingSymbol(o, w)) {
+    const style = OPENING_STROKE[st.kind];
+    ctx.lineWidth = style.w;
+    ctx.setLineDash(style.dash ?? []);
+    ctx.beginPath();
+    st.pts.forEach((p, i) => {
+      const q = vp.toScreen(p);
+      if (i === 0) ctx.moveTo(q.x, q.y);
+      else ctx.lineTo(q.x, q.y);
+    });
+    if (st.closed) ctx.closePath();
     ctx.stroke();
-  } else {
-    ctx.stroke();
-    const width = Math.hypot(f.p2.x - f.p1.x, f.p2.y - f.p1.y);
-    const leaf = o.leaf ?? 'single';
-    const face = f.half * o.side;
-    if (o.exterior) {
-      // dera e jashtme: pragu nga ana e jashtme dhe kasa e trashë
-      ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      const a = at(f.p1, -face);
-      const b = at(f.p2, -face);
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      for (const p of [f.p1, f.p2]) {
-        const c = at(p, -f.half);
-        const d = at(p, f.half);
-        ctx.moveTo(c.x, c.y);
-        ctx.lineTo(d.x, d.y);
-      }
-      ctx.stroke();
-    }
-    if (leaf === 'single' || leaf === 'double') {
-      // krahu (ose dy krahët) dhe harku i hapjes
-      const leaves: [Vec, Vec, number][] =
-        leaf === 'single'
-          ? [o.hinge === 'a' ? [f.p1, f.p2, width] : [f.p2, f.p1, width]]
-          : [
-              [f.p1, { x: (f.p1.x + f.p2.x) / 2, y: (f.p1.y + f.p2.y) / 2 }, width / 2],
-              [f.p2, { x: (f.p1.x + f.p2.x) / 2, y: (f.p1.y + f.p2.y) / 2 }, width / 2],
-            ];
-      for (const [hingeBase, otherBase, lw] of leaves) {
-        const hinge = { x: hingeBase.x + f.n.x * face, y: hingeBase.y + f.n.y * face };
-        const other = { x: otherBase.x + f.n.x * face, y: otherBase.y + f.n.y * face };
-        const tip = { x: hinge.x + f.n.x * o.side * lw, y: hinge.y + f.n.y * o.side * lw };
-        const H = vp.toScreen(hinge);
-        const T = vp.toScreen(tip);
-        const O = vp.toScreen(other);
-        ctx.lineWidth = 2;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.moveTo(H.x, H.y);
-        ctx.lineTo(T.x, T.y);
-        ctx.stroke();
-        const a0 = Math.atan2(T.y - H.y, T.x - H.x);
-        const a1 = Math.atan2(O.y - H.y, O.x - H.x);
-        let d = a1 - a0;
-        while (d > Math.PI) d -= Math.PI * 2;
-        while (d < -Math.PI) d += Math.PI * 2;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 3]);
-        ctx.beginPath();
-        ctx.arc(H.x, H.y, lw * vp.scale, a0, a0 + d, d < 0);
-        ctx.stroke();
-      }
-    } else {
-      // rrëshqitëse: kanati paralel me murin, nga ana e hapjes, me shigjetën e lëvizjes
-      const panels: [number, number, number][] =
-        leaf === 'sliding'
-          ? [o.hinge === 'a' ? [0, 1, -1] : [0, 1, 1]]
-          : [
-              [0, 0.5, -1],
-              [0.5, 1, 1],
-            ];
-      const off = face + o.side * Math.max(20, f.half * 0.35);
-      const pt = (k: number, across: number) =>
-        vp.toScreen({ x: f.p1.x + (f.p2.x - f.p1.x) * k + f.n.x * across, y: f.p1.y + (f.p2.y - f.p1.y) * k + f.n.y * across });
-      const thick = o.side * Math.max(30, f.half * 0.3);
-      for (const [k0, k1, dir] of panels) {
-        ctx.lineWidth = 1.6;
-        ctx.setLineDash([]);
-        const c = [pt(k0, off), pt(k1, off), pt(k1, off + thick), pt(k0, off + thick)];
-        ctx.beginPath();
-        ctx.moveTo(c[0].x, c[0].y);
-        for (const q of c.slice(1)) ctx.lineTo(q.x, q.y);
-        ctx.closePath();
-        ctx.stroke();
-        // shigjeta drejt anës ku rrëshqet kanati
-        const mid = (k0 + k1) / 2;
-        const span = (k1 - k0) * 0.35;
-        const across = off + thick * 3;
-        const s0 = pt(mid - dir * span, across);
-        const s1 = pt(mid + dir * span, across);
-        const ang = Math.atan2(s1.y - s0.y, s1.x - s0.x);
-        const ah = 6;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(s0.x, s0.y);
-        ctx.lineTo(s1.x, s1.y);
-        ctx.lineTo(s1.x - ah * Math.cos(ang - 0.45), s1.y - ah * Math.sin(ang - 0.45));
-        ctx.moveTo(s1.x, s1.y);
-        ctx.lineTo(s1.x - ah * Math.cos(ang + 0.45), s1.y - ah * Math.sin(ang + 0.45));
-        ctx.stroke();
-      }
-    }
   }
   ctx.restore();
 }
@@ -592,6 +502,9 @@ function drawSymbol(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity
   ctx.restore();
 }
 
+/** Madhësia e numrave të shkallëve dhe e shënimit LART në letër, mm. */
+const STAIR_TEXT = { number: 1.6, info: 2 };
+
 /** Trashësia e vijave të vizatimeve, mm letre. */
 const DRAW_LINE_MM = 0.35;
 
@@ -643,6 +556,30 @@ function drawDrawing(ctx: CanvasRenderingContext2D, vp: Viewport, e: Pick<Drawin
     ctx.lineTo(tip.x - Math.cos(ang + 0.4) * head, tip.y - Math.sin(ang + 0.4) * head);
     ctx.closePath();
     ctx.fill();
+    // "LART" dhe masat (numri × ngritja/shkelja) para fillimit të shigjetës
+    const textPx = STAIR_TEXT.info * paperPx;
+    if (textPx >= 6 && g.info) {
+      const dir = Math.atan2(p0.y - pts[1].y, p0.x - pts[1].x);
+      const gap = head * 0.6 + textPx * 0.4;
+      const cx = p0.x + Math.cos(dir) * gap;
+      const cy = p0.y + Math.sin(dir) * gap;
+      const across = Math.abs(Math.cos(dir)) > 0.7;
+      ctx.font = `600 ${Math.min(textPx, 30)}px "IBM Plex Sans", system-ui, sans-serif`;
+      ctx.textAlign = across ? (Math.cos(dir) > 0 ? 'left' : 'right') : 'center';
+      ctx.textBaseline = across ? 'middle' : Math.sin(dir) > 0 ? 'top' : 'bottom';
+      ctx.fillText(`${t('stairUp')} ${g.info}`, cx, cy);
+    }
+  }
+  // numrat e shkallëve
+  const numPx = STAIR_TEXT.number * paperPx;
+  if (g.labels?.length && numPx >= 6) {
+    ctx.font = `500 ${Math.min(numPx, 24)}px "IBM Plex Mono", ui-monospace, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const l of g.labels) {
+      const q = vp.toScreen(l.p);
+      ctx.fillText(l.text, q.x, q.y);
+    }
   }
   ctx.restore();
 }

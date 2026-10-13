@@ -1,5 +1,7 @@
 import { calcAll, cableRunLength, cableText } from './circuits';
-import { isCable, isSymbol, type CircuitKind, type Doc, type Vec } from './types';
+import { isCable, isDrawing, isOpening, isSymbol, type CircuitKind, type Doc, type Vec, type WindowSash } from './types';
+import { DEFAULT_STAIR, type StairType } from './drawings';
+import { doorKind, openingHeight, type DoorKind } from './openings';
 import { allSymbols, type SymbolDef } from '../symbols/library';
 import { cableTypeOf, isSystemKind, type SystemKind } from './systems';
 import { cameraModel, recorderModel } from './coverage';
@@ -42,11 +44,58 @@ export interface ExtraLine {
   qty: number;
 }
 
+/** Dyert dhe dritaret sipas llojit dhe masave (gjerësi × lartësi, mm). */
+export interface OpeningLine {
+  type: 'door' | 'window';
+  /** Dera: lloji (një/dy kanate, rrëshqitëse, palosëse, brenda murit, hyrëse). Dritarja: krahët. */
+  kind: DoorKind | WindowSash;
+  width: number;
+  height: number;
+  qty: number;
+}
+
+/** Shkallët sipas modelit, gjerësisë dhe numrit të shkallëve. */
+export interface StairLine {
+  type: StairType;
+  width: number;
+  steps: number;
+  qty: number;
+}
+
 export interface Materials {
   symbols: SymbolLine[];
   cables: CableLine[];
   breakers: BreakerLine[];
   extras: ExtraLine[];
+  openings: OpeningLine[];
+  stairs: StairLine[];
+}
+
+/** Dyert, dritaret dhe shkallët e planit, të grupuara: dyert para dritareve, nga më e ngushta. */
+export function buildingLines(doc: Doc): { openings: OpeningLine[]; stairs: StairLine[] } {
+  const om = new Map<string, OpeningLine>();
+  for (const o of doc.entities) {
+    if (!isOpening(o)) continue;
+    const kind = o.type === 'door' ? doorKind(o) : (o.sash ?? 'fixed');
+    const height = openingHeight(o);
+    const key = `${o.type}:${kind}:${o.width}:${height}`;
+    const line = om.get(key) ?? { type: o.type, kind, width: o.width, height, qty: 0 };
+    line.qty++;
+    om.set(key, line);
+  }
+  const sm = new Map<string, StairLine>();
+  for (const d of doc.entities) {
+    if (!isDrawing(d) || d.shape !== 'stair') continue;
+    const st = d.stair ?? DEFAULT_STAIR;
+    const key = `${st.type}:${st.width}:${st.steps}`;
+    const line = sm.get(key) ?? { type: st.type, width: st.width, steps: st.steps, qty: 0 };
+    line.qty++;
+    sm.set(key, line);
+  }
+  return {
+    openings: [...om.values()].sort((a, b) => (a.type === b.type ? 0 : a.type === 'door' ? -1 : 1) || a.width - b.width || a.height - b.height || String(a.kind).localeCompare(String(b.kind))),
+    stairs: [...sm.values()],
+  };
 }
 
 /** Lakorja e siguresës: B për ndriçim e priza, C për pajisjet me rrymë ndezjeje. */
@@ -121,7 +170,7 @@ export function materialList(doc: Doc, centers: Map<string, Vec>): Materials {
   }
   const breakers = [...brMap.values()].sort((a, b) => a.phases - b.phases || a.amps - b.amps || a.curve.localeCompare(b.curve));
 
-  return { symbols: usedSymbols(doc), cables: cableLines, breakers, extras: [...extras.values()] };
+  return { symbols: usedSymbols(doc), cables: cableLines, breakers, extras: [...extras.values()], ...buildingLines(doc) };
 }
 
 /** Përshkrimi i kabllos pa gjuhë: "3×2.5 mm²". */

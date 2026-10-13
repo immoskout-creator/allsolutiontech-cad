@@ -104,14 +104,22 @@ export interface Opening {
   side: 1 | -1;
   /** Ku janë menteshat: te skaji nga a ose nga b. Te dera rrëshqitëse: nga cila anë hapet. */
   hinge: 'a' | 'b';
-  /** Lloji i derës: me një kanat (pa të), me dy kanate, rrëshqitëse me një ose dy kanate. */
+  /** Lloji i derës: me një kanat (pa të), me dy kanate, rrëshqitëse, palosëse, rrëshqitëse brenda murit. */
   leaf?: DoorLeaf;
   /** Derë e jashtme (hyrje): kasë e fortë dhe prag. */
   exterior?: boolean;
+  /** Dera me dy kanate: 'third' = kanatet 1/3 dhe 2/3 (i ngushti nga ana e menteshave `hinge`); pa të = të barabartë. */
+  split?: 'third';
+  /** Këndi i hapjes së kanatit në plan, gradë (pa të: 90). */
+  angle?: number;
+  /** Dritarja: fikse (pa të), me një ose dy krahë që hapen nga ana `side`. */
+  sash?: WindowSash;
 }
 
-export type DoorLeaf = 'single' | 'double' | 'sliding' | 'sliding2';
-export const DOOR_LEAVES: DoorLeaf[] = ['single', 'double', 'sliding', 'sliding2'];
+export type DoorLeaf = 'single' | 'double' | 'sliding' | 'sliding2' | 'folding' | 'pocket';
+export const DOOR_LEAVES: DoorLeaf[] = ['single', 'double', 'sliding', 'sliding2', 'folding', 'pocket'];
+export type WindowSash = 'fixed' | 'single' | 'double';
+export const WINDOW_SASHES: WindowSash[] = ['fixed', 'single', 'double'];
 
 /** Dhomë: emri dhe pika e etiketës; kontura dhe m² llogariten nga muret përreth. */
 export interface Room {

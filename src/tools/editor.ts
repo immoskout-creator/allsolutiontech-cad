@@ -15,6 +15,7 @@ import {
   WALL_LAYER,
   type Cable,
   type DoorLeaf,
+  type WindowSash,
   type Drawing,
   type Opening,
   type Room,
@@ -23,9 +24,9 @@ import {
   type Wall,
 } from '../core/types';
 import { moveEntity, wallMap } from '../core/move';
-import { DEFAULT_SILL, doorKeepouts, openingFrame, placeOnWall } from '../core/openings';
+import { DEFAULT_SILL, DEFAULT_SWING_ANGLE, doorKeepouts, openingFrame, placeOnWall } from '../core/openings';
 import { findRoom, labelSpot, pointInPolygon } from '../core/rooms';
-import { drawingGeometry, drawingPoints, type DrawShape, type StairParams } from '../core/drawings';
+import { drawingGeometry, drawingPoints, fitStair, type DrawShape, type StairParams } from '../core/drawings';
 import { t } from '../i18n/strings';
 import {
   add,
@@ -49,7 +50,7 @@ import { AIM_HANDLE_PX } from '../view/renderer';
 import type { Overlay, SnapKind } from '../view/renderer';
 import type { Viewport } from '../view/viewport';
 
-export type ToolId = 'select' | 'wall' | 'pan' | 'symbol' | 'door' | 'window' | 'room' | 'cable' | 'draw';
+export type ToolId = 'select' | 'wall' | 'pan' | 'symbol' | 'door' | 'window' | 'room' | 'cable' | 'draw' | 'stair';
 
 export interface Settings {
   snap: boolean;
@@ -68,6 +69,11 @@ export interface Settings {
   /** Lloji i dyerve të reja dhe nëse janë dyer të jashtme. */
   doorLeaf: DoorLeaf;
   doorExterior: boolean;
+  /** Dera me dy kanate: të barabartë ose 1/3–2/3; këndi i hapjes në plan, gradë. */
+  doorSplit: 'equal' | 'third';
+  doorAngle: number;
+  /** Krahët e dritareve të reja. */
+  windowSash: WindowSash;
   /** Lartësia e mureve të reja, mm. */
   wallHeight: number;
   /** Forma e vizatimit të ri dhe parametrat e shkallëve të reja. */
@@ -297,7 +303,7 @@ export class Editor {
         else this.setTool('select');
         return;
       }
-      if (this.tool === 'draw') {
+      if (this.isDrawTool) {
         if (this.drawStart) this.endChain();
         else this.setTool('select');
         return;
@@ -307,7 +313,7 @@ export class Editor {
     }
     if (button !== 0) return;
 
-    if (this.tool === 'draw') {
+    if (this.isDrawTool) {
       const { p } = this.snapPoint(screen, this.drawStart);
       if (!this.drawStart) {
         this.drawStart = p;
@@ -408,7 +414,7 @@ export class Editor {
 
     this.overlay.snap = undefined;
     this.snapKind = 'none';
-    if (this.tool === 'draw' && d?.kind !== 'pan') {
+    if (this.isDrawTool && d?.kind !== 'pan') {
       const s = this.snapPoint(screen, this.drawStart);
       this.cursorWorld = s.p;
       this.snapKind = s.kind;
@@ -528,13 +534,27 @@ export class Editor {
 
   // ---- vizatimet dhe shkallët ----
 
+  /** Vegla Vizato dhe vegla Shkallë vendosin të dyja një vizatim me dy klikime. */
+  get isDrawTool(): boolean {
+    return this.tool === 'draw' || this.tool === 'stair';
+  }
+
+  /**
+   * Vizatimi që del nga dy pikat. Te shkalla, klikimi i dytë jep drejtimin (rrotullimin); gjatësia del nga
+   * numri i shkallëve × thellësia (te spiralja klikimi i dytë jep rrezen).
+   */
   private drawSpec(a: Vec, b: Vec): Pick<Drawing, 'shape' | 'a' | 'b' | 'fill' | 'stair'> {
+    if (this.tool === 'stair') {
+      const fit = fitStair(a, b, this.settings.stair);
+      return { shape: 'stair', a, b: fit.b, stair: { ...fit.stair } };
+    }
     const shape = this.settings.drawShape;
     return shape === 'stair' ? { shape, a, b, stair: { ...this.settings.stair } } : { shape, a, b, fill: this.settings.drawFill || undefined };
   }
 
   private addDrawing(a: Vec, b: Vec): void {
     const e: Drawing = { id: newId('v'), kind: 'draw', layer: DRAW_LAYER, ...this.drawSpec(a, b) };
+    if (e.shape === 'stair' && same(e.a, e.b)) return;
     if (!e.fill) delete e.fill;
     this.store.commit((doc) => {
       doc.entities.push(e);
@@ -648,6 +668,9 @@ export class Editor {
     if (type === 'window') o.sill = DEFAULT_SILL;
     if (type === 'door' && this.settings.doorLeaf !== 'single') o.leaf = this.settings.doorLeaf;
     if (type === 'door' && this.settings.doorExterior) o.exterior = true;
+    if (type === 'door' && this.settings.doorLeaf === 'double' && this.settings.doorSplit === 'third') o.split = 'third';
+    if (this.settings.doorAngle !== DEFAULT_SWING_ANGLE && (type === 'door' || this.settings.windowSash !== 'fixed')) o.angle = this.settings.doorAngle;
+    if (type === 'window' && this.settings.windowSash !== 'fixed') o.sash = this.settings.windowSash;
     return o;
   }
 
@@ -774,7 +797,7 @@ export class Editor {
     }
     if (e.key === 'Escape') {
       if (this.chainStart || this.cablePts.length || this.drawStart) this.endChain();
-      else if (this.tool === 'symbol' || this.isPlacingOpening || this.tool === 'room' || this.tool === 'cable' || this.tool === 'draw') this.setTool('select');
+      else if (this.tool === 'symbol' || this.isPlacingOpening || this.tool === 'room' || this.tool === 'cable' || this.isDrawTool) this.setTool('select');
       else this.store.setSelection([]);
       return true;
     }

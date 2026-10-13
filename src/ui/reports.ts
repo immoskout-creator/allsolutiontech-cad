@@ -103,6 +103,24 @@ export function materialRows(m: Materials): MaterialRow[] {
       })),
     ...m.breakers.map((b) => ({ group: t('groupBreakers'), code: breakerSpec(b), name: t('breakerName', { v: breakerSpec(b) }), qty: b.qty, unit: t('unitPcs') })),
   ];
+  // dyert, dritaret dhe shkallët: lloji, gjerësia dhe sasia
+  const cm = (mm: number) => String(Math.round(mm / 10));
+  for (const o of m.openings)
+    rows.push({
+      group: t('groupOpenings'),
+      code: `${o.type === 'door' ? 'D' : 'W'} ${cm(o.width)}/${cm(o.height)}`,
+      name: `${t(o.type)} · ${t((o.type === 'door' ? `leaf_${o.kind}` : `sash_${o.kind}`) as 'leaf_single')} · ${cm(o.width)}/${cm(o.height)} cm`,
+      qty: o.qty,
+      unit: t('unitPcs'),
+    });
+  for (const s of m.stairs)
+    rows.push({
+      group: t('groupStairs'),
+      code: `ST ${cm(s.width)} · ${s.steps}`,
+      name: `${t('shape_stair')} · ${t(`stair_${s.type}`)} · ${cm(s.width)} cm · ${s.steps} ${t('stairStepsShort').toLowerCase()}`,
+      qty: s.qty,
+      unit: t('unitPcs'),
+    });
   for (const sys of SYSTEM_KINDS) {
     const group = t(SYSTEM_TITLE[sys]);
     for (const s of m.symbols) if (systemOf(s.def) === sys) rows.push({ group, code: s.def.code, name: lineName(s.def, s.model), qty: s.qty, unit: t('unitPcs'), def: s.def });

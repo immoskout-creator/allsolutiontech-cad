@@ -20,7 +20,7 @@ test('Vizatimet: katrori merr brinjën më të gjatë, rrethi ka rrezen a–b', 
 
 test('Shkallët: shkalla e drejtë ka aq vija sa shkallë, të gjitha modelet kanë shigjetë', () => {
   const g = stairGeometry({ x: 0, y: 0 }, { x: 4000, y: 0 }, { type: 'straight', width: 1000, steps: 16, turn: 1 });
-  assert.equal(g.paths.length, 1 + 15);
+  assert.equal(g.paths.length, 1 + 15 + 1); // konturi, 15 vija, vija e prerjes
   assert.equal(g.arrow?.length, 2);
   for (const type of STAIR_TYPES) {
     const s = stairGeometry({ x: 0, y: 0 }, { x: 3000, y: 0 }, { type, width: 900, steps: 14, turn: 1 });
