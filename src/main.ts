@@ -17,7 +17,7 @@ import { fileName, loadAutosave, readFile, saveData, saveFile, serialize, writeA
 import { docToSvg } from './io/svg';
 import { docToPng } from './io/png';
 import { docToDxf } from './io/dxf';
-import { docToPdf, type LegendItem, type MaterialPdf } from './io/pdf';
+import { docToPdf, docsToPdf, type LegendItem, type MaterialPdf } from './io/pdf';
 import { materialList, usedSymbols } from './core/materials';
 import { ex } from './io/exportStrings';
 import { mergeSymbols, parseLibrary, serializeLibrary, toSymbolDef } from './symbols/custom';
@@ -39,6 +39,9 @@ import { startLicenseGate } from './license/gate';
 import { lic } from './license/strings';
 import { CATEGORIES, VOLTS, allSymbols, categoryLibrary, categoryName, setCustomSymbols, symbolDef, symbolName, symbolSvg, symbolVolt, type CategoryId, type LibraryId, type SymbolDef, type Volt } from './symbols/library';
 import { normAngle } from './symbols/place';
+import { moveToMeasure, placementOf } from './core/measure';
+import { BUILTIN_VIEWS, VIEW_GROUPS, allViews, applyView, docWithView, groupOn, hiddenGroups, setGroup, type SavedView, type ViewGroup } from './core/views';
+import { ms } from './i18n/measureStrings';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -489,6 +492,7 @@ function toggleChip(id: string, key: 'snap' | 'grid' | 'ortho'): void {
   editor.settings[key] = !editor.settings[key];
   $(id).setAttribute('aria-pressed', String(editor.settings[key]));
   scheduleRender();
+  if (key === 'grid') renderLayers();
 }
 $('chipSnap').addEventListener('click', () => toggleChip('chipSnap', 'snap'));
 $('chipGrid').addEventListener('click', () => toggleChip('chipGrid', 'grid'));
@@ -774,7 +778,7 @@ async function exportData(fmt: SaveFormat): Promise<string | Uint8Array<ArrayBuf
   if (fmt === 'dxf') return docToDxf(doc);
   if (fmt === 'svg') return docToSvg(doc);
   if (fmt === 'png') return docToPng(doc);
-  return docToPdf(doc, {
+  const page = {
     title: doc.name,
     product: productName(),
     date: nowStamp(),
@@ -782,7 +786,14 @@ async function exportData(fmt: SaveFormat): Promise<string | Uint8Array<ArrayBuf
     box: titleBox(doc),
     legend: pdfLegend(doc),
     materials: pdfMaterials(doc),
+  };
+  const views = pdfView === 'all' ? allViews(doc) : allViews(doc).filter((v) => v.id === pdfView);
+  if (!views.length) return docToPdf(doc, page);
+  const docs = views.map((v) => {
+    const d = docWithView(doc, v.hidden);
+    return { doc: d, name: viewName(v), legend: pdfLegend(d) };
   });
+  return docsToPdf(docs, { ...page, legend: undefined });
 }
 
 /** Faqja 2 e PDF-së: e njëjta listë si te Raportet → Lista e materialeve. */
@@ -809,7 +820,20 @@ function pdfLegend(doc: Doc): LegendItem[] {
   }));
 }
 
-const askTitleBox = () => openTitleBox(store, { cancel: t('cancel'), save: t('save'), ok: ex('savePdf') });
+/** Pamja e PDF-së: 'current' = si në ekran, 'all' = të gjitha pamjet në një PDF, ose id e një pamjeje. */
+let pdfView = 'current';
+const askTitleBox = () =>
+  openTitleBox(
+    store,
+    { cancel: t('cancel'), save: t('save'), ok: ex('savePdf') },
+    {
+      html: `<label class="field" for="tiPdfView"><span>${esc(ms('pdfView'))}</span><select id="tiPdfView">
+        <option value="current">${esc(ms('pdfViewCurrent'))}</option>
+        ${allViews(store.doc).map((v) => `<option value="${esc(v.id)}">${esc(viewName(v))}</option>`).join('')}
+        <option value="all">${esc(ms('pdfViewAll'))}</option></select></label>`,
+      onSubmit: (root) => void (pdfView = root.querySelector<HTMLSelectElement>('#tiPdfView')?.value ?? 'current'),
+    },
+  );
 
 /** Ruan projektin ose planin në formatin e zgjedhur; emri pa prapashtesë. */
 async function saveAs(fmt: SaveFormat, base: string): Promise<void> {
@@ -1128,6 +1152,21 @@ function emergencyFields(s: SymbolEntity): string {
     ${c?.tooFar ? `<p class="warn-text">${esc(t('warnSignFar', { v: fmt(sign!.distance, 0) }))}</p>` : ''}`;
 }
 
+/** Dritarja e masave: lartësia nga toka dhe nga tavani, largësia nga muri majtas/djathtas (ose lart/poshtë për elementet e lira). */
+function measureFields(s: SymbolEntity, def: SymbolDef): string {
+  const p = placementOf(s, store.doc);
+  const hasHeight = def.mount === 'wall' || def.detector || def.cover || def.emergency;
+  const hVal = s.height ?? (def.mount === 'wall' ? def.height : def.emergency ? EM_HEIGHT_CM : DETECTOR_HEIGHT_CM);
+  const heightCells = hasHeight
+    ? `${numField('propHeight', ms('mFloor'), hVal ?? '')}${numField('propCeil', ms('mCeiling'), hVal === undefined ? '' : p.room - hVal)}`
+    : `<div class="field">${esc(ms('mFloor'))}<span class="static">${esc(t('ceiling'))}</span></div>`;
+  const opt = (id: string, key: 'mLeft' | 'mRight' | 'mTop' | 'mBottom', v: number | null) => (v === null ? '' : numField(id, ms(key), v));
+  const sides = `${opt('propLeft', 'mLeft', p.left)}${opt('propRight', 'mRight', p.right)}${p.onWall ? '' : `${opt('propTop', 'mTop', p.top)}${opt('propBottom', 'mBottom', p.bottom)}`}`;
+  return `<div class="prop-sec"><b>${esc(ms('measures'))}</b><span class="muted">${esc(ms('mRoom', { v: p.room }))}</span></div>
+    <div class="prop-grid">${heightCells}${sides}</div>
+    <p class="muted small">${esc(sides ? ms(p.onWall ? 'mHint' : 'mFreeHint') : ms('mNoRoom'))}</p>`;
+}
+
 const numField = (id: string, label: string, value: number | string, step = '1') =>
   `<label class="field" for="${id}">${esc(label)}<input id="${id}" class="num" type="number" step="${step}" value="${value}"></label>`;
 
@@ -1180,10 +1219,10 @@ function renderProps(): void {
       <div class="prop-head" style="--tile-color:${TILE_COLORS[def.layer] ?? '#9CC5FF'}">${symbolSvg(def)}
         <div><b>${esc(symName(def))}</b><span>${def.code} · ${esc(layerName(s.layer, s.layer))}</span></div></div>
       <div class="prop-grid">
-        ${def.mount === 'wall' || def.detector || def.cover || def.emergency ? numField('propHeight', t('heightCm'), s.height ?? (def.mount === 'wall' ? '' : def.emergency ? EM_HEIGHT_CM : DETECTOR_HEIGHT_CM)) : `<div class="field">${esc(t('heightCm'))}<span class="static">${esc(t('ceiling'))}</span></div>`}
         ${numField('propPower', t('powerW'), s.power ?? '')}
         ${numField('propAngle', t('rotation'), normAngle(s.angle - 270), '90')}
       </div>
+      ${measureFields(s, def)}
       ${cameraFields(s)}
       ${recorderFields(s)}
       ${detectorFields(s)}
@@ -1202,6 +1241,13 @@ function renderProps(): void {
         update<SymbolEntity>(s.id, (x) => fn(x, v));
       });
     onNum('propHeight', (x, v) => (v === undefined ? delete x.height : (x.height = Math.max(0, Math.round(v)))));
+    // nga tavani: lartësia = lartësia e dhomës − masa
+    onNum('propCeil', (x, v) => v !== undefined && (x.height = Math.max(0, Math.round(placementOf(x, store.doc).room - v))));
+    for (const [id, key] of [['propLeft', 'left'], ['propRight', 'right'], ['propTop', 'top'], ['propBottom', 'bottom']] as const)
+      onNum(id, (x, v) => {
+        const p = v === undefined ? null : moveToMeasure(x, store.doc, key, Math.max(0, v));
+        if (p) x.pos = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
+      });
     onNum('propPower', (x, v) => (v === undefined ? delete x.power : (x.power = Math.max(0, Math.round(v)))));
     onNum('propAngle', (x, v) => v !== undefined && (x.angle = normAngle(v + 270)));
     // kamera: bosh = vlera standarde e simbolit
@@ -1702,13 +1748,78 @@ const LOCK =
 const UNLOCK =
   '<svg class="ic" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 7.5-2"></path></svg>';
 
+const GROUP_KEY: Record<ViewGroup, Parameters<typeof ms>[0]> = {
+  walls: 'grp_walls', elements: 'grp_elements', cables: 'grp_cables', dims: 'grp_dims', coverage: 'grp_coverage', texts: 'grp_texts', grid: 'grp_grid',
+};
+const viewName = (v: SavedView) => (v.name || ms(`view_${v.id}` as Parameters<typeof ms>[0]));
+const sameSet = (a: ViewGroup[], b: ViewGroup[]) => a.length === b.length && a.every((g) => b.includes(g));
+
+/** Hap/mbyll një grup me sy; rrjeta është cilësim i programit, të tjerat ruhen me projektin. */
+function toggleGroup(g: ViewGroup, on = !groupOn(store.doc, g, editor.settings.grid)): void {
+  if (g === 'grid') {
+    if (editor.settings.grid !== on) toggleChip('chipGrid', 'grid');
+    layersKey = '';
+    renderLayers();
+    return;
+  }
+  store.commit((d) => setGroup(d, g, on));
+}
+
+function useView(v: SavedView): void {
+  if (editor.settings.grid === v.hidden.includes('grid')) toggleChip('chipGrid', 'grid');
+  store.commit((d) => applyView(d, v.hidden));
+  layersKey = '';
+  renderLayers();
+}
+
+/** Dritare e vogël për një emër (window.prompt nuk punon në programin e instaluar). */
+function askText(title: string, label: string): Promise<string | null> {
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `<form class="modal-box" role="dialog" aria-modal="true"><h2>${esc(title)}</h2>
+    <label class="field"><span>${esc(label)}</span><input type="text" maxlength="60" required></label>
+    <div class="modal-actions"><button class="btn" type="button" data-cancel>${esc(t('cancel'))}</button><button class="btn btn-primary" type="submit">${esc(t('save'))}</button></div></form>`;
+  const input = modal.querySelector('input')!;
+  return new Promise((resolve) => {
+    const close = (v: string | null) => {
+      modal.remove();
+      resolve(v);
+    };
+    modal.querySelector('[data-cancel]')!.addEventListener('click', () => close(null));
+    modal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        close(null);
+      }
+    });
+    modal.querySelector('form')!.addEventListener('submit', (e) => {
+      e.preventDefault();
+      close(input.value.trim() || null);
+    });
+    document.body.appendChild(modal);
+    input.focus();
+  });
+}
+
 let layersKey = '';
 function renderLayers(): void {
   const counts = new Map<string, number>();
   for (const e of store.doc.entities) counts.set(e.layer, (counts.get(e.layer) ?? 0) + 1);
-  const key = JSON.stringify([getLang(), store.doc.layers, [...counts]]);
+  const key = JSON.stringify([getLang(), store.doc.layers, [...counts], store.doc.viewOff, store.doc.views, editor.settings.grid]);
   if (key === layersKey) return;
   layersKey = key;
+  const grid = editor.settings.grid;
+  $('layerGroups').innerHTML = VIEW_GROUPS.map((g) => {
+    const on = groupOn(store.doc, g, grid);
+    const name = esc(ms(GROUP_KEY[g]));
+    return `<li class="${on ? '' : 'off'}" data-group="${g}"><button class="icon-btn" type="button" data-group="${g}" aria-pressed="${on}" aria-label="${esc(t(on ? 'hide' : 'show'))} ${name}">${on ? EYE : EYE_OFF}</button><span class="name">${name}</span></li>`;
+  }).join('');
+  const hidden = hiddenGroups(store.doc, grid);
+  $('views').innerHTML = `<span class="views-title">${esc(ms('views'))}</span>${allViews(store.doc)
+    .map((v) => `<button class="chip" type="button" data-view="${esc(v.id)}" aria-pressed="${sameSet(v.hidden, hidden)}">${esc(viewName(v))}${BUILTIN_VIEWS.some((b) => b.id === v.id) ? '' : `<span class="x" data-del="${esc(v.id)}" role="button" aria-label="${esc(ms('viewDelete', { name: v.name }))}">×</span>`}</button>`)
+    .join('')}<button class="chip" type="button" id="btnSaveView">+ ${esc(ms('viewSave'))}</button>`;
+  $('viewHint').textContent = ms('viewHint');
+  $('layerDetailsTitle').textContent = ms('layerDetails');
   $('layers').innerHTML = store.doc.layers
     .map((l, i) => {
       const name = esc(layerName(l.id, l.name));
@@ -1722,6 +1833,32 @@ function renderLayers(): void {
     })
     .join('');
 }
+$('layerGroups').addEventListener('click', (e) => {
+  const li = (e.target as HTMLElement).closest<HTMLElement>('[data-group]');
+  if (li) toggleGroup(li.dataset.group as ViewGroup);
+});
+$('views').addEventListener('click', (e) => {
+  const el = e.target as HTMLElement;
+  const del = el.closest<HTMLElement>('[data-del]')?.dataset.del;
+  if (del) {
+    store.commit((d) => {
+      d.views = (d.views ?? []).filter((v) => v.id !== del);
+      if (!d.views.length) delete d.views;
+    });
+    return;
+  }
+  if (el.closest('#btnSaveView')) {
+    void askText(ms('viewSave'), ms('viewName')).then((name) => {
+      if (!name) return;
+      const hidden = hiddenGroups(store.doc, editor.settings.grid);
+      store.commit((d) => void (d.views = [...(d.views ?? []).filter((v) => v.name !== name), { id: `v${Date.now().toString(36)}`, name: name.slice(0, 60), hidden }]));
+    });
+    return;
+  }
+  const id = el.closest<HTMLElement>('[data-view]')?.dataset.view;
+  const v = allViews(store.doc).find((x) => x.id === id);
+  if (v) useView(v);
+});
 $('layers').addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest('button');
   if (!btn) return;

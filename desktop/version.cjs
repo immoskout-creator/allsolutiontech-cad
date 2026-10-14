@@ -23,7 +23,7 @@ const installerName = (editionName) => `${editionName.replace(/\s+/g, '-')}-Setu
 
 /**
  * Përditësimi vetëm nga faqja jonë: versioni i publikuar lexohet te VERSION_URL
- * ({"produkti":"allsolutiontech-cad","windows":"0.1.24","android":"0.1.7","faqja":"…"}) dhe butoni hap
+ * ({"produkti":"allsolutiontech-cad","windows":"0.1.25","android":"0.1.8","faqja":"…"}) dhe butoni hap
  * gjithmonë DOWNLOAD_PAGE (e shkruar këtu, jo ajo e JSON-it). Programi nuk shkarkon asgjë vetë.
  */
 const VERSION_URL = 'https://allsolutiontech.de/soft/cad/versioni.json';

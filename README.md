@@ -21,6 +21,12 @@ Program 2D për projektimin e instalimeve elektrike në shtëpi. Vetëm 2D.
 - Vegla **Dhomë** (`M`): kliko brenda një dhome të mbyllur me mure. Programi e gjen konturën vetë dhe llogarit sipërfaqen neto (pa trashësinë e mureve) dhe perimetrin. Kur muret ndryshojnë, m² përditësohen vetë.
 - Paneli "Dhomat" liston çdo dhomë me m² dhe totalin.
 
+## Masat në cm, kuotat zinxhir dhe shtresat me "sy"
+- **Masat (cm)** te Vetitë e çdo elementi (prizë, çelës, kuti, sensor, kamerë…): "Lartësia nga toka", "Nga tavani" (nga lartësia e dhomës, d.m.th. e murit), "Nga muri majtas" dhe "Nga muri djathtas" (parë nga dhoma drejt murit, nga cepi i brendshëm). Shkruan njërën, tjetra llogaritet dhe elementi lëviz vetë përgjatë murit. Elementet e lira (në tavan) kanë largësinë nga muret majtas/djathtas dhe lart/poshtë në plan (`src/core/measure.ts`).
+- **Në plan dhe në eksport**: te çdo element në mur etiketa e lartësisë `h 30`, `h 110`; jashtë çdo muri me elemente kuota zinxhir paralel me murin, me vizë te cepat, te çdo element dhe te skajet e dyerve/dritareve, distancat në cm nga cepi në cep, dhe vijë me pika nga elementi te kuota. Kuotat përditësohen vetë kur lëviz elementi; tekstet që s'nxënë kalojnë në rreshtin tjetër. Kuota e plotë e murit shtyhet më jashtë.
+- **Shtresat me sy** (paneli "Shtresat"): Muret dhe dyert · Prizat/çelësat/elementet · Kabllot · Masat (kuotat + h) · Zonat e mbulimit · Tekstet · Rrjeta. Ajo që mbyllet nuk del as në printim, as në PDF/DXF/SVG/PNG. Poshtë tyre "Shtresat një nga një" për kontroll të hollësishëm dhe kyçjen.
+- **Pamjet**: "Plani i plotë", "Plani i masave" (pa kabllo, pa rrjetë, pa zona) dhe "Plani i kabllove" (pa masa), plus pamje të lira me emër (ruhen me projektin, `src/core/views.ts`). Te "Ruaj si → PDF" zgjidhet pamja: ajo aktuale, një pamje e ruajtur, ose të gjitha pamjet në një PDF me shumë faqe (një faqe për pamje, me emrin e pamjes te kutia e titullit).
+
 ## Qarqet dhe kabllot
 Paneli **Qarqet** krijon qarqet e kuadrit (Q1, Q2…), me lloj (ndriçim, priza, pajisje), furnizim njëfazor ose trefazor dhe ngjyrë. Qarku aktiv merr simbolet e reja dhe kabllot e vizatuara me veglën **Kabllo** (K); simbolet ekzistuese lidhen nga vetitë, edhe disa njëherësh.
 - Për çdo qark llogariten fuqia, rryma Ib, siguresa, kablloja (3×1.5, 3×2.5 … ose 5× për trefazorin), gjatësia me zbritjet në mur dhe rënia e tensionit (IEC 60364, bakër PVC në tub, metoda B2; 3% ndriçim, 5% të tjerat). Kablloja trashet vetë kur rënia del mbi kufi.
