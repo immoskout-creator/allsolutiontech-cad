@@ -21,7 +21,7 @@ node build-apk.mjs --edition all --prepare && npx cap open android   # projekti 
   ose kabllon), dy gishta zhvendosin dhe zmadhojnë pamjen (`src/tools/touch.ts`).
 - Butoni **Përditëso** (paneli majtas në telefon; edhe një kontroll vetë pak pas hapjes) lexon versionin te
   `https://allsolutiontech.de/soft/cad/versioni.json`
-  (`{"produkti":"allsolutiontech-cad","windows":"0.1.24","android":"0.1.7","faqja":"https://allsolutiontech.de/soft/#cad"}`)
+  (`{"produkti":"allsolutiontech-cad","windows":"0.1.25","android":"0.1.8","faqja":"https://allsolutiontech.de/soft/#cad"}`)
   dhe, kur ka version më të ri, hap vetëm faqen `https://allsolutiontech.de/soft/#cad` në shfletues. Programi nuk
   shkarkon asgjë vetë; kur s'lexohet skedari del "S'u kontrollua dot – provo më vonë" (`src/io/androidUpdate.ts`).
 - Ruajtja (Ctrl+S, "Ruaj si" PDF/DXF/SVG/PNG/projekt, CSV, raportet): `@capacitor/filesystem` e shkruan skedarin te
