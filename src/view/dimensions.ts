@@ -33,9 +33,9 @@ export function dimText(mm: number): string {
 
 /**
  * Një kuotë për çdo mur, nga ana e jashtme e planit (larg qendrës së tij),
- * në largësi `offset` mm letre nga faqja e murit.
+ * në largësi `offset` mm letre nga faqja e murit (plus `extra` kur muri ka edhe kuotë zinxhir).
  */
-export function wallDimensions(walls: Wall[], scale: number): Dimension[] {
+export function wallDimensions(walls: Wall[], scale: number, extra?: Map<string, number>): Dimension[] {
   if (walls.length === 0) return [];
   let cx = 0;
   let cy = 0;
@@ -56,7 +56,7 @@ export function wallDimensions(walls: Wall[], scale: number): Dimension[] {
     const mx = (w.a.x + w.b.x) / 2 - cx;
     const my = (w.a.y + w.b.y) / 2 - cy;
     if (mx * n.x + my * n.y < 0) n = { x: -n.x, y: -n.y };
-    const off = w.thickness / 2 + DIM_PAPER.offset * scale;
+    const off = w.thickness / 2 + (DIM_PAPER.offset + (extra?.get(w.id) ?? 0)) * scale;
     out.push({
       a: w.a,
       b: w.b,

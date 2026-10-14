@@ -27,6 +27,7 @@ import { dist, formatMeters, mid, sub } from '../core/geometry';
 import { HIT_RADIUS_UNITS, symbolDef, unitMm } from '../symbols/library';
 import { screenRotation, symbolCenter, symbolHitMm } from '../symbols/place';
 import { DIM_PAPER, dimText, scaleBarLength, wallDimensions } from './dimensions';
+import { CHAIN_PAPER, chainDimensions, heightLabel, type Chain } from '../core/measure';
 import type { Viewport } from './viewport';
 
 export type SnapKind = 'endpoint' | 'midpoint' | 'grid' | 'wall' | 'symbol' | 'none';
@@ -123,6 +124,10 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   for (const o of all.filter(isOpening)) openingsOf.set(o.wall, [...(openingsOf.get(o.wall) ?? []), o]);
   const wallById = new Map(walls.map((w) => [w.id, w]));
   const paperPx = st.doc.scale * vp.scale;
+  // grupet e mbyllura me "sy" që nuk janë shtresa
+  const off = new Set(st.doc.viewOff ?? []);
+  const showTexts = !off.has('texts');
+  const showCoverage = !off.has('coverage');
 
   // dhomat: ngjyrë e lehtë për atë nën kursor, të zgjedhurën dhe atë që po shtohet
   for (const e of visible) {
@@ -150,7 +155,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     if (st.selection.has(e.id)) color = COLORS.selected;
     else if (ov.hoverId === e.id) color = COLORS.wallHover;
     drawOpening(ctx, vp, e, w, color);
-    drawOpeningLabel(ctx, vp, e, w, color, paperPx);
+    if (showTexts) drawOpeningLabel(ctx, vp, e, w, color, paperPx);
   }
   if (ov.openingPreview) {
     const w = wallById.get(ov.openingPreview.wall);
@@ -173,12 +178,18 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
   if (ov.drawPreview) drawDrawing(ctx, vp, ov.drawPreview, COLORS.selected, paperPx, true);
 
   if (!hidden.has(DIM_LAYER) && (st.only === undefined || st.only === DIM_LAYER)) {
-    drawDimensions(ctx, vp, shown.filter(isWall), st.doc.scale, colorOf.get(DIM_LAYER) ?? COLORS.label);
+    const dimColor = colorOf.get(DIM_LAYER) ?? COLORS.label;
+    // kuotat zinxhir te muret me elemente; kuota e plotë e murit shtyhet më jashtë
+    const chains = chainDimensions({ ...st.doc, entities: all }, st.doc.scale, { symbols: shown.filter(isSymbol), openings: shown.filter(isOpening) });
+    const extra = new Map(chains.filter((c) => c.sameSide).map((c) => [c.wall, CHAIN_PAPER.row * (c.rows + 1)]));
+    drawDimensions(ctx, vp, shown.filter(isWall), st.doc.scale, dimColor, extra);
+    for (const c of chains) drawChain(ctx, vp, c, st.doc.scale, dimColor);
+    for (const e of shown) if (isSymbol(e)) drawHeightLabel(ctx, vp, e, unit, paperPx, dimColor);
   }
 
   const keepouts = doorKeepouts(st.doc.entities.filter(isOpening), walls);
   for (const e of visible) {
-    if (!isRoom(e)) continue;
+    if (!isRoom(e) || !showTexts) continue;
     const shape = findRoomCached(walls, e.pos);
     const color = st.selection.has(e.id) ? COLORS.selected : (colorOf.get(e.layer) ?? COLORS.label);
     // etiketa që bie mbi harkun e një dere zhvendoset te pika më e lirë e dhomës
@@ -195,12 +206,12 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     let color = c?.color ?? colorOf.get(e.layer) ?? COLORS.wall;
     if (st.selection.has(e.id)) color = COLORS.selected;
     drawCable(ctx, vp, e.points, color, ov.hoverId === e.id && !st.selection.has(e.id) ? cableW + 1.5 : cableW, false);
-    if (c) drawCableTag(ctx, vp, e.points, c.name, color, paperPx);
+    if (c && showTexts) drawCableTag(ctx, vp, e.points, c.name, color, paperPx);
   }
   if (ov.cablePreview && ov.cablePreview.length >= 2) drawCable(ctx, vp, ov.cablePreview, COLORS.selected, cableW, true);
 
   // pjesët e dhomave që nuk i mbulon asnjë detektor zjarri
-  if (!st.print && visible.some((e) => isSymbol(e) && (symbolDef(e.symbol)?.detector || symbolDef(e.symbol)?.beam))) {
+  if (!st.print && showCoverage && visible.some((e) => isSymbol(e) && (symbolDef(e.symbol)?.detector || symbolDef(e.symbol)?.beam))) {
     const fire = checkFireCached(st.doc);
     const cell = GRID_MM * vp.scale;
     ctx.save();
@@ -212,7 +223,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     ctx.restore();
   }
   // pjesët e dhomave nën 0.5 lux në emergjencë
-  if (!st.print && visible.some((e) => isSymbol(e) && symbolDef(e.symbol)?.emergency)) {
+  if (!st.print && showCoverage && visible.some((e) => isSymbol(e) && symbolDef(e.symbol)?.emergency)) {
     const cell = EM_GRID_MM * vp.scale;
     ctx.save();
     ctx.fillStyle = 'rgba(220, 38, 38, 0.28)';
@@ -225,7 +236,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
 
   // zona e kamerave dhe e detektorëve të zjarrit, nën simbolet
   for (const e of visible) {
-    if (!isSymbol(e)) continue;
+    if (!isSymbol(e) || !showCoverage) continue;
     const cov = symbolCoverage(ov.aim?.id === e.id ? { ...e, pan: ov.aim.pan } : e, unit);
     if (!cov) continue;
     // detektori mbulon vetëm dhomën e vet: rrethi pritet te muret e saj
@@ -239,7 +250,7 @@ export function render(ctx: CanvasRenderingContext2D, vp: Viewport, st: RenderSt
     if (st.selection.has(e.id)) color = COLORS.selected;
     drawSymbol(ctx, vp, e, color, 1, unit);
     const c = e.circuit ? circuitOf.get(e.circuit) : undefined;
-    if (c) drawSymbolTag(ctx, vp, e, c.name, c.color, unit, paperPx);
+    if (c && showTexts) drawSymbolTag(ctx, vp, e, c.name, c.color, unit, paperPx);
     if (ov.hoverId === e.id && !st.selection.has(e.id)) drawSymbolRing(ctx, vp, e, COLORS.wallHover, true, unit);
     // detektor që shkel rregullat e vendosjes: unazë e kuqe
     if (st.print) continue;
@@ -725,7 +736,7 @@ function drawSymbolRing(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEn
   ctx.restore();
 }
 
-function drawDimensions(ctx: CanvasRenderingContext2D, vp: Viewport, walls: Wall[], scale: number, color: string): void {
+function drawDimensions(ctx: CanvasRenderingContext2D, vp: Viewport, walls: Wall[], scale: number, color: string, extra?: Map<string, number>): void {
   const paperPx = scale * vp.scale; // piksela për 1 mm letre
   const textPx = DIM_PAPER.text * paperPx;
   if (textPx < 5) return; // shumë larg: kuotat do bëheshin njolla
@@ -738,7 +749,7 @@ function drawDimensions(ctx: CanvasRenderingContext2D, vp: Viewport, walls: Wall
   ctx.font = `500 ${Math.min(textPx, 40)}px "IBM Plex Mono", ui-monospace, monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  for (const d of wallDimensions(walls, scale)) {
+  for (const d of wallDimensions(walls, scale, extra)) {
     const a = vp.toScreen(d.a);
     const b = vp.toScreen(d.b);
     const da = vp.toScreen(d.da);
@@ -785,6 +796,101 @@ function drawDimensions(ctx: CanvasRenderingContext2D, vp: Viewport, walls: Wall
     ctx.fillText(text, 0, side * paperPx * 0.8);
     ctx.restore();
   }
+  ctx.restore();
+}
+
+/** Kuota zinxhir: vija paralel me murin, viza te cepat/hapjet, vija me pika te elementet dhe distancat në cm. */
+function drawChain(ctx: CanvasRenderingContext2D, vp: Viewport, c: Chain, scale: number, color: string): void {
+  const paperPx = scale * vp.scale;
+  const textPx = CHAIN_PAPER.text * paperPx;
+  if (textPx < 5) return;
+  const tick = DIM_PAPER.tick * paperPx;
+  const over = DIM_PAPER.overshoot * paperPx;
+  const a = vp.toScreen(c.a);
+  const b = vp.toScreen(c.b);
+  const span = Math.hypot(b.x - a.x, b.y - a.y);
+  if (span < 1) return;
+  const ux = (b.x - a.x) / span, uy = (b.y - a.y) / span;
+  const nx = c.n.x, ny = -c.n.y;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(a.x - ux * over, a.y - uy * over);
+  ctx.lineTo(b.x + ux * over, b.y + uy * over);
+  for (const t of c.ticks) {
+    if (t.dotted) continue;
+    const p = vp.toScreen(t.p), q = vp.toScreen(t.q);
+    const len = Math.hypot(q.x - p.x, q.y - p.y);
+    const gap = Math.min(1.5 * paperPx, len);
+    ctx.moveTo(p.x + nx * gap, p.y + ny * gap);
+    ctx.lineTo(q.x + nx * over, q.y + ny * over);
+  }
+  for (const t of c.ticks) {
+    const q = vp.toScreen(t.q);
+    const tx = (ux + nx) * (tick / Math.SQRT2), ty = (uy + ny) * (tick / Math.SQRT2);
+    ctx.moveTo(q.x - tx, q.y - ty);
+    ctx.lineTo(q.x + tx, q.y + ty);
+  }
+  ctx.stroke();
+  // vija me pika nga elementi te vija e kuotës
+  ctx.setLineDash([2, 3]);
+  ctx.beginPath();
+  for (const t of c.ticks) {
+    if (!t.dotted) continue;
+    const p = vp.toScreen(t.p), q = vp.toScreen(t.q);
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(q.x + nx * over, q.y + ny * over);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // distancat: mbi vijë, nga jashtë; ato që s'nxënë në rreshtin tjetër, me vijë të hollë te mesi
+  let ang = Math.atan2(uy, ux);
+  if (ang > Math.PI / 2 || ang <= -Math.PI / 2) ang += Math.PI;
+  const side = Math.sin(ang) * nx - Math.cos(ang) * ny > 0 ? -1 : 1;
+  ctx.font = `500 ${Math.min(textPx, 36)}px "IBM Plex Mono", ui-monospace, monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = side < 0 ? 'bottom' : 'top';
+  const rowPx = CHAIN_PAPER.row * paperPx;
+  for (const tx of c.texts) {
+    const m = vp.toScreen(tx.at);
+    const an = vp.toScreen(tx.anchor);
+    const lift = tx.row * rowPx;
+    const x = m.x + nx * lift, y = m.y + ny * lift;
+    if (tx.row > 0) {
+      ctx.beginPath();
+      ctx.moveTo(an.x, an.y);
+      ctx.lineTo(x - nx * paperPx * 0.3, y - ny * paperPx * 0.3);
+      ctx.stroke();
+    }
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ang);
+    ctx.fillText(tx.text, 0, side * paperPx * 0.6);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/** Etiketa "h 30" pranë elementit në mur, nga ana e dhomës. */
+function drawHeightLabel(ctx: CanvasRenderingContext2D, vp: Viewport, e: SymbolEntity, unit: number, paperPx: number, color: string): void {
+  const text = heightLabel(e);
+  const px = CHAIN_PAPER.label * paperPx;
+  if (!text || px < 5) return;
+  const a = (e.angle * Math.PI) / 180;
+  const r = HIT_RADIUS_UNITS * unit * 1.25;
+  const c = symbolCenter(e, unit);
+  const p = vp.toScreen({ x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r });
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.font = `600 ${Math.min(px, 26)}px "IBM Plex Mono", ui-monospace, monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.strokeText(text, p.x, p.y);
+  ctx.fillText(text, p.x, p.y);
   ctx.restore();
 }
 

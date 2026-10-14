@@ -3,6 +3,7 @@
 import type { CustomSymbol } from '../symbols/custom';
 import { EDITION } from '../edition';
 import type { DrawShape, StairParams } from './drawings';
+import type { FlagGroup, SavedView } from './views';
 
 export interface Vec {
   x: number;
@@ -171,6 +172,10 @@ export interface Doc {
   circuits?: Circuit[];
   /** Kutia e titullit: objekti dhe vizatimi (emri i fletës, nr., rev., data, kontrolloi). */
   info?: TitleInfo;
+  /** Grupet e mbyllura me "sy" që nuk janë shtresa (zonat e mbulimit, tekstet). */
+  viewOff?: FlagGroup[];
+  /** Pamjet e ruajtura me emër (p.sh. "Plani i masave"). */
+  views?: SavedView[];
 }
 
 /**

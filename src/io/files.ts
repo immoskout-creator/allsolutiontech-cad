@@ -4,6 +4,7 @@ import { DRAW_SHAPES, STAIR_TYPES, type DrawShape } from '../core/drawings';
 import { EDITION } from '../edition';
 import { parseCustomSymbols, toSymbolDef } from '../symbols/custom';
 import { saveAndroidData } from './androidFiles';
+import { parseViewOff, parseViews } from '../core/views';
 
 const AUTOSAVE_KEY = EDITION.storage;
 
@@ -107,6 +108,8 @@ export function parse(text: string): Doc {
     ...(circuits.length ? { circuits } : {}),
     ...(parseLogo(d.logo) ? { logo: parseLogo(d.logo)! } : {}),
     ...(parseInfo(d.info) ? { info: parseInfo(d.info)! } : {}),
+    ...(parseViewOff(d.viewOff).length ? { viewOff: parseViewOff(d.viewOff) } : {}),
+    ...(parseViews(d.views).length ? { views: parseViews(d.views) } : {}),
   };
 }
 

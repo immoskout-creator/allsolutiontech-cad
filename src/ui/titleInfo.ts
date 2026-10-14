@@ -145,7 +145,13 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
  * Dritarja "Kutia e titullit". okLabel: teksti i butonit kryesor (p.sh. "Ruaj PDF" kur hapet nga Ruaj si → PDF).
  * Kthen true kur u ruajt, false kur u mbyll pa ruajtur.
  */
-export function openTitleBox(store: Store, labels: { cancel: string; save: string; ok?: string }): Promise<boolean> {
+/** Fusha shtesë në fund të dritares (p.sh. zgjedhja e pamjes së PDF-së): HTML dhe leximi i vlerës kur ruhet. */
+export interface TitleBoxExtra {
+  html: string;
+  onSubmit: (root: HTMLElement) => void;
+}
+
+export function openTitleBox(store: Store, labels: { cancel: string; save: string; ok?: string }, extra?: TitleBoxExtra): Promise<boolean> {
   document.getElementById('titleInfoModal')?.remove();
   const profile = loadProfile();
   const info = store.doc.info ?? {};
@@ -183,6 +189,7 @@ export function openTitleBox(store: Store, labels: { cancel: string; save: strin
       <label class="field" for="ti_date"><span>${esc(ex('date'))}</span><span class="ti-date"><input id="ti_date" type="text" maxlength="60" value="${esc(info.date ?? '')}" placeholder="${esc(nowStamp())}"><button class="btn" type="button" id="tiNow">${esc(ex('now'))}</button></span></label>
       ${input('ti_checkedBy', 'checkedBy', info.checkedBy, ` (${esc(ex('optional'))})`)}
     </div></fieldset>
+    ${extra?.html ?? ''}
     <p class="muted small">${esc(ex('tbHint'))}</p>
     <div class="modal-actions"><button class="btn" type="button" id="tiCancel">${esc(labels.cancel)}</button>
     <button class="btn btn-primary" type="submit">${esc(labels.ok ?? labels.save)}</button></div></form>`;
@@ -273,6 +280,7 @@ export function openTitleBox(store: Store, labels: { cancel: string; save: strin
     });
     modal.querySelector('form')!.addEventListener('submit', (e) => {
       e.preventDefault();
+      extra?.onSubmit(modal);
       const val = (id: string) => $<HTMLInputElement>(id).value;
       saveProfile(
         parseProfile({

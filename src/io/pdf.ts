@@ -163,16 +163,51 @@ function pdfImages(page: PageInput): PdfImages {
 
 /** Përmbajtja e faqes (operatorët PDF) dhe madhësia e fletës. */
 export function drawingToPdf(drawing: Drawing, docScale: number, page: PageInput): string {
-  const b = drawing.bounds ?? { minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
-  const allLegend = page.legend ?? [];
+  return drawingsToPdf([{ drawing, legend: page.legend }], docScale, page);
+}
+
+/** Një plan për faqe (p.sh. një për çdo pamje: "Plani i masave", "Plani i kabllove"), pastaj legjenda e vazhduar dhe materialet. */
+export interface PdfPlan {
+  drawing: Drawing;
+  legend?: LegendItem[];
+  /** Emri i pamjes, shtohet te emri i fletës në kutinë e titullit. */
+  view?: string;
+}
+
+export function drawingsToPdf(plans: PdfPlan[], docScale: number, page: PageInput): string {
   const imgs = pdfImages(page);
   const titleH = titleBlock(null, 0, 0, page, imgs, ['', ''], '');
-  const { paper, scale } = chooseSheet(b.maxX - b.minX, b.maxY - b.minY, docScale, allLegend.length, titleH);
+  const sheets = plans.map((p) => {
+    const b = p.drawing.bounds ?? { minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
+    const legend = p.legend ?? [];
+    const sheet = chooseSheet(b.maxX - b.minX, b.maxY - b.minY, docScale, legend.length, titleH);
+    return { ...sheet, rest: legend.slice(legendPerColumn(sheet.paper.h, titleH)) };
+  });
+  // legjenda që s'nxë: nga plani me më shumë simbole (të tjerët janë pjesë e saj)
+  const legendRest = sheets.reduce((m, x) => (x.rest.length > m.length ? x.rest : m), [] as LegendItem[]);
+  const matPages = materialPages(page, titleH);
+  const legPages = legendPages(legendRest, titleH);
+  const total = plans.length + legPages.length + matPages.length;
+  const pages = [
+    ...plans.map((p, i) => planPage(p, sheets[i], page, imgs, titleH, i + 1, total)),
+    ...legPages.map((items, i) => ({ W: A4P.w, H: A4P.h, content: legendPage(page, items, i + 1 + plans.length, total, imgs, titleH) })),
+    ...matPages.map((rows, i) => ({ W: A4P.w, H: A4P.h, content: materialPage(page, rows, i + 1 + plans.length + legPages.length, total, imgs, titleH) })),
+  ];
+  return writePdf(pages, page, imgs);
+}
+
+function planPage(plan: PdfPlan, sheet: Sheet, page0: PageInput, imgs: PdfImages, titleH: number, no: number, total: number): { W: number; H: number; content: string } {
+  const drawing = plan.drawing;
+  const dr = page0.box?.drawing;
+  const sheetName = plan.view ? (dr?.sheet ? `${dr.sheet} · ${plan.view}` : plan.view) : dr?.sheet;
+  const page: PageInput = plan.view ? { ...page0, box: { ...page0.box, drawing: { ...dr, sheet: sheetName } } } : page0;
+  const b = drawing.bounds ?? { minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
+  const allLegend = plan.legend ?? [];
+  const { paper, scale } = sheet;
   const W = paper.w, H = paper.h;
   const ops: string[] = [];
   const legW = legendWidth(allLegend.length);
   const legend = allLegend.slice(0, legendPerColumn(H, titleH));
-  const legendRest = allLegend.slice(legend.length);
 
   // vizatimi në qendër të hapësirës mbi tabelën e titullit, majtas legjendës
   const areaX = MARGIN + PAD, areaY = MARGIN + PAD + titleH;
@@ -237,16 +272,8 @@ export function drawingToPdf(drawing: Drawing, docScale: number, page: PageInput
     legend.forEach((it, i) => legendRow(ops, it, x0, top - LEG_HEAD - i * LEG_ROW - LEG_ROW / 2, LEG_W));
   }
 
-  const matPages = materialPages(page, titleH);
-  const legPages = legendPages(legendRest, titleH);
-  const total = 1 + legPages.length + matPages.length;
-  titleBlock(ops, W, H, page, imgs, [page.labels.scale, `1:${scale}`], `${paper.name}${total > 1 ? `  1/${total}` : ''}`);
-  const pages = [
-    { W, H, content: ops.join('\n') },
-    ...legPages.map((items, i) => ({ W: A4P.w, H: A4P.h, content: legendPage(page, items, i + 2, total, imgs, titleH) })),
-    ...matPages.map((rows, i) => ({ W: A4P.w, H: A4P.h, content: materialPage(page, rows, i + 2 + legPages.length, total, imgs, titleH) })),
-  ];
-  return writePdf(pages, page, imgs);
+  titleBlock(ops, W, H, page, imgs, [page.labels.scale, `1:${scale}`], `${paper.name}${total > 1 ? `  ${no}/${total}` : ''}`);
+  return { W, H, content: ops.join('\n') };
 }
 
 /** Një rresht legjende (lartësia LEG_ROW) me mesin në yMid: figura, kodi, emri (deri në 2 rreshta) dhe sasia. */
@@ -616,4 +643,11 @@ function jpegBytes(dataUrl: string): string | null {
 /** Plani si skedar PDF. */
 export function docToPdf(doc: Doc, page: PageInput): Uint8Array<ArrayBuffer> {
   return latin1(drawingToPdf(recordDrawing(doc), doc.scale, { ...page, logo: page.logo ?? doc.logo }));
+}
+
+/** Disa pamje të planit në një PDF, një faqe për secilën (dokumentet kanë pamjen e vendosur). */
+export function docsToPdf(views: { doc: Doc; name?: string; legend?: LegendItem[] }[], page: PageInput): Uint8Array<ArrayBuffer> {
+  const doc = views[0].doc;
+  const plans = views.map((v) => ({ drawing: recordDrawing(v.doc), legend: v.legend, view: v.name }));
+  return latin1(drawingsToPdf(plans, doc.scale, { ...page, logo: page.logo ?? doc.logo }));
 }

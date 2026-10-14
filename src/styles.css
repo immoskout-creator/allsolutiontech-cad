@@ -200,6 +200,15 @@ button:disabled { cursor: default; opacity: 0.45; }
 .layers li.off .name { color: #8C95A1; }
 .layers .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
 .layers .name { flex: 1; }
+.layers.groups li { cursor: pointer; }
+.views { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; align-items: center; }
+.views .views-title { width: 100%; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.views .chip { position: relative; }
+.views .chip .x { margin-left: 6px; opacity: .6; }
+.layer-details { margin-top: 6px; }
+.layer-details summary { cursor: pointer; font-size: 12px; color: var(--muted); padding: 4px 0; }
+.prop-sec { display: flex; justify-content: space-between; align-items: baseline; margin: 10px 0 2px; font-size: 12px; }
+.prop-sec b { text-transform: uppercase; letter-spacing: .04em; font-size: 11px; }
 .layers .count { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 .icon-btn {
   width: 32px; height: 32px; border: 0; border-radius: 6px; background: none; color: var(--fg-2);
